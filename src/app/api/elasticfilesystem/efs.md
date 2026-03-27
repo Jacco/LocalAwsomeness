@@ -1,0 +1,12 @@
+DescribeFileSystems
+
+DescribeAccessPoints
+DescribeAccountPreferences
+DescribeBackupPolicy
+DescribeFileSystemPolicy
+DescribeLifecycleConfiguration
+DescribeMountTargets
+DescribeMountTargetSecurityGroups
+DescribeReplicationConfigurations
+DescribeTags
+ListTagsForResource

@@ -1,0 +1,12 @@
+{
+  "settings": {
+    "/ssm/parameter-store/default-parameter-tier": {
+      "SettingId": "/ssm/parameter-store/default-parameter-tier",
+      "SettingValue": "Advanced",
+      "LastModifiedDate": 1767595680555,
+      "LastModifiedUser": "arn:aws:iam::123456789012:role/admin",
+      "ARN": "arn:aws:ssm:eu-central-1:123456789012:servicesetting/ssm/parameter-store/default-parameter-tier",
+      "Status": "Customized"
+    }
+  }
+}

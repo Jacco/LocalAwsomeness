@@ -1,0 +1,22 @@
+[
+  {
+    "id": "867200652830",
+    "name": "TEST",
+    "email": "jaccopk@gmail.com",
+    "joinMethod": "CREATED",
+    "joinedTimestamp": 1765218045663,
+    "requestId": "66e39dd9-4f8a-45be-ac4a-7b1f42b8fa0a",
+    "requestedTimestamp": 1765218045663,
+    "completedTimestamp": 1765218045663
+  },
+  {
+    "id": "123456789012",
+    "name": "HALLO",
+    "email": "jaccopk@gmail.com",
+    "joinMethod": "CREATED",
+    "joinedTimestamp": 1765218045663,
+    "requestId": "66e39dd9-4f8a-45be-ac4a-7b1f42b8fa0a",
+    "requestedTimestamp": 1765218045663,
+    "completedTimestamp": 1765218045663
+  }
+]

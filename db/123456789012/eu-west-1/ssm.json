@@ -1,0 +1,26 @@
+{
+  "parameters": {
+    "jpk": {
+      "DataType": "text",
+      "LastModifiedDate": 1767638041.749,
+      "Name": "jpk",
+      "Selector": "string",
+      "SourceResult": "string",
+      "Type": "string",
+      "Value": "test",
+      "Version": 8,
+      "Tier": "Standard"
+    },
+    "jpk1": {
+      "DataType": "text",
+      "LastModifiedDate": 1767707540.153,
+      "Name": "jpk1",
+      "Selector": "string",
+      "SourceResult": "string",
+      "Type": "string",
+      "Value": "test",
+      "Version": 1,
+      "Tier": "Standard"
+    }
+  }
+}

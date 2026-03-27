@@ -1,0 +1,10 @@
+{
+  "contact": {
+    "City": "test",
+    "FullName": "test",
+    "AddressLine1": "test",
+    "CountryCode": "test",
+    "PhoneNumber": "test",
+    "PostalCode": "test2"
+  }
+}
