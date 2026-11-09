@@ -32,6 +32,40 @@
         }
       },
       "attachedPolicies": []
+    },
+    "TestRole": {
+      "roleName": "TestRole",
+      "roleId": "AROAZB9VE6UOSU79TTM9D",
+      "path": "/service-role/",
+      "arn": "arn:aws:iam::123456789012:role/service-role/TestRole",
+      "createDate": 1794261686440,
+      "assumeRolePolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Principal": {
+              "Service": "lambda.amazonaws.com"
+            },
+            "Action": "sts:AssumeRole"
+          }
+        ]
+      },
+      "description": "Test role description",
+      "maxSessionDuration": 3600,
+      "inlinePolicies": {
+        "S3FullAccess": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": "s3:*",
+              "Resource": "*"
+            }
+          ]
+        }
+      },
+      "attachedPolicies": []
     }
   }
 }

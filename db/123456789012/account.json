@@ -1,10 +1,14 @@
 {
   "contact": {
-    "City": "test",
-    "FullName": "test",
-    "AddressLine1": "test",
-    "CountryCode": "test",
-    "PhoneNumber": "test",
-    "PostalCode": "test2"
+    "FirstName": "John",
+    "LastName": "Doe",
+    "CompanyName": "Acme Corp",
+    "PhoneNumber": "+1-555-0100",
+    "DistrictOrCounty": "California",
+    "City": "San Francisco",
+    "StateOrProvince": "CA",
+    "PostalCode": "94103",
+    "CountryCode": "US",
+    "WebsiteUrl": "https://acme.com"
   }
 }
