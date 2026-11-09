@@ -21,7 +21,7 @@ Tests for core API utility functions that handle request processing, responses, 
 
 **Test Cases:** 22 tests
 
-### 2. **Database Common Utilities Tests** (`src/app/api/db/__tests__/common.ts`)
+### 2. **Database Common Utilities Tests** (`src/app/api/db/__tests__/common.test.ts`)
 Tests for region validation and account verification.
 
 **Coverage:**
@@ -43,7 +43,26 @@ Integration tests for account data persistence and management.
 
 **Test Cases:** 12 tests
 
-### 4. **Integration Tests** (`src/app/api/__tests__/integration.test.ts`)
+### 4. **Database Store Operations Tests** (`src/app/api/db/__tests__/store-operations.test.ts`)
+Comprehensive tests for actual database read/write operations.
+
+**Coverage:**
+- `enableRegion()` - Enable opt-in regions and persist state
+- `disableRegion()` - Disable regions and update storage
+- `listRegions()` - List all regions with correct status
+- `getRegion()` - Retrieve single region status
+- `putContactInformation()` - Store contact information
+- `getContactInformation()` - Retrieve contact information
+- `putAlternateContact()` - Store alternate contacts (BILLING, OPERATIONS, SECURITY)
+- `getAlternateContact()` - Retrieve alternate contacts by type
+- `deleteAlternateContact()` - Delete alternate contacts
+- `putAccountName()` - Update account name in accounts.json
+- Data persistence and cleanup scenarios
+- Multi-account operations
+
+**Test Cases:** 26 tests
+
+### 5. **Integration Tests** (`src/app/api/__tests__/integration.test.ts`)
 End-to-end tests verifying that refactored components work together correctly.
 
 **Coverage:**
@@ -55,6 +74,20 @@ End-to-end tests verifying that refactored components work together correctly.
 - Complex request scenarios
 
 **Test Cases:** 10 tests
+
+## Test Statistics
+
+```
+Test Suites: 5 passed, 5 total
+Tests:       88 passed, 88 total
+Snapshots:   0 total
+```
+
+**Coverage Highlights:**
+- `src/app/api/common.ts` - **100%** coverage
+- `src/app/api/db/common.ts` - **100%** coverage
+- `src/app/api/db/account.ts` - **100%** coverage
+- Integration scenarios - **High** coverage
 
 ## Running Tests
 
@@ -94,17 +127,68 @@ Each test file follows this structure:
 - Verify end-to-end flows
 - Test real-world scenarios
 
-### 3. **Edge Cases**
+### 3. **Database Operation Tests**
+- Verify file I/O operations (read/write)
+- Test data persistence and retrieval
+- Validate data transformations and cleanups
+- Test multi-account isolation
+
+### 4. **Edge Cases**
 - Empty/undefined inputs
 - Invalid data
 - Boundary conditions
 - Error scenarios
+- Data cleanup and consistency
+
+## What Gets Tested
+
+✅ **Request Handling**
+- Principal account extraction
+- Region parsing from authorization headers
+- User ID extraction
+- Multiple authorization formats
+
+✅ **Response Formatting**
+- JSON responses (v1.0 and v1.1)
+- XML responses
+- Error responses with proper headers
+- Empty responses
+
+✅ **Error Handling**
+- AWS error formatting
+- Error type preservation
+- Status codes
+- Generic error wrapping
+
+✅ **Data Validation**
+- Region validation (17 default + 17 opt-in)
+- Account existence checks
+- Contact type validation
+- Invalid contact type rejection
+
+✅ **Database Operations**
+- Region status persistence (ENABLED, DISABLED, ENABLED_BY_DEFAULT)
+- Contact information storage and retrieval
+- Alternate contact CRUD operations for all types
+- Account name updates
+- Data cleanup on empty operations
+- JSON formatting with proper indentation
+- Multi-account data isolation
+- Multiple operations on same account
+
+✅ **Integration Scenarios**
+- Multi-account requests
+- Complex request formats
+- Error propagation
+- Response consistency
+- State persistence across operations
 
 ## Coverage Goals
 
 The test suite currently achieves:
-- **100% coverage** for utility functions (`common.ts`, `db/common.ts`)
+- **100% coverage** on utility functions (`common.ts`, `db/common.ts`, `db/account.ts`)
 - **High coverage** for integration scenarios
+- **Comprehensive coverage** for database operations
 - **Error handling** validated across all response types
 
 ## Continuous Integration
@@ -123,8 +207,10 @@ The test suite ensures that:
 4. ✅ Error handling is consistent
 5. ✅ Region validation works properly
 6. ✅ Account operations are preserved
-7. ✅ Multi-account scenarios are supported
-8. ✅ Edge cases are handled gracefully
+7. ✅ Database operations persist data correctly
+8. ✅ Multi-account scenarios are supported
+9. ✅ Edge cases are handled gracefully
+10. ✅ Data cleanup and persistence work as expected
 
 ## Maintenance
 
@@ -133,3 +219,5 @@ When adding new features or making changes:
 2. Add tests for new functionality
 3. Update this documentation if test structure changes
 4. Aim for 100% coverage on utility/common functions
+5. Add database operation tests for any new data persistence operations
+
