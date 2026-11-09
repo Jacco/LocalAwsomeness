@@ -2,25 +2,50 @@ import { NextResponse } from 'next/server'
 import type { NextFetchEvent, NextRequest } from 'next/server'
 import { SignatureV4 } from '@smithy/signature-v4'
 import { Sha256 } from '@aws-crypto/sha256-js'
-import { readFileSync } from 'fs'
+import { randomUUID } from 'crypto'
+import { findCredential } from './app/api/db/credentials'
+
+function authError(req: NextRequest, code: string, message: string): Response {
+  if (req.headers.get('content-type')?.includes('json')) {
+    return new Response(JSON.stringify({ __type: code, message }), {
+      status: 403,
+      headers: { 'Content-Type': 'application/x-amz-json-1.1', 'x-amzn-errortype': code }
+    })
+  }
+  const xml = `<ErrorResponse><Error><Type>Sender</Type><Code>${code}</Code><Message>${message}</Message></Error><RequestId>${randomUUID()}</RequestId></ErrorResponse>`
+  return new Response(xml, { status: 403, headers: { 'Content-Type': 'text/xml' } })
+}
 
 export async function proxy(req: NextRequest, event: NextFetchEvent) {
   console.log(req.headers)
   
   const requestHeaders = new Headers(req.headers)
+  requestHeaders.delete('x-aws-principal')
+  requestHeaders.delete('x-aws-userid')
   const keyid = req.headers.get('authorization')?.split(' ').at(1)?.split('=').at(-1)?.split('/').at(0)
   const service = req.headers.get('authorization')?.split(' ').at(1)?.split('=').at(-1)?.split('/').at(3)!
   const region = req.headers.get('authorization')?.split(' ').at(1)?.split('=').at(-1)?.split('/').at(2)!
   if (!service) {
-    return NextResponse.next()
+    return NextResponse.next({ request: { headers: requestHeaders } })
   }
-  const tokens: any = JSON.parse(readFileSync('db/tokens.json').toString())
-  const secret = tokens[keyid!]["secret"]
-  requestHeaders.set('x-aws-principal', tokens[keyid!]["role"])
+  const credential = findCredential(keyid!)
+  if (!credential) {
+    return authError(req, 'InvalidClientTokenId', 'The security token included in the request is invalid.')
+  }
+  if (credential.sessionToken) {
+    if (req.headers.get('x-amz-security-token') !== credential.sessionToken) {
+      return authError(req, 'InvalidClientTokenId', 'The security token included in the request is invalid.')
+    }
+    if (credential.expiration !== undefined && credential.expiration < Date.now()) {
+      return authError(req, 'ExpiredToken', 'The security token included in the request is expired')
+    }
+  }
+  requestHeaders.set('x-aws-principal', credential.principal)
+  requestHeaders.set('x-aws-userid', credential.userId)
   const signer = new SignatureV4({
     credentials: {
       accessKeyId: keyid!,
-      secretAccessKey: secret,
+      secretAccessKey: credential.secret,
     },
     service: service,
     region: region,
@@ -51,7 +76,7 @@ export async function proxy(req: NextRequest, event: NextFetchEvent) {
   const actual_sig = req.headers.get('authorization')?.split(' ').at(-1)?.split('=').at(-1)
   if (calculated_sig != actual_sig) {
     console.log('sig mismatch')
-    return NextResponse.error()
+    return authError(req, 'SignatureDoesNotMatch', 'The request signature we calculated does not match the signature you provided. Check your AWS Secret Access Key and signing method.')
   } else {
     // console.log('signatures match')
   }

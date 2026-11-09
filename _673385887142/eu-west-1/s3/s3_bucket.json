@@ -1,0 +1,52 @@
+{
+  "arn:aws:s3:::aws-cloudtrail-logs-673385887142-c3993dc7": {
+    "name": "aws-cloudtrail-logs-673385887142-c3993dc7",
+    "creation_date": "2024-10-30 19:58:08+00:00",
+    "region": "eu-west-1"
+  },
+  "arn:aws:s3:::cdk-hnb659fds-assets-673385887142-eu-west-1": {
+    "name": "cdk-hnb659fds-assets-673385887142-eu-west-1",
+    "creation_date": "2025-11-06 10:24:31+00:00",
+    "region": "eu-west-1"
+  },
+  "arn:aws:s3:::cf-templates-g2ytcaywdaq-eu-west-1": {
+    "name": "cf-templates-g2ytcaywdaq-eu-west-1",
+    "creation_date": "2024-10-30 22:14:58+00:00",
+    "region": "eu-west-1"
+  },
+  "arn:aws:s3:::clearing-redshift-test": {
+    "name": "clearing-redshift-test",
+    "creation_date": "2024-10-30 22:31:45+00:00",
+    "region": "eu-west-1"
+  },
+  "arn:aws:s3:::codepipeline-eu-west-1-935506072769": {
+    "name": "codepipeline-eu-west-1-935506072769",
+    "creation_date": "2024-10-30 22:44:45+00:00",
+    "region": "eu-west-1"
+  },
+  "arn:aws:s3:::config-673385887142": {
+    "name": "config-673385887142",
+    "creation_date": "2024-10-30 22:59:39+00:00",
+    "region": "eu-west-1"
+  },
+  "arn:aws:s3:::config-organization-o-7m9uve1xll": {
+    "name": "config-organization-o-7m9uve1xll",
+    "creation_date": "2024-10-30 23:02:50+00:00",
+    "region": "eu-west-1"
+  },
+  "arn:aws:s3:::jpk-athena": {
+    "name": "jpk-athena",
+    "creation_date": "2024-10-31 03:14:26+00:00",
+    "region": "eu-west-1"
+  },
+  "arn:aws:s3:::jpk-eu-west-1": {
+    "name": "jpk-eu-west-1",
+    "creation_date": "2024-10-31 03:14:26+00:00",
+    "region": "eu-west-1"
+  },
+  "arn:aws:s3:::mwaajpk": {
+    "name": "mwaajpk",
+    "creation_date": "2025-04-12 08:51:01+00:00",
+    "region": "eu-west-1"
+  }
+}

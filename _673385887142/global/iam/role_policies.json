@@ -1,0 +1,1145 @@
+{
+  "adminrole": {},
+  "aws-cdk-app-config-CustomCDKBucketDeployment8693BB-1O4FYA249OK7R": {
+    "CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF": {
+      "RoleName": "aws-cdk-app-config-CustomCDKBucketDeployment8693BB-1O4FYA249OK7R",
+      "PolicyName": "CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF",
+      "PolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Action": [
+              "s3:GetBucket*",
+              "s3:GetObject*",
+              "s3:List*"
+            ],
+            "Resource": [
+              "arn:aws:s3:::cdk-hnb659fds-assets-673385887142-us-east-1/*",
+              "arn:aws:s3:::cdk-hnb659fds-assets-673385887142-us-east-1"
+            ],
+            "Effect": "Allow"
+          },
+          {
+            "Action": [
+              "s3:Abort*",
+              "s3:DeleteObject*",
+              "s3:GetBucket*",
+              "s3:GetObject*",
+              "s3:List*",
+              "s3:PutObject",
+              "s3:PutObjectLegalHold",
+              "s3:PutObjectRetention",
+              "s3:PutObjectTagging",
+              "s3:PutObjectVersionTagging"
+            ],
+            "Resource": [
+              "arn:aws:s3:::config-profile",
+              "arn:aws:s3:::config-profile/*"
+            ],
+            "Effect": "Allow"
+          }
+        ]
+      }
+    }
+  },
+  "aws-cdk-app-config-CustomS3AutoDeleteObjectsCustom-I823KZE4MHJF": {},
+  "aws-cdk-app-config-RoleForAppConfigAlamrsCA573D5E-6VP4NVUWA6K2": {
+    "RoleForAppConfigAlamrsDefaultPolicyCFA8038E": {
+      "RoleName": "aws-cdk-app-config-RoleForAppConfigAlamrsCA573D5E-6VP4NVUWA6K2",
+      "PolicyName": "RoleForAppConfigAlamrsDefaultPolicyCFA8038E",
+      "PolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Action": "cloudwatch:DescribeAlarms",
+            "Resource": "arn:aws:cloudwatch:us-east-1:673385887142:alarm:aws-cdk-app-config-Alarm7103F465-JMT976PO3W64",
+            "Effect": "Allow"
+          }
+        ]
+      }
+    }
+  },
+  "aws-cdk-app-config-S3ProfRetrievalRoleD51314F0-10T7ERAHR6332": {
+    "S3ProfRetrievalRoleDefaultPolicy0460F00B": {
+      "RoleName": "aws-cdk-app-config-S3ProfRetrievalRoleD51314F0-10T7ERAHR6332",
+      "PolicyName": "S3ProfRetrievalRoleDefaultPolicy0460F00B",
+      "PolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Action": [
+              "s3:GetBucket*",
+              "s3:GetObject*",
+              "s3:List*"
+            ],
+            "Resource": [
+              "arn:aws:s3:::config-profile",
+              "arn:aws:s3:::config-profile/test.json"
+            ],
+            "Effect": "Allow"
+          },
+          {
+            "Action": "s3:ListAllMyBuckets",
+            "Resource": "*",
+            "Effect": "Allow"
+          }
+        ]
+      }
+    }
+  },
+  "AWSReservedSSO_AccessToRdsRoot_669fd8f3eac3a64a": {
+    "AwsSSOInlinePolicy": {
+      "RoleName": "AWSReservedSSO_AccessToRdsRoot_669fd8f3eac3a64a",
+      "PolicyName": "AwsSSOInlinePolicy",
+      "PolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Action": "rds-db:connect",
+            "Resource": "arn:aws:rds-db:eu-central-1:843293982833:dbuser:db-5UBHPAVG4KHB3OX2ZH5YI322PM/root"
+          }
+        ]
+      }
+    }
+  },
+  "AWSReservedSSO_AWSAdministratorAccess_ac0e04e41b569666": {},
+  "AWSReservedSSO_AWSOrganizationsFullAccess_e1efdd7c1071fba6": {},
+  "AWSReservedSSO_AWSPowerUserAccess_fe26ae349d5185a0": {},
+  "AWSReservedSSO_AWSReadOnlyAccess_0f8afbb4a35d30d2": {},
+  "AWSReservedSSO_AWSServiceCatalogAdminFullAccess_71f97b5419d727df": {},
+  "AWSReservedSSO_AWSServiceCatalogEndUserAccess_9914815f9d8c3834": {
+    "AwsSSOInlinePolicy": {
+      "RoleName": "AWSReservedSSO_AWSServiceCatalogEndUserAccess_9914815f9d8c3834",
+      "PolicyName": "AwsSSOInlinePolicy",
+      "PolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Sid": "AWSControlTowerAccountFactoryAccess",
+            "Effect": "Allow",
+            "Action": [
+              "sso:GetProfile",
+              "sso:CreateProfile",
+              "sso:UpdateProfile",
+              "sso:AssociateProfile",
+              "sso:CreateApplicationInstance",
+              "sso:GetSSOStatus",
+              "sso:GetTrust",
+              "sso:CreateTrust",
+              "sso:UpdateTrust",
+              "sso:GetPeregrineStatus",
+              "sso:GetApplicationInstance",
+              "sso:ListDirectoryAssociations",
+              "sso:ListPermissionSets",
+              "sso:GetPermissionSet",
+              "sso:ProvisionApplicationInstanceForAWSAccount",
+              "sso:ProvisionApplicationProfileForAWSAccountInstance",
+              "sso:ProvisionSAMLProvider",
+              "sso:ListProfileAssociations",
+              "sso-directory:ListMembersInGroup",
+              "sso-directory:SearchGroups",
+              "sso-directory:SearchGroupsWithGroupName",
+              "sso-directory:SearchUsers",
+              "sso-directory:CreateUser",
+              "sso-directory:DescribeGroups",
+              "sso-directory:DescribeDirectory",
+              "sso-directory:GetUserPoolInfo",
+              "controltower:CreateManagedAccount",
+              "controltower:DescribeManagedAccount",
+              "controltower:DeregisterManagedAccount",
+              "s3:GetObject",
+              "organizations:describeOrganization",
+              "sso:DescribeRegisteredRegions"
+            ],
+            "Resource": "*"
+          }
+        ]
+      }
+    }
+  },
+  "AWSReservedSSO_Billing_927de7899bc12add": {},
+  "cdk-hnb659fds-cfn-exec-role-673385887142-eu-west-2": {},
+  "cdk-hnb659fds-cfn-exec-role-673385887142-us-east-1": {},
+  "cdk-hnb659fds-cfn-exec-role-673385887142-us-east-2": {},
+  "cdk-hnb659fds-deploy-role-673385887142-eu-west-2": {
+    "default": {
+      "RoleName": "cdk-hnb659fds-deploy-role-673385887142-eu-west-2",
+      "PolicyName": "default",
+      "PolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Action": [
+              "cloudformation:CreateChangeSet",
+              "cloudformation:DeleteChangeSet",
+              "cloudformation:DescribeChangeSet",
+              "cloudformation:DescribeStacks",
+              "cloudformation:ExecuteChangeSet",
+              "cloudformation:CreateStack",
+              "cloudformation:UpdateStack"
+            ],
+            "Resource": "*",
+            "Effect": "Allow",
+            "Sid": "CloudFormationPermissions"
+          },
+          {
+            "Condition": {
+              "StringNotEquals": {
+                "s3:ResourceAccount": "673385887142"
+              }
+            },
+            "Action": [
+              "s3:GetObject*",
+              "s3:GetBucket*",
+              "s3:List*",
+              "s3:Abort*",
+              "s3:DeleteObject*",
+              "s3:PutObject*"
+            ],
+            "Resource": "*",
+            "Effect": "Allow",
+            "Sid": "PipelineCrossAccountArtifactsBucket"
+          },
+          {
+            "Condition": {
+              "StringEquals": {
+                "kms:ViaService": "s3.eu-west-2.amazonaws.com"
+              }
+            },
+            "Action": [
+              "kms:Decrypt",
+              "kms:DescribeKey",
+              "kms:Encrypt",
+              "kms:ReEncrypt*",
+              "kms:GenerateDataKey*"
+            ],
+            "Resource": "*",
+            "Effect": "Allow",
+            "Sid": "PipelineCrossAccountArtifactsKey"
+          },
+          {
+            "Action": "iam:PassRole",
+            "Resource": "arn:aws:iam::673385887142:role/cdk-hnb659fds-cfn-exec-role-673385887142-eu-west-2",
+            "Effect": "Allow"
+          },
+          {
+            "Action": [
+              "cloudformation:DescribeStackEvents",
+              "cloudformation:GetTemplate",
+              "cloudformation:DeleteStack",
+              "cloudformation:UpdateTerminationProtection",
+              "sts:GetCallerIdentity",
+              "cloudformation:GetTemplateSummary"
+            ],
+            "Resource": "*",
+            "Effect": "Allow",
+            "Sid": "CliPermissions"
+          },
+          {
+            "Action": [
+              "s3:GetObject*",
+              "s3:GetBucket*",
+              "s3:List*"
+            ],
+            "Resource": [
+              "arn:aws:s3:::cdk-hnb659fds-assets-673385887142-eu-west-2",
+              "arn:aws:s3:::cdk-hnb659fds-assets-673385887142-eu-west-2/*"
+            ],
+            "Effect": "Allow",
+            "Sid": "CliStagingBucket"
+          },
+          {
+            "Action": [
+              "ssm:GetParameter"
+            ],
+            "Resource": [
+              "arn:aws:ssm:eu-west-2:673385887142:parameter/cdk-bootstrap/hnb659fds/version"
+            ],
+            "Effect": "Allow",
+            "Sid": "ReadVersion"
+          }
+        ]
+      }
+    }
+  },
+  "cdk-hnb659fds-deploy-role-673385887142-us-east-1": {
+    "default": {
+      "RoleName": "cdk-hnb659fds-deploy-role-673385887142-us-east-1",
+      "PolicyName": "default",
+      "PolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Action": [
+              "cloudformation:CreateChangeSet",
+              "cloudformation:DeleteChangeSet",
+              "cloudformation:DescribeChangeSet",
+              "cloudformation:DescribeStacks",
+              "cloudformation:ExecuteChangeSet",
+              "cloudformation:CreateStack",
+              "cloudformation:UpdateStack"
+            ],
+            "Resource": "*",
+            "Effect": "Allow",
+            "Sid": "CloudFormationPermissions"
+          },
+          {
+            "Condition": {
+              "StringNotEquals": {
+                "s3:ResourceAccount": "673385887142"
+              }
+            },
+            "Action": [
+              "s3:GetObject*",
+              "s3:GetBucket*",
+              "s3:List*",
+              "s3:Abort*",
+              "s3:DeleteObject*",
+              "s3:PutObject*"
+            ],
+            "Resource": "*",
+            "Effect": "Allow",
+            "Sid": "PipelineCrossAccountArtifactsBucket"
+          },
+          {
+            "Condition": {
+              "StringEquals": {
+                "kms:ViaService": "s3.us-east-1.amazonaws.com"
+              }
+            },
+            "Action": [
+              "kms:Decrypt",
+              "kms:DescribeKey",
+              "kms:Encrypt",
+              "kms:ReEncrypt*",
+              "kms:GenerateDataKey*"
+            ],
+            "Resource": "*",
+            "Effect": "Allow",
+            "Sid": "PipelineCrossAccountArtifactsKey"
+          },
+          {
+            "Action": "iam:PassRole",
+            "Resource": "arn:aws:iam::673385887142:role/cdk-hnb659fds-cfn-exec-role-673385887142-us-east-1",
+            "Effect": "Allow"
+          },
+          {
+            "Action": [
+              "cloudformation:DescribeStackEvents",
+              "cloudformation:GetTemplate",
+              "cloudformation:DeleteStack",
+              "cloudformation:UpdateTerminationProtection",
+              "sts:GetCallerIdentity",
+              "cloudformation:GetTemplateSummary"
+            ],
+            "Resource": "*",
+            "Effect": "Allow",
+            "Sid": "CliPermissions"
+          },
+          {
+            "Action": [
+              "s3:GetObject*",
+              "s3:GetBucket*",
+              "s3:List*"
+            ],
+            "Resource": [
+              "arn:aws:s3:::cdk-hnb659fds-assets-673385887142-us-east-1",
+              "arn:aws:s3:::cdk-hnb659fds-assets-673385887142-us-east-1/*"
+            ],
+            "Effect": "Allow",
+            "Sid": "CliStagingBucket"
+          },
+          {
+            "Action": [
+              "ssm:GetParameter"
+            ],
+            "Resource": [
+              "arn:aws:ssm:us-east-1:673385887142:parameter/cdk-bootstrap/hnb659fds/version"
+            ],
+            "Effect": "Allow",
+            "Sid": "ReadVersion"
+          }
+        ]
+      }
+    }
+  },
+  "cdk-hnb659fds-deploy-role-673385887142-us-east-2": {
+    "default": {
+      "RoleName": "cdk-hnb659fds-deploy-role-673385887142-us-east-2",
+      "PolicyName": "default",
+      "PolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Action": [
+              "cloudformation:CreateChangeSet",
+              "cloudformation:DeleteChangeSet",
+              "cloudformation:DescribeChangeSet",
+              "cloudformation:DescribeStacks",
+              "cloudformation:ExecuteChangeSet",
+              "cloudformation:CreateStack",
+              "cloudformation:UpdateStack"
+            ],
+            "Resource": "*",
+            "Effect": "Allow",
+            "Sid": "CloudFormationPermissions"
+          },
+          {
+            "Condition": {
+              "StringNotEquals": {
+                "s3:ResourceAccount": "673385887142"
+              }
+            },
+            "Action": [
+              "s3:GetObject*",
+              "s3:GetBucket*",
+              "s3:List*",
+              "s3:Abort*",
+              "s3:DeleteObject*",
+              "s3:PutObject*"
+            ],
+            "Resource": "*",
+            "Effect": "Allow",
+            "Sid": "PipelineCrossAccountArtifactsBucket"
+          },
+          {
+            "Condition": {
+              "StringEquals": {
+                "kms:ViaService": "s3.us-east-2.amazonaws.com"
+              }
+            },
+            "Action": [
+              "kms:Decrypt",
+              "kms:DescribeKey",
+              "kms:Encrypt",
+              "kms:ReEncrypt*",
+              "kms:GenerateDataKey*"
+            ],
+            "Resource": "*",
+            "Effect": "Allow",
+            "Sid": "PipelineCrossAccountArtifactsKey"
+          },
+          {
+            "Action": "iam:PassRole",
+            "Resource": "arn:aws:iam::673385887142:role/cdk-hnb659fds-cfn-exec-role-673385887142-us-east-2",
+            "Effect": "Allow"
+          },
+          {
+            "Action": [
+              "cloudformation:DescribeStackEvents",
+              "cloudformation:GetTemplate",
+              "cloudformation:DeleteStack",
+              "cloudformation:UpdateTerminationProtection",
+              "sts:GetCallerIdentity",
+              "cloudformation:GetTemplateSummary"
+            ],
+            "Resource": "*",
+            "Effect": "Allow",
+            "Sid": "CliPermissions"
+          },
+          {
+            "Action": [
+              "s3:GetObject*",
+              "s3:GetBucket*",
+              "s3:List*"
+            ],
+            "Resource": [
+              "arn:aws:s3:::cdk-hnb659fds-assets-673385887142-us-east-2",
+              "arn:aws:s3:::cdk-hnb659fds-assets-673385887142-us-east-2/*"
+            ],
+            "Effect": "Allow",
+            "Sid": "CliStagingBucket"
+          },
+          {
+            "Action": [
+              "ssm:GetParameter"
+            ],
+            "Resource": [
+              "arn:aws:ssm:us-east-2:673385887142:parameter/cdk-bootstrap/hnb659fds/version"
+            ],
+            "Effect": "Allow",
+            "Sid": "ReadVersion"
+          }
+        ]
+      }
+    }
+  },
+  "cdk-hnb659fds-file-publishing-role-673385887142-eu-west-2": {
+    "cdk-hnb659fds-file-publishing-role-default-policy-673385887142-eu-west-2": {
+      "RoleName": "cdk-hnb659fds-file-publishing-role-673385887142-eu-west-2",
+      "PolicyName": "cdk-hnb659fds-file-publishing-role-default-policy-673385887142-eu-west-2",
+      "PolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Action": [
+              "s3:GetObject*",
+              "s3:GetBucket*",
+              "s3:GetEncryptionConfiguration",
+              "s3:List*",
+              "s3:DeleteObject*",
+              "s3:PutObject*",
+              "s3:Abort*"
+            ],
+            "Resource": [
+              "arn:aws:s3:::cdk-hnb659fds-assets-673385887142-eu-west-2",
+              "arn:aws:s3:::cdk-hnb659fds-assets-673385887142-eu-west-2/*"
+            ],
+            "Effect": "Allow"
+          },
+          {
+            "Action": [
+              "kms:Decrypt",
+              "kms:DescribeKey",
+              "kms:Encrypt",
+              "kms:ReEncrypt*",
+              "kms:GenerateDataKey*"
+            ],
+            "Resource": "arn:aws:kms:eu-west-2:673385887142:key/AWS_MANAGED_KEY",
+            "Effect": "Allow"
+          }
+        ]
+      }
+    }
+  },
+  "cdk-hnb659fds-file-publishing-role-673385887142-us-east-1": {
+    "cdk-hnb659fds-file-publishing-role-default-policy-673385887142-us-east-1": {
+      "RoleName": "cdk-hnb659fds-file-publishing-role-673385887142-us-east-1",
+      "PolicyName": "cdk-hnb659fds-file-publishing-role-default-policy-673385887142-us-east-1",
+      "PolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Action": [
+              "s3:GetObject*",
+              "s3:GetBucket*",
+              "s3:GetEncryptionConfiguration",
+              "s3:List*",
+              "s3:DeleteObject*",
+              "s3:PutObject*",
+              "s3:Abort*"
+            ],
+            "Resource": [
+              "arn:aws:s3:::cdk-hnb659fds-assets-673385887142-us-east-1",
+              "arn:aws:s3:::cdk-hnb659fds-assets-673385887142-us-east-1/*"
+            ],
+            "Effect": "Allow"
+          },
+          {
+            "Action": [
+              "kms:Decrypt",
+              "kms:DescribeKey",
+              "kms:Encrypt",
+              "kms:ReEncrypt*",
+              "kms:GenerateDataKey*"
+            ],
+            "Resource": "arn:aws:kms:us-east-1:673385887142:key/AWS_MANAGED_KEY",
+            "Effect": "Allow"
+          }
+        ]
+      }
+    }
+  },
+  "cdk-hnb659fds-file-publishing-role-673385887142-us-east-2": {
+    "cdk-hnb659fds-file-publishing-role-default-policy-673385887142-us-east-2": {
+      "RoleName": "cdk-hnb659fds-file-publishing-role-673385887142-us-east-2",
+      "PolicyName": "cdk-hnb659fds-file-publishing-role-default-policy-673385887142-us-east-2",
+      "PolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Action": [
+              "s3:GetObject*",
+              "s3:GetBucket*",
+              "s3:GetEncryptionConfiguration",
+              "s3:List*",
+              "s3:DeleteObject*",
+              "s3:PutObject*",
+              "s3:Abort*"
+            ],
+            "Resource": [
+              "arn:aws:s3:::cdk-hnb659fds-assets-673385887142-us-east-2",
+              "arn:aws:s3:::cdk-hnb659fds-assets-673385887142-us-east-2/*"
+            ],
+            "Effect": "Allow"
+          },
+          {
+            "Action": [
+              "kms:Decrypt",
+              "kms:DescribeKey",
+              "kms:Encrypt",
+              "kms:ReEncrypt*",
+              "kms:GenerateDataKey*"
+            ],
+            "Resource": "arn:aws:kms:us-east-2:673385887142:key/AWS_MANAGED_KEY",
+            "Effect": "Allow"
+          }
+        ]
+      }
+    }
+  },
+  "cdk-hnb659fds-image-publishing-role-673385887142-eu-west-2": {
+    "cdk-hnb659fds-image-publishing-role-default-policy-673385887142-eu-west-2": {
+      "RoleName": "cdk-hnb659fds-image-publishing-role-673385887142-eu-west-2",
+      "PolicyName": "cdk-hnb659fds-image-publishing-role-default-policy-673385887142-eu-west-2",
+      "PolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Action": [
+              "ecr:PutImage",
+              "ecr:InitiateLayerUpload",
+              "ecr:UploadLayerPart",
+              "ecr:CompleteLayerUpload",
+              "ecr:BatchCheckLayerAvailability",
+              "ecr:DescribeRepositories",
+              "ecr:DescribeImages",
+              "ecr:BatchGetImage",
+              "ecr:GetDownloadUrlForLayer"
+            ],
+            "Resource": "arn:aws:ecr:eu-west-2:673385887142:repository/cdk-hnb659fds-container-assets-673385887142-eu-west-2",
+            "Effect": "Allow"
+          },
+          {
+            "Action": [
+              "ecr:GetAuthorizationToken"
+            ],
+            "Resource": "*",
+            "Effect": "Allow"
+          }
+        ]
+      }
+    }
+  },
+  "cdk-hnb659fds-image-publishing-role-673385887142-us-east-1": {
+    "cdk-hnb659fds-image-publishing-role-default-policy-673385887142-us-east-1": {
+      "RoleName": "cdk-hnb659fds-image-publishing-role-673385887142-us-east-1",
+      "PolicyName": "cdk-hnb659fds-image-publishing-role-default-policy-673385887142-us-east-1",
+      "PolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Action": [
+              "ecr:PutImage",
+              "ecr:InitiateLayerUpload",
+              "ecr:UploadLayerPart",
+              "ecr:CompleteLayerUpload",
+              "ecr:BatchCheckLayerAvailability",
+              "ecr:DescribeRepositories",
+              "ecr:DescribeImages",
+              "ecr:BatchGetImage",
+              "ecr:GetDownloadUrlForLayer"
+            ],
+            "Resource": "arn:aws:ecr:us-east-1:673385887142:repository/cdk-hnb659fds-container-assets-673385887142-us-east-1",
+            "Effect": "Allow"
+          },
+          {
+            "Action": [
+              "ecr:GetAuthorizationToken"
+            ],
+            "Resource": "*",
+            "Effect": "Allow"
+          }
+        ]
+      }
+    }
+  },
+  "cdk-hnb659fds-image-publishing-role-673385887142-us-east-2": {
+    "cdk-hnb659fds-image-publishing-role-default-policy-673385887142-us-east-2": {
+      "RoleName": "cdk-hnb659fds-image-publishing-role-673385887142-us-east-2",
+      "PolicyName": "cdk-hnb659fds-image-publishing-role-default-policy-673385887142-us-east-2",
+      "PolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Action": [
+              "ecr:PutImage",
+              "ecr:InitiateLayerUpload",
+              "ecr:UploadLayerPart",
+              "ecr:CompleteLayerUpload",
+              "ecr:BatchCheckLayerAvailability",
+              "ecr:DescribeRepositories",
+              "ecr:DescribeImages",
+              "ecr:BatchGetImage",
+              "ecr:GetDownloadUrlForLayer"
+            ],
+            "Resource": "arn:aws:ecr:us-east-2:673385887142:repository/cdk-hnb659fds-container-assets-673385887142-us-east-2",
+            "Effect": "Allow"
+          },
+          {
+            "Action": [
+              "ecr:GetAuthorizationToken"
+            ],
+            "Resource": "*",
+            "Effect": "Allow"
+          }
+        ]
+      }
+    }
+  },
+  "cdk-hnb659fds-lookup-role-673385887142-eu-west-2": {
+    "LookupRolePolicy": {
+      "RoleName": "cdk-hnb659fds-lookup-role-673385887142-eu-west-2",
+      "PolicyName": "LookupRolePolicy",
+      "PolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Action": [
+              "kms:Decrypt"
+            ],
+            "Resource": "*",
+            "Effect": "Deny",
+            "Sid": "DontReadSecrets"
+          }
+        ]
+      }
+    }
+  },
+  "cdk-hnb659fds-lookup-role-673385887142-us-east-1": {
+    "LookupRolePolicy": {
+      "RoleName": "cdk-hnb659fds-lookup-role-673385887142-us-east-1",
+      "PolicyName": "LookupRolePolicy",
+      "PolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Action": [
+              "kms:Decrypt"
+            ],
+            "Resource": "*",
+            "Effect": "Deny",
+            "Sid": "DontReadSecrets"
+          }
+        ]
+      }
+    }
+  },
+  "cdk-hnb659fds-lookup-role-673385887142-us-east-2": {
+    "LookupRolePolicy": {
+      "RoleName": "cdk-hnb659fds-lookup-role-673385887142-us-east-2",
+      "PolicyName": "LookupRolePolicy",
+      "PolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Action": [
+              "kms:Decrypt"
+            ],
+            "Resource": "*",
+            "Effect": "Deny",
+            "Sid": "DontReadSecrets"
+          }
+        ]
+      }
+    }
+  },
+  "Cognito_testpoolAuth_Role": {
+    "oneClick_Cognito_testpoolAuth_Role_1664552734141": {
+      "RoleName": "Cognito_testpoolAuth_Role",
+      "PolicyName": "oneClick_Cognito_testpoolAuth_Role_1664552734141",
+      "PolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Action": [
+              "mobileanalytics:PutEvents",
+              "cognito-sync:*",
+              "cognito-identity:*"
+            ],
+            "Resource": [
+              "*"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "Cognito_testpoolUnauth_Role": {
+    "oneClick_Cognito_testpoolUnauth_Role_1664552734141": {
+      "RoleName": "Cognito_testpoolUnauth_Role",
+      "PolicyName": "oneClick_Cognito_testpoolUnauth_Role_1664552734141",
+      "PolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Action": [
+              "mobileanalytics:PutEvents",
+              "cognito-sync:*"
+            ],
+            "Resource": [
+              "*"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "databricks": {
+    "databricks": {
+      "RoleName": "databricks",
+      "PolicyName": "databricks",
+      "PolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Sid": "Stmt1403287045000",
+            "Effect": "Allow",
+            "Action": [
+              "ec2:AllocateAddress",
+              "ec2:AssignPrivateIpAddresses",
+              "ec2:AssociateDhcpOptions",
+              "ec2:AssociateIamInstanceProfile",
+              "ec2:AssociateRouteTable",
+              "ec2:AttachInternetGateway",
+              "ec2:AttachVolume",
+              "ec2:AuthorizeSecurityGroupEgress",
+              "ec2:AuthorizeSecurityGroupIngress",
+              "ec2:CancelSpotInstanceRequests",
+              "ec2:CreateDhcpOptions",
+              "ec2:CreateFleet",
+              "ec2:CreateInternetGateway",
+              "ec2:CreateLaunchTemplate",
+              "ec2:CreateLaunchTemplateVersion",
+              "ec2:CreateNatGateway",
+              "ec2:CreateRoute",
+              "ec2:CreateRouteTable",
+              "ec2:CreateSecurityGroup",
+              "ec2:CreateSubnet",
+              "ec2:CreateTags",
+              "ec2:CreateVolume",
+              "ec2:CreateVpc",
+              "ec2:CreateVpcEndpoint",
+              "ec2:DeleteDhcpOptions",
+              "ec2:DeleteFleets",
+              "ec2:DeleteInternetGateway",
+              "ec2:DeleteLaunchTemplate",
+              "ec2:DeleteLaunchTemplateVersions",
+              "ec2:DeleteNatGateway",
+              "ec2:DeleteRoute",
+              "ec2:DeleteRouteTable",
+              "ec2:DeleteSecurityGroup",
+              "ec2:DeleteSubnet",
+              "ec2:DeleteTags",
+              "ec2:DeleteVolume",
+              "ec2:DeleteVpc",
+              "ec2:DeleteVpcEndpoints",
+              "ec2:DescribeAvailabilityZones",
+              "ec2:DescribeFleetHistory",
+              "ec2:DescribeFleetInstances",
+              "ec2:DescribeFleets",
+              "ec2:DescribeIamInstanceProfileAssociations",
+              "ec2:DescribeInstanceStatus",
+              "ec2:DescribeInstances",
+              "ec2:DescribeInternetGateways",
+              "ec2:DescribeLaunchTemplates",
+              "ec2:DescribeLaunchTemplateVersions",
+              "ec2:DescribeNatGateways",
+              "ec2:DescribePrefixLists",
+              "ec2:DescribeReservedInstancesOfferings",
+              "ec2:DescribeRouteTables",
+              "ec2:DescribeSecurityGroups",
+              "ec2:DescribeSpotInstanceRequests",
+              "ec2:DescribeSpotPriceHistory",
+              "ec2:DescribeSubnets",
+              "ec2:DescribeVolumes",
+              "ec2:DescribeVpcs",
+              "ec2:DetachInternetGateway",
+              "ec2:DisassociateIamInstanceProfile",
+              "ec2:DisassociateRouteTable",
+              "ec2:GetLaunchTemplateData",
+              "ec2:GetSpotPlacementScores",
+              "ec2:ModifyFleet",
+              "ec2:ModifyLaunchTemplate",
+              "ec2:ModifyVpcAttribute",
+              "ec2:ReleaseAddress",
+              "ec2:ReplaceIamInstanceProfileAssociation",
+              "ec2:RequestSpotInstances",
+              "ec2:RevokeSecurityGroupEgress",
+              "ec2:RevokeSecurityGroupIngress",
+              "ec2:RunInstances",
+              "ec2:TerminateInstances"
+            ],
+            "Resource": [
+              "*"
+            ]
+          },
+          {
+            "Effect": "Allow",
+            "Action": [
+              "iam:CreateServiceLinkedRole",
+              "iam:PutRolePolicy"
+            ],
+            "Resource": "arn:aws:iam::*:role/aws-service-role/spot.amazonaws.com/AWSServiceRoleForEC2Spot",
+            "Condition": {
+              "StringLike": {
+                "iam:AWSServiceName": "spot.amazonaws.com"
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "dms-cloudwatch-logs-role": {},
+  "dms-s3-access": {},
+  "dms-secret-access": {
+    "AccessRdsSecret": {
+      "RoleName": "dms-secret-access",
+      "PolicyName": "AccessRdsSecret",
+      "PolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Sid": "VisualEditor0",
+            "Effect": "Allow",
+            "Action": [
+              "secretsmanager:GetSecretValue",
+              "secretsmanager:DescribeSecret",
+              "secretsmanager:ListSecretVersionIds"
+            ],
+            "Resource": "arn:aws:secretsmanager:eu-central-1:673385887142:secret:mysql8srvrlss-FrS1HA"
+          }
+        ]
+      }
+    }
+  },
+  "dms-vpc-role": {},
+  "EC2InstanceProfileForImageBuilder": {},
+  "integ-schedule84a0f2eee6a8caf3c65e9": {},
+  "jpkdatabricks": {
+    "databricks": {
+      "RoleName": "jpkdatabricks",
+      "PolicyName": "databricks",
+      "PolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Action": [
+              "s3:GetObject",
+              "s3:PutObject",
+              "s3:DeleteObject",
+              "s3:ListBucket",
+              "s3:GetBucketLocation"
+            ],
+            "Resource": [
+              "arn:aws:s3:::jpkdatabricks/*",
+              "arn:aws:s3:::jpkdatabricks"
+            ],
+            "Effect": "Allow"
+          },
+          {
+            "Action": [
+              "kms:Decrypt",
+              "kms:Encrypt",
+              "kms:GenerateDataKey*"
+            ],
+            "Resource": [
+              "arn:aws:kms:eu-central-1:673385887142:key/99ff1b6c-2f0f-4ff1-870a-964056ece1e5"
+            ],
+            "Effect": "Allow"
+          },
+          {
+            "Action": [
+              "sts:AssumeRole"
+            ],
+            "Resource": [
+              "arn:aws:iam::673385887142:role/jpkdatabricks"
+            ],
+            "Effect": "Allow"
+          }
+        ]
+      }
+    }
+  },
+  "lattice-workshop-role": {},
+  "pets_0d6e4_LambdaExec-1e871c9": {},
+  "rds-monitoring-role": {},
+  "ScriptRoleFor_scopedown": {},
+  "SNSFailureFeedback": {
+    "oneClick_SNSFailureFeedback_1696181534563": {
+      "RoleName": "SNSFailureFeedback",
+      "PolicyName": "oneClick_SNSFailureFeedback_1696181534563",
+      "PolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Action": [
+              "logs:CreateLogGroup",
+              "logs:CreateLogStream",
+              "logs:PutLogEvents",
+              "logs:PutMetricFilter",
+              "logs:PutRetentionPolicy"
+            ],
+            "Resource": [
+              "*"
+            ]
+          }
+        ]
+      }
+    },
+    "oneClick_SNSFailureFeedback_1696181709147": {
+      "RoleName": "SNSFailureFeedback",
+      "PolicyName": "oneClick_SNSFailureFeedback_1696181709147",
+      "PolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Action": [
+              "logs:CreateLogGroup",
+              "logs:CreateLogStream",
+              "logs:PutLogEvents",
+              "logs:PutMetricFilter",
+              "logs:PutRetentionPolicy"
+            ],
+            "Resource": [
+              "*"
+            ]
+          }
+        ]
+      }
+    },
+    "oneClick_SNSFailureFeedback_1696183544240": {
+      "RoleName": "SNSFailureFeedback",
+      "PolicyName": "oneClick_SNSFailureFeedback_1696183544240",
+      "PolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Action": [
+              "logs:CreateLogGroup",
+              "logs:CreateLogStream",
+              "logs:PutLogEvents",
+              "logs:PutMetricFilter",
+              "logs:PutRetentionPolicy"
+            ],
+            "Resource": [
+              "*"
+            ]
+          }
+        ]
+      }
+    },
+    "oneClick_SNSFailureFeedback_1696184917908": {
+      "RoleName": "SNSFailureFeedback",
+      "PolicyName": "oneClick_SNSFailureFeedback_1696184917908",
+      "PolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Action": [
+              "logs:CreateLogGroup",
+              "logs:CreateLogStream",
+              "logs:PutLogEvents",
+              "logs:PutMetricFilter",
+              "logs:PutRetentionPolicy"
+            ],
+            "Resource": [
+              "*"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "SNSSuccessFeedback": {
+    "oneClick_SNSSuccessFeedback_1696181534562": {
+      "RoleName": "SNSSuccessFeedback",
+      "PolicyName": "oneClick_SNSSuccessFeedback_1696181534562",
+      "PolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Action": [
+              "logs:CreateLogGroup",
+              "logs:CreateLogStream",
+              "logs:PutLogEvents",
+              "logs:PutMetricFilter",
+              "logs:PutRetentionPolicy"
+            ],
+            "Resource": [
+              "*"
+            ]
+          }
+        ]
+      }
+    },
+    "oneClick_SNSSuccessFeedback_1696181709145": {
+      "RoleName": "SNSSuccessFeedback",
+      "PolicyName": "oneClick_SNSSuccessFeedback_1696181709145",
+      "PolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Action": [
+              "logs:CreateLogGroup",
+              "logs:CreateLogStream",
+              "logs:PutLogEvents",
+              "logs:PutMetricFilter",
+              "logs:PutRetentionPolicy"
+            ],
+            "Resource": [
+              "*"
+            ]
+          }
+        ]
+      }
+    },
+    "oneClick_SNSSuccessFeedback_1696183544239": {
+      "RoleName": "SNSSuccessFeedback",
+      "PolicyName": "oneClick_SNSSuccessFeedback_1696183544239",
+      "PolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Action": [
+              "logs:CreateLogGroup",
+              "logs:CreateLogStream",
+              "logs:PutLogEvents",
+              "logs:PutMetricFilter",
+              "logs:PutRetentionPolicy"
+            ],
+            "Resource": [
+              "*"
+            ]
+          }
+        ]
+      }
+    },
+    "oneClick_SNSSuccessFeedback_1696184917907": {
+      "RoleName": "SNSSuccessFeedback",
+      "PolicyName": "oneClick_SNSSuccessFeedback_1696184917907",
+      "PolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Action": [
+              "logs:CreateLogGroup",
+              "logs:CreateLogStream",
+              "logs:PutLogEvents",
+              "logs:PutMetricFilter",
+              "logs:PutRetentionPolicy"
+            ],
+            "Resource": [
+              "*"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "test": {},
+  "test-role": {},
+  "test-server": {}
+}

@@ -1,0 +1,26 @@
+{
+  "parameters": {
+    "/app/environment": {
+      "DataType": "text",
+      "LastModifiedDate": 1794260119.489,
+      "Name": "/app/environment",
+      "Selector": "string",
+      "SourceResult": "string",
+      "Type": "string",
+      "Value": "staging",
+      "Version": 3,
+      "Tier": "Standard"
+    },
+    "/app/db-host": {
+      "DataType": "text",
+      "LastModifiedDate": 1794260120.653,
+      "Name": "/app/db-host",
+      "Selector": "string",
+      "SourceResult": "string",
+      "Type": "string",
+      "Value": "db.staging.eu-west-1.internal",
+      "Version": 3,
+      "Tier": "Standard"
+    }
+  }
+}

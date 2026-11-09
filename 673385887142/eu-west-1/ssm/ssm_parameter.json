@@ -1,0 +1,6 @@
+{
+  "arn:aws:ssm:eu-west-1:673385887142:parameter/inspector-aws/service/inspector-linux-application-paths": {
+    "name": "/inspector-aws/service/inspector-linux-application-paths",
+    "type": "StringList"
+  }
+}

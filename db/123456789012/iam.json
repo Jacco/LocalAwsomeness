@@ -1,0 +1,37 @@
+{
+  "roles": {
+    "tmp-role": {
+      "roleName": "tmp-role",
+      "roleId": "AROA52QUA1U122JWBI697",
+      "path": "/",
+      "arn": "arn:aws:iam::123456789012:role/tmp-role",
+      "createDate": 1794259713020,
+      "assumeRolePolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Principal": {
+              "AWS": "arn:aws:iam::123456789012:root"
+            },
+            "Action": "sts:AssumeRole"
+          }
+        ]
+      },
+      "maxSessionDuration": 3600,
+      "inlinePolicies": {
+        "p1": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": "s3:GetObject",
+              "Resource": "*"
+            }
+          ]
+        }
+      },
+      "attachedPolicies": []
+    }
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "arn:aws:cloudwatch:eu-central-1:673385887142:alarm:TargetTracking-table/ReplicatedParameters-AlarmHigh-4f7eed37-3fc0-4482-9f86-0e93dafa8c9f": {
+    "name": "TargetTracking-table/ReplicatedParameters-AlarmHigh-4f7eed37-3fc0-4482-9f86-0e93dafa8c9f",
+    "state": "OK"
+  },
+  "arn:aws:cloudwatch:eu-central-1:673385887142:alarm:TargetTracking-table/ReplicatedParameters-AlarmHigh-b3282858-44da-4142-bc7c-2551187e897f": {
+    "name": "TargetTracking-table/ReplicatedParameters-AlarmHigh-b3282858-44da-4142-bc7c-2551187e897f",
+    "state": "OK"
+  },
+  "arn:aws:cloudwatch:eu-central-1:673385887142:alarm:TargetTracking-table/ReplicatedParameters-AlarmLow-3ead56a6-17a8-48e4-aac2-0ac3c03c7a3d": {
+    "name": "TargetTracking-table/ReplicatedParameters-AlarmLow-3ead56a6-17a8-48e4-aac2-0ac3c03c7a3d",
+    "state": "ALARM"
+  },
+  "arn:aws:cloudwatch:eu-central-1:673385887142:alarm:TargetTracking-table/ReplicatedParameters-AlarmLow-6b075318-bf46-4f2f-869a-c76bf997fa82": {
+    "name": "TargetTracking-table/ReplicatedParameters-AlarmLow-6b075318-bf46-4f2f-869a-c76bf997fa82",
+    "state": "ALARM"
+  },
+  "arn:aws:cloudwatch:eu-central-1:673385887142:alarm:TargetTracking-table/ReplicatedParameters-ProvisionedCapacityHigh-24f282f1-6476-44b5-8130-ba7a5e84cf52": {
+    "name": "TargetTracking-table/ReplicatedParameters-ProvisionedCapacityHigh-24f282f1-6476-44b5-8130-ba7a5e84cf52",
+    "state": "OK"
+  },
+  "arn:aws:cloudwatch:eu-central-1:673385887142:alarm:TargetTracking-table/ReplicatedParameters-ProvisionedCapacityHigh-d6160b61-2247-436a-b0e4-c9de75e67af7": {
+    "name": "TargetTracking-table/ReplicatedParameters-ProvisionedCapacityHigh-d6160b61-2247-436a-b0e4-c9de75e67af7",
+    "state": "OK"
+  },
+  "arn:aws:cloudwatch:eu-central-1:673385887142:alarm:TargetTracking-table/ReplicatedParameters-ProvisionedCapacityLow-b0962487-5bbb-45a9-8633-74a58b2b1e8a": {
+    "name": "TargetTracking-table/ReplicatedParameters-ProvisionedCapacityLow-b0962487-5bbb-45a9-8633-74a58b2b1e8a",
+    "state": "OK"
+  },
+  "arn:aws:cloudwatch:eu-central-1:673385887142:alarm:TargetTracking-table/ReplicatedParameters-ProvisionedCapacityLow-bd4d8cdd-fdef-49c5-a453-e22daa7992d3": {
+    "name": "TargetTracking-table/ReplicatedParameters-ProvisionedCapacityLow-bd4d8cdd-fdef-49c5-a453-e22daa7992d3",
+    "state": "OK"
+  },
+  "arn:aws:cloudwatch:eu-central-1:673385887142:alarm:TargetTracking-table/ReplicatedParameters/index/Status-Added-index-AlarmHigh-56f9f34a-3696-45eb-8dfa-b0b421679b40": {
+    "name": "TargetTracking-table/ReplicatedParameters/index/Status-Added-index-AlarmHigh-56f9f34a-3696-45eb-8dfa-b0b421679b40",
+    "state": "OK"
+  },
+  "arn:aws:cloudwatch:eu-central-1:673385887142:alarm:TargetTracking-table/ReplicatedParameters/index/Status-Added-index-AlarmHigh-5acb26d8-6866-4002-abc9-544759b64f98": {
+    "name": "TargetTracking-table/ReplicatedParameters/index/Status-Added-index-AlarmHigh-5acb26d8-6866-4002-abc9-544759b64f98",
+    "state": "OK"
+  },
+  "arn:aws:cloudwatch:eu-central-1:673385887142:alarm:TargetTracking-table/ReplicatedParameters/index/Status-Added-index-AlarmLow-0663caa5-a1f0-417d-a53f-cf7d3332cb5e": {
+    "name": "TargetTracking-table/ReplicatedParameters/index/Status-Added-index-AlarmLow-0663caa5-a1f0-417d-a53f-cf7d3332cb5e",
+    "state": "ALARM"
+  },
+  "arn:aws:cloudwatch:eu-central-1:673385887142:alarm:TargetTracking-table/ReplicatedParameters/index/Status-Added-index-AlarmLow-a73bcdc0-772f-4685-bd6a-2ebadb200bae": {
+    "name": "TargetTracking-table/ReplicatedParameters/index/Status-Added-index-AlarmLow-a73bcdc0-772f-4685-bd6a-2ebadb200bae",
+    "state": "ALARM"
+  },
+  "arn:aws:cloudwatch:eu-central-1:673385887142:alarm:TargetTracking-table/ReplicatedParameters/index/Status-Added-index-ProvisionedCapacityHigh-46e36d2f-6503-4601-a06d-21bd6297c321": {
+    "name": "TargetTracking-table/ReplicatedParameters/index/Status-Added-index-ProvisionedCapacityHigh-46e36d2f-6503-4601-a06d-21bd6297c321",
+    "state": "OK"
+  },
+  "arn:aws:cloudwatch:eu-central-1:673385887142:alarm:TargetTracking-table/ReplicatedParameters/index/Status-Added-index-ProvisionedCapacityHigh-b339e560-6ae4-4d85-8cfa-7cafdc095a98": {
+    "name": "TargetTracking-table/ReplicatedParameters/index/Status-Added-index-ProvisionedCapacityHigh-b339e560-6ae4-4d85-8cfa-7cafdc095a98",
+    "state": "OK"
+  },
+  "arn:aws:cloudwatch:eu-central-1:673385887142:alarm:TargetTracking-table/ReplicatedParameters/index/Status-Added-index-ProvisionedCapacityLow-0c3c194d-bfbd-47b2-8517-7da3b6450a0a": {
+    "name": "TargetTracking-table/ReplicatedParameters/index/Status-Added-index-ProvisionedCapacityLow-0c3c194d-bfbd-47b2-8517-7da3b6450a0a",
+    "state": "OK"
+  },
+  "arn:aws:cloudwatch:eu-central-1:673385887142:alarm:TargetTracking-table/ReplicatedParameters/index/Status-Added-index-ProvisionedCapacityLow-62d91ae9-735a-4fa1-8cb4-c23790ea7401": {
+    "name": "TargetTracking-table/ReplicatedParameters/index/Status-Added-index-ProvisionedCapacityLow-62d91ae9-735a-4fa1-8cb4-c23790ea7401",
+    "state": "OK"
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "roles": {
+    "OrganizationAccountAccessRole": {
+      "roleName": "OrganizationAccountAccessRole",
+      "roleId": "AROA6USLH4M38SYXSXDCB",
+      "path": "/",
+      "arn": "arn:aws:iam::993581059430:role/OrganizationAccountAccessRole",
+      "createDate": 1794258000862,
+      "assumeRolePolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Principal": {
+              "AWS": "arn:aws:iam::123456789012:root"
+            },
+            "Action": "sts:AssumeRole"
+          }
+        ]
+      },
+      "maxSessionDuration": 3600,
+      "inlinePolicies": {},
+      "attachedPolicies": [
+        "arn:aws:iam::aws:policy/AdministratorAccess"
+      ]
+    },
+    "app-role": {
+      "roleName": "app-role",
+      "roleId": "AROAN0CMH2Q1FO3NVIC80",
+      "path": "/",
+      "arn": "arn:aws:iam::993581059430:role/app-role",
+      "createDate": 1794258029878,
+      "assumeRolePolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Principal": {
+              "Service": "ec2.amazonaws.com"
+            },
+            "Action": "sts:AssumeRole"
+          }
+        ]
+      },
+      "maxSessionDuration": 3600,
+      "inlinePolicies": {
+        "read-config": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": "ssm:GetParameter",
+              "Resource": "arn:aws:ssm:*:*:parameter/app/*"
+            }
+          ]
+        }
+      },
+      "attachedPolicies": [
+        "arn:aws:iam::aws:policy/ReadOnlyAccess"
+      ]
+    }
+  }
+}

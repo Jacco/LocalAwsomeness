@@ -21,7 +21,7 @@ function saveSsmSection(account: string, region: string, section: string, sectio
   if (existsSync(fn)) {
     contents = JSON.parse(readFileSync(fn).toString())
   } else {
-    mkdirSync(path.dirname(fn))
+    mkdirSync(path.dirname(fn), { recursive: true })
   }
   contents[section] = sectionContents
   writeFileSync(fn, JSON.stringify(contents, null, 2))

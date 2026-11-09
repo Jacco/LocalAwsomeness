@@ -1,0 +1,83 @@
+import * as iam from "../db/iam"
+import type { QueryHandler } from "../query"
+
+const iso = (ms: number) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, 'Z')
+const encodeDocument = (document: iam.PolicyDocument) => encodeURIComponent(JSON.stringify(document))
+
+export function roleView(r: iam.Role) {
+  return {
+    Path: r.path,
+    RoleName: r.roleName,
+    RoleId: r.roleId,
+    Arn: r.arn,
+    CreateDate: iso(r.createDate),
+    AssumeRolePolicyDocument: encodeDocument(r.assumeRolePolicyDocument),
+    Description: r.description,
+    MaxSessionDuration: r.maxSessionDuration
+  }
+}
+
+export const roleHandlers: Record<string, QueryHandler> = {
+  CreateRole({ account, q }) {
+    const maxSessionDuration = q.optional('MaxSessionDuration')
+    const role = iam.createRole(account, {
+      roleName: q.required('RoleName'),
+      assumeRolePolicyDocument: iam.parsePolicyDocument(q.required('AssumeRolePolicyDocument')),
+      path: q.optional('Path'),
+      description: q.optional('Description'),
+      maxSessionDuration: maxSessionDuration === undefined ? undefined : Number(maxSessionDuration)
+    })
+    return { Role: roleView(role) }
+  },
+  GetRole({ account, q }) {
+    return { Role: roleView(iam.getRole(account, q.required('RoleName'))) }
+  },
+  ListRoles({ account, q }) {
+    return {
+      Roles: { member: iam.listRoles(account, q.optional('PathPrefix')).map(roleView) },
+      IsTruncated: false
+    }
+  },
+  DeleteRole({ account, q }) {
+    iam.deleteRole(account, q.required('RoleName'))
+    return undefined
+  },
+  PutRolePolicy({ account, q }) {
+    iam.putRolePolicy(account, q.required('RoleName'), q.required('PolicyName'), iam.parsePolicyDocument(q.required('PolicyDocument')))
+    return undefined
+  },
+  GetRolePolicy({ account, q }) {
+    const roleName = q.required('RoleName')
+    const policyName = q.required('PolicyName')
+    return {
+      RoleName: roleName,
+      PolicyName: policyName,
+      PolicyDocument: encodeDocument(iam.getRolePolicy(account, roleName, policyName))
+    }
+  },
+  DeleteRolePolicy({ account, q }) {
+    iam.deleteRolePolicy(account, q.required('RoleName'), q.required('PolicyName'))
+    return undefined
+  },
+  ListRolePolicies({ account, q }) {
+    const role = iam.getRole(account, q.required('RoleName'))
+    return { PolicyNames: { member: Object.keys(role.inlinePolicies) }, IsTruncated: false }
+  },
+  AttachRolePolicy({ account, q }) {
+    iam.attachRolePolicy(account, q.required('RoleName'), q.required('PolicyArn'))
+    return undefined
+  },
+  DetachRolePolicy({ account, q }) {
+    iam.detachRolePolicy(account, q.required('RoleName'), q.required('PolicyArn'))
+    return undefined
+  },
+  ListAttachedRolePolicies({ account, q }) {
+    const role = iam.getRole(account, q.required('RoleName'))
+    return {
+      AttachedPolicies: {
+        member: role.attachedPolicies.map(arn => ({ PolicyName: arn.split('/').at(-1), PolicyArn: arn }))
+      },
+      IsTruncated: false
+    }
+  }
+}

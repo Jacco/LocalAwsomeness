@@ -1,0 +1,22 @@
+{
+  "arn:aws:s3:::673385887142pets-payloads": {
+    "name": "673385887142pets-payloads",
+    "creation_date": "2024-11-09 00:43:21+00:00",
+    "region": "eu-central-1"
+  },
+  "arn:aws:s3:::cf-templates-g2ytcaywdaq-eu-central-1": {
+    "name": "cf-templates-g2ytcaywdaq-eu-central-1",
+    "creation_date": "2024-11-12 13:38:38+00:00",
+    "region": "eu-central-1"
+  },
+  "arn:aws:s3:::codepipeline-eu-central-1-788036306081": {
+    "name": "codepipeline-eu-central-1-788036306081",
+    "creation_date": "2024-11-09 09:53:58+00:00",
+    "region": "eu-central-1"
+  },
+  "arn:aws:s3:::layers-v2-673385887142": {
+    "name": "layers-v2-673385887142",
+    "creation_date": "2025-12-23 23:01:49+00:00",
+    "region": "eu-central-1"
+  }
+}

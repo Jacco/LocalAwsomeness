@@ -1,0 +1,52 @@
+{
+  "TestLayers": {
+    "FunctionName": "TestLayers",
+    "FunctionArn": "arn:aws:lambda:eu-central-1:673385887142:function:TestLayers",
+    "Runtime": "python3.12",
+    "Role": "arn:aws:iam::673385887142:role/service-role/TestLayers-role-t8s1fajt",
+    "Handler": "lambda_function.lambda_handler",
+    "CodeSize": 21265,
+    "Description": "",
+    "Timeout": 900,
+    "MemorySize": 3084,
+    "LastModified": "2025-12-24T09:41:02.000+0000",
+    "CodeSha256": "DJnRGyR1PBZiNC6iNsl2SQiHaZNZcuClrjwBYGmQ8k0=",
+    "Version": "$LATEST",
+    "VpcConfig": {
+      "SubnetIds": [
+        "subnet-08f4c52ad3c67cc1c",
+        "subnet-0ee02ccb941a48561"
+      ],
+      "SecurityGroupIds": [
+        "sg-0c631874528ad9506"
+      ],
+      "VpcId": "vpc-08e70a980a54d0324",
+      "Ipv6AllowedForDualStack": false
+    },
+    "TracingConfig": {
+      "Mode": "PassThrough"
+    },
+    "RevisionId": "2f20f773-e521-4673-be0a-b475d693f7b6",
+    "FileSystemConfigs": [
+      {
+        "Arn": "arn:aws:elasticfilesystem:eu-central-1:673385887142:access-point/fsap-079c4f0d5a2f81ac9",
+        "LocalMountPath": "/mnt/lambda"
+      }
+    ],
+    "PackageType": "Zip",
+    "Architectures": [
+      "arm64"
+    ],
+    "EphemeralStorage": {
+      "Size": 512
+    },
+    "SnapStart": {
+      "ApplyOn": "None",
+      "OptimizationStatus": "Off"
+    },
+    "LoggingConfig": {
+      "LogFormat": "Text",
+      "LogGroup": "/aws/lambda/TestLayers"
+    }
+  }
+}

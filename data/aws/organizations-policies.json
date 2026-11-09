@@ -1,0 +1,33 @@
+{
+  "SERVICE_CONTROL_POLICY": {
+    "id": "p-FullAWSAccess",
+    "name": "FullAWSAccess",
+    "description": "Allows access to every operation",
+    "content": {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Action": "*",
+          "Resource": "*"
+        }
+      ]
+    }
+  },
+  "RESOURCE_CONTROL_POLICY": {
+    "id": "p-RCPFullAWSAccess",
+    "name": "RCPFullAWSAccess",
+    "description": "Allows access to every operation",
+    "content": {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Principal": "*",
+          "Action": "*",
+          "Resource": "*"
+        }
+      ]
+    }
+  }
+}

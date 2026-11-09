@@ -1,0 +1,72 @@
+{
+  "673385887142pets-payloads": {
+    "name": "673385887142pets-payloads",
+    "arn": "arn:aws:s3:::673385887142pets-payloads",
+    "region": "eu-central-1",
+    "has_policy": true,
+    "policy": {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Sid": "Statement1",
+          "Effect": "Allow",
+          "Principal": {
+            "AWS": "arn:aws:iam::673385887142:root"
+          },
+          "Action": "s3:GetObject",
+          "Resource": "arn:aws:s3:::673385887142pets-payloads/*"
+        }
+      ]
+    }
+  },
+  "cf-templates-g2ytcaywdaq-eu-central-1": {
+    "name": "cf-templates-g2ytcaywdaq-eu-central-1",
+    "arn": "arn:aws:s3:::cf-templates-g2ytcaywdaq-eu-central-1",
+    "region": "eu-central-1",
+    "has_policy": false,
+    "policy": null
+  },
+  "codepipeline-eu-central-1-788036306081": {
+    "name": "codepipeline-eu-central-1-788036306081",
+    "arn": "arn:aws:s3:::codepipeline-eu-central-1-788036306081",
+    "region": "eu-central-1",
+    "has_policy": true,
+    "policy": {
+      "Version": "2012-10-17",
+      "Id": "SSEAndSSLPolicy",
+      "Statement": [
+        {
+          "Sid": "DenyUnEncryptedObjectUploads",
+          "Effect": "Deny",
+          "Principal": "*",
+          "Action": "s3:PutObject",
+          "Resource": "arn:aws:s3:::codepipeline-eu-central-1-788036306081/*",
+          "Condition": {
+            "StringNotEquals": {
+              "s3:x-amz-server-side-encryption": "aws:kms"
+            }
+          }
+        },
+        {
+          "Sid": "DenyInsecureConnections",
+          "Effect": "Deny",
+          "Principal": "*",
+          "Action": "s3:*",
+          "Resource": "arn:aws:s3:::codepipeline-eu-central-1-788036306081/*",
+          "Condition": {
+            "Bool": {
+              "aws:SecureTransport": "false"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "layers-v2-673385887142": {
+    "name": "layers-v2-673385887142",
+    "arn": "arn:aws:s3:::layers-v2-673385887142",
+    "region": "eu-central-1",
+    "has_policy": false,
+    "policy": null
+  }
+}

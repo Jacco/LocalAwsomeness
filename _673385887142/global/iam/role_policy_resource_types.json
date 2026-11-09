@@ -1,0 +1,114 @@
+{
+  "by_role": {
+    "adminrole": [],
+    "aws-cdk-app-config-CustomCDKBucketDeployment8693BB-1O4FYA249OK7R": [
+      "s3:bucket",
+      "s3:object"
+    ],
+    "aws-cdk-app-config-CustomS3AutoDeleteObjectsCustom-I823KZE4MHJF": [],
+    "aws-cdk-app-config-RoleForAppConfigAlamrsCA573D5E-6VP4NVUWA6K2": [
+      "cloudwatch:alarm"
+    ],
+    "aws-cdk-app-config-S3ProfRetrievalRoleD51314F0-10T7ERAHR6332": [
+      "s3:bucket",
+      "s3:object"
+    ],
+    "AWSReservedSSO_AccessToRdsRoot_669fd8f3eac3a64a": [
+      "rds-db:dbuser:db-5UBHPAVG4KHB3OX2ZH5YI322PM"
+    ],
+    "AWSReservedSSO_AWSAdministratorAccess_ac0e04e41b569666": [],
+    "AWSReservedSSO_AWSOrganizationsFullAccess_e1efdd7c1071fba6": [],
+    "AWSReservedSSO_AWSPowerUserAccess_fe26ae349d5185a0": [],
+    "AWSReservedSSO_AWSReadOnlyAccess_0f8afbb4a35d30d2": [],
+    "AWSReservedSSO_AWSServiceCatalogAdminFullAccess_71f97b5419d727df": [],
+    "AWSReservedSSO_AWSServiceCatalogEndUserAccess_9914815f9d8c3834": [],
+    "AWSReservedSSO_Billing_927de7899bc12add": [],
+    "cdk-hnb659fds-cfn-exec-role-673385887142-eu-west-2": [],
+    "cdk-hnb659fds-cfn-exec-role-673385887142-us-east-1": [],
+    "cdk-hnb659fds-cfn-exec-role-673385887142-us-east-2": [],
+    "cdk-hnb659fds-deploy-role-673385887142-eu-west-2": [
+      "iam:role",
+      "s3:bucket",
+      "s3:object",
+      "ssm:parameter"
+    ],
+    "cdk-hnb659fds-deploy-role-673385887142-us-east-1": [
+      "iam:role",
+      "s3:bucket",
+      "s3:object",
+      "ssm:parameter"
+    ],
+    "cdk-hnb659fds-deploy-role-673385887142-us-east-2": [
+      "iam:role",
+      "s3:bucket",
+      "s3:object",
+      "ssm:parameter"
+    ],
+    "cdk-hnb659fds-file-publishing-role-673385887142-eu-west-2": [
+      "kms:key",
+      "s3:bucket",
+      "s3:object"
+    ],
+    "cdk-hnb659fds-file-publishing-role-673385887142-us-east-1": [
+      "kms:key",
+      "s3:bucket",
+      "s3:object"
+    ],
+    "cdk-hnb659fds-file-publishing-role-673385887142-us-east-2": [
+      "kms:key",
+      "s3:bucket",
+      "s3:object"
+    ],
+    "cdk-hnb659fds-image-publishing-role-673385887142-eu-west-2": [
+      "ecr:repository"
+    ],
+    "cdk-hnb659fds-image-publishing-role-673385887142-us-east-1": [
+      "ecr:repository"
+    ],
+    "cdk-hnb659fds-image-publishing-role-673385887142-us-east-2": [
+      "ecr:repository"
+    ],
+    "cdk-hnb659fds-lookup-role-673385887142-eu-west-2": [],
+    "cdk-hnb659fds-lookup-role-673385887142-us-east-1": [],
+    "cdk-hnb659fds-lookup-role-673385887142-us-east-2": [],
+    "Cognito_testpoolAuth_Role": [],
+    "Cognito_testpoolUnauth_Role": [],
+    "databricks": [
+      "iam:role"
+    ],
+    "dms-cloudwatch-logs-role": [],
+    "dms-s3-access": [],
+    "dms-secret-access": [
+      "secretsmanager:secret"
+    ],
+    "dms-vpc-role": [],
+    "EC2InstanceProfileForImageBuilder": [],
+    "integ-schedule84a0f2eee6a8caf3c65e9": [],
+    "jpkdatabricks": [
+      "iam:role",
+      "kms:key",
+      "s3:bucket",
+      "s3:object"
+    ],
+    "lattice-workshop-role": [],
+    "pets_0d6e4_LambdaExec-1e871c9": [],
+    "rds-monitoring-role": [],
+    "ScriptRoleFor_scopedown": [],
+    "SNSFailureFeedback": [],
+    "SNSSuccessFeedback": [],
+    "test": [],
+    "test-role": [],
+    "test-server": []
+  },
+  "resource_type_counts": {
+    "cloudwatch:alarm": 1,
+    "ecr:repository": 3,
+    "iam:role": 5,
+    "kms:key": 4,
+    "rds-db:dbuser:db-5UBHPAVG4KHB3OX2ZH5YI322PM": 1,
+    "s3:bucket": 9,
+    "s3:object": 9,
+    "secretsmanager:secret": 1,
+    "ssm:parameter": 3
+  }
+}

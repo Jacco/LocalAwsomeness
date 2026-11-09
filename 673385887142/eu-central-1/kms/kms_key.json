@@ -1,0 +1,507 @@
+{
+  "arn:aws:kms:eu-central-1:673385887142:key/0efa77c2-f6f1-4dd6-80dc-1a6d9cbc8425": {
+    "key_id": "0efa77c2-f6f1-4dd6-80dc-1a6d9cbc8425",
+    "has_policy": true,
+    "key_policy": {
+      "Version": "2012-10-17",
+      "Id": "auto-elasticfilesystem-1",
+      "Statement": [
+        {
+          "Sid": "Allow access to EFS for all principals in the account that are authorized to use EFS",
+          "Effect": "Allow",
+          "Principal": {
+            "AWS": "*"
+          },
+          "Action": [
+            "kms:Encrypt",
+            "kms:Decrypt",
+            "kms:ReEncrypt*",
+            "kms:GenerateDataKey*",
+            "kms:CreateGrant",
+            "kms:DescribeKey"
+          ],
+          "Resource": "*",
+          "Condition": {
+            "StringEquals": {
+              "kms:CallerAccount": "673385887142",
+              "kms:ViaService": "elasticfilesystem.eu-central-1.amazonaws.com"
+            }
+          }
+        },
+        {
+          "Sid": "Allow direct access to key metadata to the account",
+          "Effect": "Allow",
+          "Principal": {
+            "AWS": "arn:aws:iam::673385887142:root"
+          },
+          "Action": [
+            "kms:Describe*",
+            "kms:Get*",
+            "kms:List*",
+            "kms:RevokeGrant"
+          ],
+          "Resource": "*"
+        }
+      ]
+    }
+  },
+  "arn:aws:kms:eu-central-1:673385887142:key/264cfefc-c9b7-41e4-8e73-0cf11527a31c": {
+    "key_id": "264cfefc-c9b7-41e4-8e73-0cf11527a31c",
+    "has_policy": true,
+    "key_policy": {
+      "Version": "2012-10-17",
+      "Id": "auto-ssm-1",
+      "Statement": [
+        {
+          "Sid": "Allow access through SSM for all principals in the account that are authorized to use SSM",
+          "Effect": "Allow",
+          "Principal": {
+            "AWS": "*"
+          },
+          "Action": [
+            "kms:Encrypt",
+            "kms:Decrypt",
+            "kms:ReEncrypt*",
+            "kms:GenerateDataKey*",
+            "kms:DescribeKey"
+          ],
+          "Resource": "*",
+          "Condition": {
+            "StringEquals": {
+              "kms:CallerAccount": "673385887142",
+              "kms:ViaService": "ssm.eu-central-1.amazonaws.com"
+            }
+          }
+        },
+        {
+          "Sid": "Allow direct access to key metadata to the account",
+          "Effect": "Allow",
+          "Principal": {
+            "AWS": "arn:aws:iam::673385887142:root"
+          },
+          "Action": [
+            "kms:Describe*",
+            "kms:Get*",
+            "kms:List*"
+          ],
+          "Resource": "*"
+        }
+      ]
+    }
+  },
+  "arn:aws:kms:eu-central-1:673385887142:key/325aab80-8722-40fa-a448-d301fc50f75a": {
+    "key_id": "325aab80-8722-40fa-a448-d301fc50f75a",
+    "has_policy": true,
+    "key_policy": {
+      "Version": "2012-10-17",
+      "Id": "auto-ebs-2",
+      "Statement": [
+        {
+          "Sid": "Allow access through EBS for all principals in the account that are authorized to use EBS",
+          "Effect": "Allow",
+          "Principal": {
+            "AWS": "*"
+          },
+          "Action": [
+            "kms:Encrypt",
+            "kms:Decrypt",
+            "kms:ReEncrypt*",
+            "kms:GenerateDataKey*",
+            "kms:CreateGrant",
+            "kms:DescribeKey"
+          ],
+          "Resource": "*",
+          "Condition": {
+            "StringEquals": {
+              "kms:CallerAccount": "673385887142",
+              "kms:ViaService": "ec2.eu-central-1.amazonaws.com"
+            }
+          }
+        },
+        {
+          "Sid": "Allow direct access to key metadata to the account",
+          "Effect": "Allow",
+          "Principal": {
+            "AWS": "arn:aws:iam::673385887142:root"
+          },
+          "Action": [
+            "kms:Describe*",
+            "kms:Get*",
+            "kms:List*",
+            "kms:RevokeGrant"
+          ],
+          "Resource": "*"
+        }
+      ]
+    }
+  },
+  "arn:aws:kms:eu-central-1:673385887142:key/44a24e97-2eaf-489d-a360-662d29ec21b9": {
+    "key_id": "44a24e97-2eaf-489d-a360-662d29ec21b9",
+    "has_policy": true,
+    "key_policy": {
+      "Version": "2012-10-17",
+      "Id": "auto-sns-2",
+      "Statement": [
+        {
+          "Sid": "Allow access through SNS for all principals in the account that are authorized to use SNS",
+          "Effect": "Allow",
+          "Principal": {
+            "AWS": "*"
+          },
+          "Action": [
+            "kms:Decrypt",
+            "kms:GenerateDataKey*",
+            "kms:CreateGrant",
+            "kms:ListGrants",
+            "kms:DescribeKey"
+          ],
+          "Resource": "*",
+          "Condition": {
+            "StringEquals": {
+              "kms:CallerAccount": "673385887142",
+              "kms:ViaService": "sns.eu-central-1.amazonaws.com"
+            }
+          }
+        },
+        {
+          "Sid": "Allow direct access to key metadata to the account",
+          "Effect": "Allow",
+          "Principal": {
+            "AWS": "arn:aws:iam::673385887142:root"
+          },
+          "Action": [
+            "kms:Describe*",
+            "kms:Get*",
+            "kms:List*",
+            "kms:RevokeGrant"
+          ],
+          "Resource": "*"
+        },
+        {
+          "Sid": "Allow SNS to decrypt archived messages",
+          "Effect": "Allow",
+          "Principal": {
+            "Service": "sns.amazonaws.com"
+          },
+          "Action": "kms:Decrypt",
+          "Resource": "*",
+          "Condition": {
+            "StringEquals": {
+              "aws:SourceAccount": "673385887142"
+            },
+            "ArnLike": {
+              "aws:SourceArn": "arn:*:sns:eu-central-1:673385887142:*"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "arn:aws:kms:eu-central-1:673385887142:key/66528272-e68a-40e9-a97a-9bd344ee9ec8": {
+    "key_id": "66528272-e68a-40e9-a97a-9bd344ee9ec8",
+    "has_policy": true,
+    "key_policy": {
+      "Version": "2012-10-17",
+      "Id": "auto-dms-1",
+      "Statement": [
+        {
+          "Sid": "Allow access through DMS for all principals in the account that are authorized to use DMS",
+          "Effect": "Allow",
+          "Principal": {
+            "AWS": "*"
+          },
+          "Action": [
+            "kms:Encrypt",
+            "kms:Decrypt",
+            "kms:ReEncrypt*",
+            "kms:GenerateDataKey*",
+            "kms:CreateGrant",
+            "kms:ListGrants",
+            "kms:DescribeKey"
+          ],
+          "Resource": "*",
+          "Condition": {
+            "StringEquals": {
+              "kms:CallerAccount": "673385887142",
+              "kms:ViaService": "dms.eu-central-1.amazonaws.com"
+            }
+          }
+        },
+        {
+          "Sid": "Allow direct access to key metadata to the account",
+          "Effect": "Allow",
+          "Principal": {
+            "AWS": "arn:aws:iam::673385887142:root"
+          },
+          "Action": [
+            "kms:Describe*",
+            "kms:Get*",
+            "kms:List*",
+            "kms:RevokeGrant"
+          ],
+          "Resource": "*"
+        }
+      ]
+    }
+  },
+  "arn:aws:kms:eu-central-1:673385887142:key/6eeba068-16e6-49f2-9247-ca16e68f1902": {
+    "key_id": "6eeba068-16e6-49f2-9247-ca16e68f1902",
+    "has_policy": true,
+    "key_policy": {
+      "Version": "2012-10-17",
+      "Id": "auto-ssm-1",
+      "Statement": [
+        {
+          "Sid": "Allow access through SSM for all principals in the account that are authorized to use SSM",
+          "Effect": "Allow",
+          "Principal": {
+            "AWS": "*"
+          },
+          "Action": [
+            "kms:Encrypt",
+            "kms:Decrypt",
+            "kms:ReEncrypt*",
+            "kms:GenerateDataKey*",
+            "kms:DescribeKey"
+          ],
+          "Resource": "*",
+          "Condition": {
+            "StringEquals": {
+              "kms:CallerAccount": "673385887142",
+              "kms:ViaService": "ssm.eu-central-1.amazonaws.com"
+            }
+          }
+        },
+        {
+          "Sid": "Allow direct access to key metadata to the account",
+          "Effect": "Allow",
+          "Principal": {
+            "AWS": "arn:aws:iam::673385887142:root"
+          },
+          "Action": [
+            "kms:Describe*",
+            "kms:Get*",
+            "kms:List*"
+          ],
+          "Resource": "*"
+        }
+      ]
+    }
+  },
+  "arn:aws:kms:eu-central-1:673385887142:key/7b36f515-cd8d-473a-b6bf-abb3fee66288": {
+    "key_id": "7b36f515-cd8d-473a-b6bf-abb3fee66288",
+    "has_policy": true,
+    "key_policy": {
+      "Version": "2012-10-17",
+      "Id": "auto-dynamodb-3",
+      "Statement": [
+        {
+          "Sid": "Allow access through Amazon DynamoDB for all principals in the account that are authorized to use Amazon DynamoDB",
+          "Effect": "Allow",
+          "Principal": {
+            "AWS": "*"
+          },
+          "Action": [
+            "kms:Encrypt",
+            "kms:Decrypt",
+            "kms:ReEncrypt*",
+            "kms:GenerateDataKey*",
+            "kms:CreateGrant",
+            "kms:DescribeKey"
+          ],
+          "Resource": "*",
+          "Condition": {
+            "StringEquals": {
+              "kms:CallerAccount": "673385887142"
+            },
+            "StringLike": {
+              "kms:ViaService": "dynamodb.*.amazonaws.com"
+            }
+          }
+        },
+        {
+          "Sid": "Allow direct access to key metadata to the account",
+          "Effect": "Allow",
+          "Principal": {
+            "AWS": "arn:aws:iam::673385887142:root"
+          },
+          "Action": [
+            "kms:Describe*",
+            "kms:Get*",
+            "kms:List*",
+            "kms:RevokeGrant"
+          ],
+          "Resource": "*"
+        },
+        {
+          "Sid": "Allow DynamoDB to directly describe the key",
+          "Effect": "Allow",
+          "Principal": {
+            "Service": "dynamodb.amazonaws.com"
+          },
+          "Action": [
+            "kms:Describe*",
+            "kms:Get*",
+            "kms:List*"
+          ],
+          "Resource": "*"
+        }
+      ]
+    }
+  },
+  "arn:aws:kms:eu-central-1:673385887142:key/aacb4a63-dcbc-41bf-b328-5114942de603": {
+    "key_id": "aacb4a63-dcbc-41bf-b328-5114942de603",
+    "has_policy": true,
+    "key_policy": {
+      "Version": "2012-10-17",
+      "Id": "auto-awslambda",
+      "Statement": [
+        {
+          "Sid": "Allow access through AWS Lambda for all principals in the account that are authorized to use AWS Lambda",
+          "Effect": "Allow",
+          "Principal": {
+            "AWS": "*"
+          },
+          "Action": [
+            "kms:Encrypt",
+            "kms:Decrypt",
+            "kms:ReEncrypt*",
+            "kms:GenerateDataKey*",
+            "kms:CreateGrant",
+            "kms:DescribeKey"
+          ],
+          "Resource": "*",
+          "Condition": {
+            "StringEquals": {
+              "kms:CallerAccount": "673385887142",
+              "kms:ViaService": "lambda.eu-central-1.amazonaws.com"
+            }
+          }
+        },
+        {
+          "Sid": "Allow direct access to key metadata to the account",
+          "Effect": "Allow",
+          "Principal": {
+            "AWS": "arn:aws:iam::673385887142:root"
+          },
+          "Action": [
+            "kms:Describe*",
+            "kms:Get*",
+            "kms:List*",
+            "kms:RevokeGrant"
+          ],
+          "Resource": "*"
+        }
+      ]
+    }
+  },
+  "arn:aws:kms:eu-central-1:673385887142:key/adaed046-28f5-4418-8da6-7e92be6358c2": {
+    "key_id": "adaed046-28f5-4418-8da6-7e92be6358c2",
+    "has_policy": true,
+    "key_policy": {
+      "Version": "2012-10-17",
+      "Id": "auto-secretsmanager-2",
+      "Statement": [
+        {
+          "Sid": "Allow access through AWS Secrets Manager for all principals in the account that are authorized to use AWS Secrets Manager",
+          "Effect": "Allow",
+          "Principal": {
+            "AWS": "*"
+          },
+          "Action": [
+            "kms:Encrypt",
+            "kms:Decrypt",
+            "kms:ReEncrypt*",
+            "kms:CreateGrant",
+            "kms:DescribeKey"
+          ],
+          "Resource": "*",
+          "Condition": {
+            "StringEquals": {
+              "kms:CallerAccount": "673385887142",
+              "kms:ViaService": "secretsmanager.eu-central-1.amazonaws.com"
+            }
+          }
+        },
+        {
+          "Sid": "Allow access through AWS Secrets Manager for all principals in the account that are authorized to use AWS Secrets Manager",
+          "Effect": "Allow",
+          "Principal": {
+            "AWS": "*"
+          },
+          "Action": "kms:GenerateDataKey*",
+          "Resource": "*",
+          "Condition": {
+            "StringEquals": {
+              "kms:CallerAccount": "673385887142"
+            },
+            "StringLike": {
+              "kms:ViaService": "secretsmanager.*.amazonaws.com"
+            }
+          }
+        },
+        {
+          "Sid": "Allow direct access to key metadata to the account",
+          "Effect": "Allow",
+          "Principal": {
+            "AWS": "arn:aws:iam::673385887142:root"
+          },
+          "Action": [
+            "kms:Describe*",
+            "kms:Get*",
+            "kms:List*",
+            "kms:RevokeGrant"
+          ],
+          "Resource": "*"
+        }
+      ]
+    }
+  },
+  "arn:aws:kms:eu-central-1:673385887142:key/e8f61e20-4737-48a9-8878-0f3b0b130910": {
+    "key_id": "e8f61e20-4737-48a9-8878-0f3b0b130910",
+    "has_policy": true,
+    "key_policy": {
+      "Version": "2012-10-17",
+      "Id": "auto-rds-2",
+      "Statement": [
+        {
+          "Sid": "Allow access through RDS for all principals in the account that are authorized to use RDS",
+          "Effect": "Allow",
+          "Principal": {
+            "AWS": "*"
+          },
+          "Action": [
+            "kms:Encrypt",
+            "kms:Decrypt",
+            "kms:ReEncrypt*",
+            "kms:GenerateDataKey*",
+            "kms:CreateGrant",
+            "kms:ListGrants",
+            "kms:DescribeKey"
+          ],
+          "Resource": "*",
+          "Condition": {
+            "StringEquals": {
+              "kms:CallerAccount": "673385887142",
+              "kms:ViaService": "rds.eu-central-1.amazonaws.com"
+            }
+          }
+        },
+        {
+          "Sid": "Allow direct access to key metadata to the account",
+          "Effect": "Allow",
+          "Principal": {
+            "AWS": "arn:aws:iam::673385887142:root"
+          },
+          "Action": [
+            "kms:Describe*",
+            "kms:Get*",
+            "kms:List*",
+            "kms:RevokeGrant"
+          ],
+          "Resource": "*"
+        }
+      ]
+    }
+  }
+}

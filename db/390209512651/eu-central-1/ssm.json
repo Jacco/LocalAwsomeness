@@ -1,0 +1,26 @@
+{
+  "parameters": {
+    "/app/environment": {
+      "DataType": "text",
+      "LastModifiedDate": 1794260131.723,
+      "Name": "/app/environment",
+      "Selector": "string",
+      "SourceResult": "string",
+      "Type": "string",
+      "Value": "sandbox",
+      "Version": 3,
+      "Tier": "Standard"
+    },
+    "/app/db-host": {
+      "DataType": "text",
+      "LastModifiedDate": 1794260132.862,
+      "Name": "/app/db-host",
+      "Selector": "string",
+      "SourceResult": "string",
+      "Type": "string",
+      "Value": "db.sandbox.eu-central-1.internal",
+      "Version": 3,
+      "Tier": "Standard"
+    }
+  }
+}
