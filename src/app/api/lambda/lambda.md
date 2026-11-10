@@ -23,7 +23,7 @@ Status: the control plane and `Invoke` as far as the walking skeleton needs (see
 
 The answer is AWS's: status 200 (the function error is in the `X-Amz-Function-Error` header, not the status), the payload, `X-Amz-Executed-Version`, `X-Amz-Log-Result` (the last 4 KB of the log, with the `START`, `END` and `REPORT` lines). What AWS does not give but this app is for: the connections the code made and the trace of each decision. They are kept per invocation (the last 10 per function, in `lambda.json`) and read with `GET /api/lambda/inspect?account=&region=&function=` (an internal, unsigned endpoint). `scripts/scenario/lambda.py` prints them after an invoke.
 
-The Python that runs the code is the `python3` of this machine whatever `Runtime` says (set `JPK_PYTHON` to change it); the runtime name only shows up in `AWS_EXECUTION_ENV`. The code of the function reaches the emulated services at `JPK_SIMULATOR_URL`, by default `http://localhost:$PORT` (3000).
+The Python that runs the code is the `python3` of this machine whatever `Runtime` says (set `JPK_PYTHON` to change it); the runtime name only shows up in `AWS_EXECUTION_ENV`. The runner resolves the real interpreter once (`sys.executable`), because `python3` is often a pyenv shim that costs about 0.6 s per start. An invocation that calls STS with boto3 takes about 0.4 s: roughly 0.3 s is Python, `import boto3` and creating the client (the same cold start the code would have), the rest is the call through the simulator. The `Duration` in the `REPORT` line is the handler only, as in AWS. There are no sleeps in the runner or the shim. The code of the function reaches the emulated services at `JPK_SIMULATOR_URL`, by default `http://localhost:$PORT` (3000).
 
 ## Resource lifetime
 

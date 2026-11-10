@@ -1,4 +1,4 @@
-import { spawn, type StdioOptions } from 'child_process'
+import { execFileSync, spawn, type StdioOptions } from 'child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
@@ -83,6 +83,23 @@ export class BadRunRequest extends Error {}
 const MAX_OUTPUT = 64 * 1024
 const SHIM = join(process.cwd(), 'src/app/api/runtime/netshim.py')
 const PASSED_ENVIRONMENT = ['PATH', 'HOME', 'LANG', 'LC_ALL', 'PYENV_ROOT', 'PYENV_VERSION', 'VIRTUAL_ENV']
+
+// The interpreter to run, resolved once: `python3` is often a shim (pyenv) that costs about 0.6 s on every start, while the
+// interpreter behind it starts in 0.04 s. JPK_PYTHON overrides.
+let interpreter: string | undefined
+function pythonExecutable(): string {
+  if (process.env.JPK_PYTHON) {
+    return process.env.JPK_PYTHON
+  }
+  if (!interpreter) {
+    try {
+      interpreter = execFileSync('python3', ['-c', 'import sys; print(sys.executable)'], { encoding: 'utf8' }).trim() || 'python3'
+    } catch {
+      interpreter = 'python3'
+    }
+  }
+  return interpreter
+}
 
 function credentialsFor(account: string, roleName: string, sessionName: string) {
   const role = iam.findRole(account, roleName)
@@ -235,7 +252,7 @@ export async function runInContext(request: RunRequest): Promise<RunResult> {
   try {
     const exitCode = await new Promise<number | null>((resolve, reject) => {
       const stdio: StdioOptions = ['ignore', 'pipe', 'pipe', 'pipe']
-      const child = spawn(process.env.JPK_PYTHON ?? 'python3', [SHIM, script], { env: env as NodeJS.ProcessEnv, cwd: directory, stdio })
+      const child = spawn(pythonExecutable(), [SHIM, script], { env: env as NodeJS.ProcessEnv, cwd: directory, stdio })
       const channel = child.stdio[3] as Duplex
       const timer = setTimeout(() => {
         timedOut = true
