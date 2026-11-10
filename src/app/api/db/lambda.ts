@@ -2,7 +2,8 @@ import { AwsError } from "../common"
 import * as store from "./store"
 
 // State of the Lambda service for one account and Region (db/<account>/<region>/lambda.json). Records are stored in the
-// shape of the API: `Configuration` is a FunctionConfiguration as GetFunction returns it.
+// shape of the API: `Configuration` is a FunctionConfiguration as GetFunction returns it. The code of a function is part of
+// its definition and so state too (a directory next to this file); the invocation records are data.
 
 export interface FunctionRecord {
   Configuration: Record<string, any>
@@ -35,17 +36,17 @@ export interface LambdaState {
   functions: Record<string, FunctionRecord>
 }
 
-// Function name -> its invocations, newest first.
-export type Invocations = Record<string, InvocationRecord[]>
-
 interface Scope {
   account: string
   region: string
 }
-
-const invocationsKey = ({ account, region }: Scope): store.StoreKey => ({ service: 'lambda-invocations', account, region })
-export const loadInvocations = (scope: Scope): Invocations => store.read<Invocations>(invocationsKey(scope), {})
-export const saveInvocations = (scope: Scope, invocations: Invocations) => store.write(invocationsKey(scope), invocations)
+// A function's invocations, newest first, are data (db/<account>/<region>/data/lambda-invocations/<function>.json), one file per
+// function; they are not state of the service.
+const invocationsFile = (scope: Scope, name: string) =>
+  store.dataPath({ service: 'lambda-invocations', account: scope.account, region: scope.region }, `${store.fileName(name)}.json`)
+export const loadInvocations = (scope: Scope, name: string): InvocationRecord[] => store.readJson<InvocationRecord[]>(invocationsFile(scope, name), [])
+export const saveInvocations = (scope: Scope, name: string, records: InvocationRecord[]) => store.writeJson(invocationsFile(scope, name), records)
+export const removeInvocations = (scope: Scope, name: string) => store.removeData(invocationsFile(scope, name))
 
 const key = ({ account, region }: Scope): store.StoreKey => ({ service: 'lambda', account, region })
 

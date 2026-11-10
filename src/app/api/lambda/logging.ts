@@ -44,7 +44,7 @@ export function deliverLog(
   const g = state.groups[group] ?? createGroup(state, group, {}, start)
   const s = createStream(g, stream, start)
   const end = start + Math.ceil(durationMs)
-  appendEvents(s, lines.map(message => ({ timestamp: timestampOf(message, start, end), message })), Date.now())
+  appendEvents(scope, group, s, lines.map(message => ({ timestamp: timestampOf(message, start, end), message })), Date.now())
   saveLogs(scope, state)
   return { ...delivery, Status: 'written' }
 }

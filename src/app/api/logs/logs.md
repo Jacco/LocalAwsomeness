@@ -1,6 +1,9 @@
 # CloudWatch Logs
 
-Status: a minimal service, enough for the log of Lambda functions, `aws logs` and the SDKs. JSON 1.1, target `Logs_20140328` (`logs` credential scope; route `Logs_20140328/[action]`). State is in `db/<account>/<region>/logs.json`: log groups, their streams and the events, in the shape of the API.
+Status: a minimal service, enough for the log of Lambda functions, `aws logs` and the SDKs. JSON 1.1, target `Logs_20140328` (`logs` credential scope; route `Logs_20140328/[action]`). It keeps **state** and **data** apart (see `src/app/api/db/store.ts`):
+
+- **State**, `db/<account>/<region>/logs.json`: the log groups (retention, tags) and, per stream, only its metadata (creation time, timestamps of the first and last event, last ingestion, stored bytes), in the shape of the API.
+- **Data**, `db/<account>/<region>/data/logs/<log group>/<log stream>.jsonl`: the events of a stream, one JSON object per line in the order they arrived (read back ordered by timestamp). Group and stream names are escaped to file names, so `/aws/lambda/fn` is the directory `%2Faws%2Flambda%2Ffn`. Deleting a stream or a group deletes its data.
 
 ## What is there
 
@@ -24,7 +27,7 @@ Operations are authorized against the log group ARN (`arn:aws:logs:<region>:<acc
 
 `lambda/logging.ts`: after each invocation the log (`START`, the output, `END`, `REPORT`, one event per line) goes to the log group `/aws/lambda/<function>`, one stream per invocation (every invocation is a cold start in this model; stream name `yyyy/mm/dd/[$LATEST]<32 hex>`, also in `AWS_LAMBDA_LOG_STREAM_NAME`). As in AWS it is written **with the permissions of the execution role**, not the caller's: `logs:CreateLogGroup` (only when the group does not exist yet), `logs:CreateLogStream` and `logs:PutLogEvents`. A role without them gets **no log, and nobody is told**: not the function, not the caller of `Invoke`. The caller can still ask for the tail with `LogType=Tail`, which does not depend on CloudWatch.
 
-Because that is exactly the question "why is there no log?", this app answers it where AWS does not: the invocation record (`lambda-invocations.json`, `GET /api/lambda/inspect`) has `LogDelivery` with the group, the stream, `written` or `not-written`, and for `not-written` the denial the role got. The log group stays when the function is deleted, as in AWS.
+Because that is exactly the question "why is there no log?", this app answers it where AWS does not: the invocation record (`data/lambda-invocations/<function>.json`, `GET /api/lambda/inspect`) has `LogDelivery` with the group, the stream, `written` or `not-written`, and for `not-written` the denial the role got. The log group stays when the function is deleted, as in AWS.
 
 ## Not verified against real AWS
 

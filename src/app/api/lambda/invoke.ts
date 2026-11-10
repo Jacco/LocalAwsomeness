@@ -156,9 +156,7 @@ function remember(ctx: RequestContext, name: string, requestId: string, type: st
     Network: lines(run.text),
     Connections: run.connections.map(c => ({ host: c.host, port: c.port, verdict: c.verdict, attempts: c.attempts, cause: c.trace.cause })),
   }
-  const invocations = loadInvocations(scope)
-  invocations[name] = [record, ...(invocations[name] ?? [])].slice(0, KEPT_INVOCATIONS)
-  saveInvocations(scope, invocations)
+  saveInvocations(scope, name, [record, ...loadInvocations(scope, name)].slice(0, KEPT_INVOCATIONS))
 }
 
 export async function invoke(ctx: RequestContext): Promise<Response> {

@@ -16,5 +16,5 @@ export async function GET(request: Request) {
   if (!state.functions[name]) {
     return NextResponse.json({ error: `No function '${name}' in ${account}/${region}` }, { status: 404 })
   }
-  return NextResponse.json({ function: state.functions[name].Configuration, invocations: loadInvocations({ account, region })[name] ?? [] })
+  return NextResponse.json({ function: state.functions[name].Configuration, invocations: loadInvocations({ account, region }, name) })
 }

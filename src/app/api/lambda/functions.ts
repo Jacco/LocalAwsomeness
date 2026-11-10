@@ -2,7 +2,7 @@ import { createHash, randomUUID } from "crypto"
 import { AwsError } from "../common"
 import { loadState } from "../db/ec2/state"
 import * as iam from "../db/iam"
-import { functionArn, loadInvocations, loadLambda, notFound, parseReference, saveInvocations, saveLambda, type FunctionRecord } from "../db/lambda"
+import { functionArn, loadLambda, notFound, parseReference, removeInvocations, saveLambda, type FunctionRecord } from "../db/lambda"
 import { QUOTAS, hardLimit } from "../quotas"
 import type { RequestContext } from "../registry"
 import { reconcileInterfaces } from "./network"
@@ -321,11 +321,7 @@ export function deleteFunction(ctx: RequestContext) {
   const lambda = loadLambda(scope)
   delete lambda.functions[name]
   removeCode(scope, name)
-  const invocations = loadInvocations(scope)
-  if (invocations[name]) {
-    delete invocations[name]
-    saveInvocations(scope, invocations)
-  }
+  removeInvocations(scope, name)
   // the shared interface goes with the last function that used it
   reconcileInterfaces(scope, lambda)
   saveLambda(scope, lambda)

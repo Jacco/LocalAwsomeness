@@ -24,7 +24,7 @@ db/s3/<bucket>/objects/<object>/index.json         the versions of the key, newe
 
 `<object>` is the encoded key (see below). Versioning is part of the layout from the start: a bucket that has never been versioned has one version per key with the ID `null`, so there is one code path.
 
-Bucket names are unique in the whole partition, not per account, so the bucket directories live at the top of `db/s3/` and `bucket.json` records the owner account and region. (Open question: the existing layout is `db/<account>/<region>/<service>.json`; S3 deliberately does not follow it for the reason above.)
+Bucket names are unique in the whole partition, not per account, so the bucket directories live at the top of `db/s3/` and `bucket.json` records the owner account and region. (Open question: the existing layout is `db/<account>/<region>/<service>.json` for state and `db/<account>/<region>/data/<service>/...` for data (log events, invocation records; see `store.ts`); S3 deliberately does not follow the per-account path for the reason above. When S3 is built, `bucket.json` is state and the objects and their metadata are data, so the same rule applies: they should live in a `data` directory of their own, not mixed with the state files.)
 
 Contents are real files, never embedded in JSON; metadata is small JSON. Writes follow the store's rule: write a temp file and rename into place, content first, then metadata.
 

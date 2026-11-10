@@ -1,7 +1,11 @@
 import * as store from "./store"
 
-// State of CloudWatch Logs for one account and Region (db/<account>/<region>/logs.json): log groups with their streams and the
-// events in them, in the shape of the API. Retention is stored but not enforced (events are never expired).
+// CloudWatch Logs, for one account and Region, in two parts (see db/store.ts):
+//   STATE  db/<account>/<region>/logs.json: log groups and, per stream, its metadata (when it was created, the timestamps of
+//          its first and last event, when the last one came in, how many bytes it holds), in the shape of the API.
+//   DATA   db/<account>/<region>/data/logs/<log group>/<log stream>.jsonl: the events of a stream, one JSON object per line,
+//          in the order they arrived. The names are escaped to file names (`/aws/lambda/fn` is `%2Faws%2Flambda%2Ffn`).
+// Retention is stored in the state but not enforced (events are never expired).
 
 export interface LogEvent {
   timestamp: number
@@ -15,8 +19,8 @@ export interface LogStream {
   firstEventTimestamp?: number
   lastEventTimestamp?: number
   lastIngestionTime?: number
-  // Events in the order of their timestamps (the order of arrival for equal timestamps).
-  events: LogEvent[]
+  // The size of the events in the stream, as AWS counts them (message bytes plus 26 per event).
+  storedBytes: number
 }
 
 export interface LogGroup {
@@ -38,7 +42,18 @@ interface Scope {
 
 const key = ({ account, region }: Scope): store.StoreKey => ({ service: 'logs', account, region })
 
-export const loadLogs = (scope: Scope): LogsState => store.read<LogsState>(key(scope), { groups: {} })
+export function loadLogs(scope: Scope): LogsState {
+  const state = store.read<LogsState>(key(scope), { groups: {} })
+  // streams written before the events moved to the data directory carried them in the state: drop them
+  for (const group of Object.values(state.groups)) {
+    for (const stream of Object.values(group.streams)) {
+      delete (stream as { events?: unknown }).events
+      stream.storedBytes ??= 0
+    }
+  }
+  return state
+}
+
 export const saveLogs = (scope: Scope, state: LogsState) => store.write(key(scope), state)
 
 export const logGroupArn = ({ account, region }: Scope, name: string) => `arn:aws:logs:${region}:${account}:log-group:${name}`
@@ -47,30 +62,36 @@ export const logStreamArn = (scope: Scope, group: string, stream: string) => `${
 // The size of an event for the batch limit and the stored bytes: its UTF-8 bytes and 26 bytes of overhead.
 export const eventSize = (message: string) => Buffer.byteLength(message) + 26
 
+const groupDirectory = (scope: Scope, group: string) => store.dataPath(key(scope), store.fileName(group))
+const streamFile = (scope: Scope, group: string, stream: string) => `${groupDirectory(scope, group)}/${store.fileName(stream)}.jsonl`
+
 export function createGroup(state: LogsState, name: string, tags: Record<string, string> = {}, now = Date.now()): LogGroup {
   return (state.groups[name] = { logGroupName: name, creationTime: now, tags, streams: {} })
 }
 
 export function createStream(group: LogGroup, name: string, now = Date.now()): LogStream {
-  return (group.streams[name] = { logStreamName: name, creationTime: now, events: [] })
+  return (group.streams[name] = { logStreamName: name, creationTime: now, storedBytes: 0 })
 }
 
-// Adds events to a stream, keeping them ordered by timestamp.
-export function appendEvents(stream: LogStream, events: { timestamp: number; message: string }[], now = Date.now()): void {
-  for (const event of events) {
-    const entry: LogEvent = { timestamp: event.timestamp, message: event.message, ingestionTime: now }
-    let at = stream.events.length
-    while (at > 0 && stream.events[at - 1].timestamp > entry.timestamp) {
-      at--
-    }
-    stream.events.splice(at, 0, entry)
-  }
-  if (events.length) {
-    stream.firstEventTimestamp = stream.events[0].timestamp
-    stream.lastEventTimestamp = stream.events.at(-1)!.timestamp
-    stream.lastIngestionTime = now
-  }
+// The events of a stream, ordered by timestamp (the order of arrival for equal timestamps).
+export function readEvents(scope: Scope, group: string, stream: string): LogEvent[] {
+  return store.readJsonLines<LogEvent>(streamFile(scope, group, stream)).sort((a, b) => a.timestamp - b.timestamp)
 }
 
-export const storedBytes = (group: LogGroup) =>
-  Object.values(group.streams).reduce((sum, s) => sum + s.events.reduce((n, e) => n + eventSize(e.message), 0), 0)
+// Adds events to a stream: the lines go to the data file, the metadata of the stream is updated (the caller saves the state).
+export function appendEvents(scope: Scope, group: string, stream: LogStream, events: { timestamp: number; message: string }[], now = Date.now()): void {
+  if (!events.length) {
+    return
+  }
+  store.appendJsonLines(streamFile(scope, group, stream.logStreamName), events.map(e => ({ timestamp: e.timestamp, message: e.message, ingestionTime: now })))
+  const timestamps = events.map(e => e.timestamp)
+  stream.firstEventTimestamp = Math.min(stream.firstEventTimestamp ?? Infinity, ...timestamps)
+  stream.lastEventTimestamp = Math.max(stream.lastEventTimestamp ?? -Infinity, ...timestamps)
+  stream.lastIngestionTime = now
+  stream.storedBytes += events.reduce((n, e) => n + eventSize(e.message), 0)
+}
+
+export const removeStreamData = (scope: Scope, group: string, stream: string) => store.removeData(streamFile(scope, group, stream))
+export const removeGroupData = (scope: Scope, group: string) => store.removeData(groupDirectory(scope, group))
+
+export const storedBytes = (group: LogGroup) => Object.values(group.streams).reduce((sum, s) => sum + s.storedBytes, 0)

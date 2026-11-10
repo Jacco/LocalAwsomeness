@@ -28,7 +28,7 @@ const iam = require('@/app/api/db/iam')
 const { addSecurityGroup, createSubnet, createVpc, loadState, saveState, securityGroupRule } = require('@/app/api/db/ec2/state')
 const { QUOTAS, setQuota } = require('@/app/api/quotas')
 const { availableAddressCount } = require('@/app/api/db/ec2/interfaces')
-const { createGroup, loadLogs, saveLogs } = require('@/app/api/db/logs')
+const { createGroup, loadLogs, readEvents, saveLogs } = require('@/app/api/db/logs')
 
 const account = '111111111111'
 const region = 'eu-west-1'
@@ -481,13 +481,15 @@ describe('Invoke', () => {
     expect(record.Log).toBeUndefined()
     expect(record.LogDelivery).toMatchObject({ Group: '/aws/lambda/observed', Status: 'not-written' })
 
-    // not in the state of the Lambda service
+    // not in the state of the Lambda service: the records are data, one file per function
     expect(readFileSync(join(root, account, region, 'lambda.json'), 'utf8')).not.toContain(record.RequestId)
-    expect(JSON.parse(readFileSync(join(root, account, region, 'lambda-invocations.json'), 'utf8')).observed).toHaveLength(1)
+    expect(existsSync(join(root, account, region, 'lambda-invocations.json'))).toBe(false)
+    const file = join(root, account, region, 'data', 'lambda-invocations', 'observed.json')
+    expect(JSON.parse(readFileSync(file, 'utf8'))).toHaveLength(1)
 
     // and it goes with the function
     await remove('observed')
-    expect(JSON.parse(readFileSync(join(root, account, region, 'lambda-invocations.json'), 'utf8')).observed).toBeUndefined()
+    expect(existsSync(file)).toBe(false)
   })
 
   describe('and its log in CloudWatch Logs', () => {
@@ -515,7 +517,7 @@ describe('Invoke', () => {
       const group = stored('logged')
       expect(Object.keys(group.streams)).toEqual([record.LogDelivery.Stream])
       expect(record.LogDelivery.Stream).toMatch(/^\d{4}\/\d\d\/\d\d\/\[\$LATEST\][0-9a-f]{32}$/)
-      const messages = group.streams[record.LogDelivery.Stream].events.map((e: { message: string }) => e.message)
+      const messages = readEvents(scope, '/aws/lambda/logged', record.LogDelivery.Stream).map((e: { message: string }) => e.message)
       expect(messages).toEqual([
         `START RequestId: ${record.RequestId} Version: $LATEST`,
         'first line',
