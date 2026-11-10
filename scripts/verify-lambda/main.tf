@@ -29,7 +29,14 @@ provider "aws" {
     sts    = "http://localhost:3000"
     iam    = "http://localhost:3000"
     lambda = "http://localhost:3000"
+    cloudwatchlogs = "http://localhost:3000"
   }
+}
+
+resource "aws_cloudwatch_log_group" "app" {
+  name              = "/verify/app"
+  retention_in_days = 7
+  tags              = { Name = "verify-lambda" }
 }
 
 resource "aws_vpc" "main" {

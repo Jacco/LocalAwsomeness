@@ -12,8 +12,8 @@ export interface FunctionRecord {
 
 // What an invocation did, kept for looking at afterwards (the newest first, the last few per function). This is not state
 // of the Lambda service and AWS has no API for it, so it is not in lambda.json: it is what the simulator observed, in
-// db/<account>/<region>/lambda-invocations.json, read with GET /api/lambda/inspect. The log output belongs in CloudWatch
-// Logs once that exists; the connections and their traces are what this app is for. Text is kept as lines.
+// db/<account>/<region>/lambda-invocations.json, read with GET /api/lambda/inspect. The log output is in CloudWatch Logs; the
+// connections and their traces are what this app is for. Text is kept as lines.
 export interface InvocationRecord {
   RequestId: string
   Time: string
@@ -23,8 +23,9 @@ export interface InvocationRecord {
   DurationMs: number
   // What the code saw, in virtual seconds, against the real time it took.
   VirtualSeconds: number
-  // The log of the invocation, as AWS shows it (START, the output of the function, END, REPORT).
-  Log: string[]
+  // Where the log of the invocation went: CloudWatch Logs (the group and stream), or why it was not written (the role
+  // lacks logs permissions). The log itself is in CloudWatch Logs, and returned by Invoke with LogType=Tail.
+  LogDelivery: { Group: string; Stream: string; Status: 'written' | 'not-written'; Reason?: string }
   // Every connection the code made with the trace of the decision (src/app/api/runtime/run.ts), line by line.
   Network: string[]
   Connections: { host: string; port: number; verdict: string; attempts: number; cause?: string }[]

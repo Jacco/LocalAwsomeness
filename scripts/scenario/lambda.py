@@ -5,11 +5,14 @@
     python3 scripts/scenario/lambda.py              # create orders-fn in it (or replace it), invoke it, show what happened
     python3 scripts/scenario/lambda.py --invoke     # invoke again (after changing the network or the permissions)
     python3 scripts/scenario/lambda.py --grant ec2:DescribeVpcs    # give the role a permission, then create and invoke
-    python3 scripts/scenario/lambda.py --revoke     # take the permission away again
+    python3 scripts/scenario/lambda.py --invoke --logs   # let the role write its log to CloudWatch Logs
+    python3 scripts/scenario/lambda.py --revoke     # take the permissions away again
     python3 scripts/scenario/lambda.py --clean      # delete the function and the permissions
 
 The function asks STS who it is (needs no permission, as in AWS) and calls ec2:DescribeVpcs (needs the permission): the role
-starts without any policy, so the second call is denied until it is granted.
+starts without any policy, so the second call is denied until it is granted. Its log goes to CloudWatch Logs only when the
+role may write there (logs:CreateLogGroup, logs:CreateLogStream, logs:PutLogEvents); without, nothing is written and, as in
+AWS, nobody is told: the script prints why from the invocation record.
 
 Uses the default AWS profile and endpoint like scripts/verify-ec2/check.py, through the Lambda API with boto3. The role
 `orders-fn-role` (trusting lambda.amazonaws.com) is created when it does not exist. After the invocation it prints the
@@ -34,6 +37,7 @@ lam = boto3.client('lambda', region_name=region, endpoint_url=ENDPOINT)
 ec2 = boto3.client('ec2', region_name=region, endpoint_url=ENDPOINT)
 iam = boto3.client('iam', region_name=region, endpoint_url=ENDPOINT)
 sts = boto3.client('sts', region_name=region, endpoint_url=ENDPOINT)
+logs = boto3.client('logs', region_name=region, endpoint_url=ENDPOINT)
 NAME = 'orders-fn'
 ROLE = 'orders-fn-role'
 GRANT = 'orders-fn-grant'
@@ -110,19 +114,37 @@ def invoke():
     print('status', answer['StatusCode'], 'error' if answer.get('FunctionError') else 'ok')
     print(payload)
     import base64
-    print('\n--- log ---')
+    print('\n--- log returned by Invoke (LogType=Tail) ---')
     print(base64.b64decode(answer['LogResult']).decode(), end='')
     query = urllib.parse.urlencode({'account': account, 'region': region, 'function': NAME})
     with urllib.request.urlopen(f'{SERVER}/api/lambda/inspect?{query}') as response:
         record = json.load(response)['invocations'][0]
+    delivery = record['LogDelivery']
+    print(f'\n--- CloudWatch Logs: {delivery["Group"]} ---')
+    if delivery['Status'] == 'written':
+        events = logs.get_log_events(logGroupName=delivery['Group'], logStreamName=delivery['Stream'], startFromHead=True)['events']
+        print(f'stream {delivery["Stream"]}')
+        for event in events:
+            print('  ', event['message'].rstrip())
+    else:
+        print('nothing was written (AWS does not tell the function or the caller):')
+        print(' ', delivery['Reason'])
+        print(f'  give the role logs:CreateLogGroup, logs:CreateLogStream and logs:PutLogEvents: {sys.argv[0]} --invoke --logs')
     print('\n--- network (what the simulator recorded) ---')
     print('\n'.join(record['Network']))
 
 
 def grant(actions):
+    # add to what was granted before
+    try:
+        existing = iam.get_role_policy(RoleName=ROLE, PolicyName=GRANT)['PolicyDocument']
+        existing = json.loads(existing) if isinstance(existing, str) else existing
+        actions = sorted(set(existing['Statement'][0]['Action']) | set(actions))
+    except ClientError:
+        pass
     document = {'Version': '2012-10-17', 'Statement': [{'Effect': 'Allow', 'Action': actions, 'Resource': '*'}]}
     iam.put_role_policy(RoleName=ROLE, PolicyName=GRANT, PolicyDocument=json.dumps(document))
-    print(f'granted {", ".join(actions)} to {ROLE}')
+    print(f'{ROLE} may now: {", ".join(actions)}')
 
 
 def revoke():
@@ -143,8 +165,13 @@ if __name__ == '__main__':
             ensure_role()
             if '--revoke' in sys.argv:
                 revoke()
+            actions = []
             if '--grant' in sys.argv:
-                grant(sys.argv[sys.argv.index('--grant') + 1].split(','))
+                actions += sys.argv[sys.argv.index('--grant') + 1].split(',')
+            if '--logs' in sys.argv:
+                actions += ['logs:CreateLogGroup', 'logs:CreateLogStream', 'logs:PutLogEvents']
+            if actions:
+                grant(actions)
             if '--invoke' not in sys.argv:
                 create()
             invoke()

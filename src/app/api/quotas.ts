@@ -29,6 +29,10 @@ export const QUOTAS = {
   lambdaPackageDirectSize: 'lambda.deployment-package-direct-size',
   lambdaPackageUnzippedSize: 'lambda.deployment-package-unzipped-size',
   lambdaPayloadSynchronous: 'lambda.invocation-payload-synchronous',
+  logGroupsPerRegion: 'logs.log-groups-per-region',
+  putLogEventsBatchSize: 'logs.put-log-events-batch-size',
+  putLogEventsBatchEvents: 'logs.put-log-events-batch-events',
+  logEventSize: 'logs.log-event-size',
 } as const
 
 export type QuotaKey = (typeof QUOTAS)[keyof typeof QUOTAS]

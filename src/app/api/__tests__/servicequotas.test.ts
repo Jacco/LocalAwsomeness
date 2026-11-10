@@ -54,6 +54,7 @@ describe('service quotas: reading quotas', () => {
     const services = (await call(A, 'ListServices')).body
     expect(services.Services).toEqual([
       { ServiceCode: 'ec2', ServiceName: 'Amazon Elastic Compute Cloud (Amazon EC2)' },
+      { ServiceCode: 'logs', ServiceName: 'Amazon CloudWatch Logs' },
       { ServiceCode: 'vpc', ServiceName: 'Amazon Virtual Private Cloud (Amazon VPC)' },
     ])
 

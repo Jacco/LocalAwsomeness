@@ -10,6 +10,7 @@ import { BadRunRequest, runInContext, type RunResult } from "../runtime/run"
 import { codeDirectory } from "./code"
 import { invalidParameter } from "./errors"
 import { lookup } from "./functions"
+import { deliverLog, type LogDelivery } from "./logging"
 import { sharedInterface, vpcSettings } from "./network"
 
 // Invoke: the function runs in a Python subprocess behind the network shim (src/app/api/runtime/), in the network position
@@ -29,6 +30,9 @@ interface Outcome {
   payload: string
   log: string
   durationMs: number
+  // When the invocation started, and the log stream of its execution environment.
+  started: number
+  logStream: string
 }
 
 const iso = () => new Date().toISOString()
@@ -59,6 +63,8 @@ async function execute(ctx: RequestContext, name: string, record: FunctionRecord
     from = { networkInterfaceId: eni.NetworkInterfaceId }
   }
   const timeoutSeconds: number = c.Timeout
+  const started = Date.now()
+  const logStream = `${new Date().toISOString().slice(0, 10).replace(/-/g, '/')}/[$LATEST]${randomUUID().replace(/-/g, '')}`
   let run: RunResult
   try {
     run = await runInContext({
@@ -75,7 +81,7 @@ async function execute(ctx: RequestContext, name: string, record: FunctionRecord
         AWS_LAMBDA_FUNCTION_VERSION: '$LATEST',
         AWS_LAMBDA_FUNCTION_MEMORY_SIZE: String(c.MemorySize),
         AWS_LAMBDA_LOG_GROUP_NAME: `/aws/lambda/${name}`,
-        AWS_LAMBDA_LOG_STREAM_NAME: `${new Date().toISOString().slice(0, 10).replace(/-/g, '/')}/[$LATEST]${randomUUID().replace(/-/g, '')}`,
+        AWS_LAMBDA_LOG_STREAM_NAME: logStream,
         AWS_LAMBDA_INITIALIZATION_TYPE: 'on-demand',
         AWS_EXECUTION_ENV: `AWS_Lambda_${c.Runtime}`,
         _HANDLER: c.Handler,
@@ -127,13 +133,13 @@ async function execute(ctx: RequestContext, name: string, record: FunctionRecord
   }
   const billed = Math.ceil(durationMs)
   const log = `${header}${run.log}${extra}END RequestId: ${requestId}\nREPORT RequestId: ${requestId}\tDuration: ${durationMs.toFixed(2)} ms\tBilled Duration: ${billed} ms\tMemory Size: ${c.MemorySize} MB\t\n`
-  return { outcome: { statusCode: 200, functionError, payload: payloadOut, log, durationMs }, run }
+  return { outcome: { statusCode: 200, functionError, payload: payloadOut, log, durationMs, started, logStream }, run }
 }
 
 // Text as the lines it is read in, without the empty piece after a final newline.
 const lines = (text: string): string[] => text.replace(/\n$/, '').split('\n')
 
-function remember(ctx: RequestContext, name: string, requestId: string, type: string, outcome: Outcome, run: RunResult) {
+function remember(ctx: RequestContext, name: string, requestId: string, type: string, outcome: Outcome, run: RunResult, delivery: LogDelivery) {
   const scope = { account: ctx.account, region: ctx.region }
   if (!loadLambda(scope).functions[name]) {
     return
@@ -146,7 +152,7 @@ function remember(ctx: RequestContext, name: string, requestId: string, type: st
     FunctionError: outcome.functionError,
     DurationMs: outcome.durationMs,
     VirtualSeconds: run.virtualSeconds,
-    Log: lines(outcome.log),
+    LogDelivery: delivery,
     Network: lines(run.text),
     Connections: run.connections.map(c => ({ host: c.host, port: c.port, verdict: c.verdict, attempts: c.attempts, cause: c.trace.cause })),
   }
@@ -181,7 +187,11 @@ export async function invoke(ctx: RequestContext): Promise<Response> {
   headers['x-amzn-RequestId'] = requestId
   const run = async () => {
     const { outcome, run } = await execute(ctx, name, record, payload, requestId)
-    remember(ctx, name, requestId, type, outcome, run)
+    // the log goes to CloudWatch Logs with the permissions of the execution role, as AWS does it
+    const delivery = deliverLog(
+      { account: ctx.account, region: ctx.region }, name, run.identity!, outcome.logStream, lines(outcome.log), outcome.started, outcome.durationMs,
+    )
+    remember(ctx, name, requestId, type, outcome, run, delivery)
     return outcome
   }
   if (type === 'Event') {

@@ -89,5 +89,23 @@
     "service": "lambda", "name": "Invocation payload (request and response), synchronous", "code": null, "default": 6291456, "adjustable": false, "global": true, "unit": "Bytes",
     "note": "Documented as 6 MB each; AWS reports a limit of a few bytes more in its error message, which is not verified here.",
     "source": "https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html", "checked": "2026-11-10"
+  },
+  "logs.log-groups-per-region": {
+    "service": "logs", "name": "Log groups", "code": "L-C7B9AAAB", "default": 1000000, "adjustable": true, "global": false, "unit": "None",
+    "source": "https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/cloudwatch_limits_cwl.html", "checked": "2026-11-10"
+  },
+  "logs.put-log-events-batch-size": {
+    "service": "logs", "name": "Batch size of a PutLogEvents request", "code": null, "default": 1048576, "adjustable": false, "global": true, "unit": "Bytes",
+    "note": "The size of a batch is the sum of the UTF-8 bytes of the messages plus 26 bytes per event.",
+    "source": "https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/cloudwatch_limits_cwl.html", "checked": "2026-11-10"
+  },
+  "logs.put-log-events-batch-events": {
+    "service": "logs", "name": "Log events in a PutLogEvents request", "code": null, "default": 10000, "adjustable": false, "global": true, "unit": "None",
+    "source": "https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutLogEvents.html", "checked": "2026-11-10"
+  },
+  "logs.log-event-size": {
+    "service": "logs", "name": "Log event size", "code": null, "default": 1048576, "adjustable": false, "global": true, "unit": "Bytes",
+    "note": "The quotas page says 1,024 KB; older documentation says 256 KB.",
+    "source": "https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/cloudwatch_limits_cwl.html", "checked": "2026-11-10"
   }
 }

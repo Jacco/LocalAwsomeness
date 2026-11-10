@@ -23,27 +23,34 @@ function denial(principal: string, evaluation: Evaluation): AwsError {
   return new AwsError(service === 'iam' || service === 'sts' ? 'AccessDenied' : 'AccessDeniedException', message, 403)
 }
 
+// Why a principal may not perform an action on a resource, as the error the service would answer with; undefined when it may.
+// Used by the authorizer and by the services that act for a role themselves (Lambda writing the log of a function).
+export function accessDenial(principal: string, action: string, resource: string): AwsError | undefined {
+  if (NO_PERMISSION_REQUIRED.has(action)) {
+    return undefined
+  }
+  const subject = subjectOf(principal)
+  if (!subject.restricted) {
+    return undefined
+  }
+  let evaluation: Evaluation
+  try {
+    evaluation = evaluateIdentityPolicies(subject.policies, action, resource)
+  } catch (error) {
+    if (error instanceof PolicyNotModelled) {
+      return new AwsError('PolicyNotModelled', `The simulator cannot decide whether ${principal} may perform ${action} on ${resource}: ${error.message}`, 501)
+    }
+    throw error
+  }
+  return evaluation.decision === 'allow' ? undefined : denial(principal, evaluation)
+}
+
 // Every resource the request names must be allowed.
 export function identityAuthorizer(request: AuthorizationRequest): void {
-  if (NO_PERMISSION_REQUIRED.has(request.action)) {
-    return
-  }
-  const subject = subjectOf(request.principal)
-  if (!subject.restricted) {
-    return
-  }
   for (const resource of request.resources.length ? request.resources : ['*']) {
-    let evaluation: Evaluation
-    try {
-      evaluation = evaluateIdentityPolicies(subject.policies, request.action, resource)
-    } catch (error) {
-      if (error instanceof PolicyNotModelled) {
-        throw new AwsError('PolicyNotModelled', `The simulator cannot decide whether ${request.principal} may perform ${request.action} on ${resource}: ${error.message}`, 501)
-      }
-      throw error
-    }
-    if (evaluation.decision !== 'allow') {
-      throw denial(request.principal, evaluation)
+    const denied = accessDenial(request.principal, request.action, resource)
+    if (denied) {
+      throw denied
     }
   }
 }

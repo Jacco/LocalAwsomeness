@@ -28,6 +28,7 @@ const iam = require('@/app/api/db/iam')
 const { addSecurityGroup, createSubnet, createVpc, loadState, saveState, securityGroupRule } = require('@/app/api/db/ec2/state')
 const { QUOTAS, setQuota } = require('@/app/api/quotas')
 const { availableAddressCount } = require('@/app/api/db/ec2/interfaces')
+const { createGroup, loadLogs, saveLogs } = require('@/app/api/db/logs')
 
 const account = '111111111111'
 const region = 'eu-west-1'
@@ -469,29 +470,109 @@ describe('Invoke', () => {
   })
 
   it('keeps what the simulator observed of an invocation apart from the state of the service, as lines', async () => {
-    await fn('observed', source('def handler(event, context):\n    print("first line")\n    print("second line")\n    return 1'))
+    await fn('observed', source('def handler(event, context):\n    print("first line")\n    return 1'))
     await invoke('observed')
 
     const record = (await send(inspectRoute.GET, 'GET', `/api/lambda/inspect?account=${account}&region=${region}&function=observed`)).body.invocations[0]
-    expect(record.Log).toEqual([
-      `START RequestId: ${record.RequestId} Version: $LATEST`,
-      'first line',
-      'second line',
-      `END RequestId: ${record.RequestId}`,
-      expect.stringMatching(new RegExp(`^REPORT RequestId: ${record.RequestId}\\tDuration: [\\d.]+ ms\\tBilled Duration: \\d+ ms\\tMemory Size: 128 MB`)),
-    ])
     expect(Array.isArray(record.Network)).toBe(true)
     expect(record.Network.every((line: string) => !line.includes('\n'))).toBe(true)
     expect(record.Network[0]).toMatch(/^exit 0;/)
+    // the log itself is in CloudWatch Logs, not in the record
+    expect(record.Log).toBeUndefined()
+    expect(record.LogDelivery).toMatchObject({ Group: '/aws/lambda/observed', Status: 'not-written' })
 
     // not in the state of the Lambda service
-    const state = readFileSync(join(root, account, region, 'lambda.json'), 'utf8')
-    expect(state).not.toContain(record.RequestId)
+    expect(readFileSync(join(root, account, region, 'lambda.json'), 'utf8')).not.toContain(record.RequestId)
     expect(JSON.parse(readFileSync(join(root, account, region, 'lambda-invocations.json'), 'utf8')).observed).toHaveLength(1)
 
     // and it goes with the function
     await remove('observed')
     expect(JSON.parse(readFileSync(join(root, account, region, 'lambda-invocations.json'), 'utf8')).observed).toBeUndefined()
+  })
+
+  describe('and its log in CloudWatch Logs', () => {
+    const rolePolicy = (...actions: string[]) =>
+      iam.putRolePolicy(account, 'fn-role', 'logging', { Version: '2012-10-17', Statement: [{ Effect: 'Allow', Action: actions, Resource: '*' }] })
+    const noPolicy = () => {
+      try {
+        iam.deleteRolePolicy(account, 'fn-role', 'logging')
+      } catch {
+        // there was none
+      }
+    }
+    const inspect = async (name: string) => (await send(inspectRoute.GET, 'GET', `/api/lambda/inspect?account=${account}&region=${region}&function=${name}`)).body.invocations[0]
+    const stored = (name: string) => loadLogs(scope).groups[`/aws/lambda/${name}`]
+    afterEach(noPolicy)
+
+    it('is written when the execution role may, one stream per invocation, with the lines of the log as events', async () => {
+      rolePolicy('logs:CreateLogGroup', 'logs:CreateLogStream', 'logs:PutLogEvents')
+      await fn('logged', source('def handler(event, context):\n    print("first line")\n    print("second line")\n    return 1'))
+      const answer = await invoke('logged', {}, { 'X-Amz-Log-Type': 'Tail' })
+      const record = await inspect('logged')
+
+      expect(record.LogDelivery).toMatchObject({ Group: '/aws/lambda/logged', Status: 'written' })
+      expect(record.LogDelivery.Reason).toBeUndefined()
+      const group = stored('logged')
+      expect(Object.keys(group.streams)).toEqual([record.LogDelivery.Stream])
+      expect(record.LogDelivery.Stream).toMatch(/^\d{4}\/\d\d\/\d\d\/\[\$LATEST\][0-9a-f]{32}$/)
+      const messages = group.streams[record.LogDelivery.Stream].events.map((e: { message: string }) => e.message)
+      expect(messages).toEqual([
+        `START RequestId: ${record.RequestId} Version: $LATEST`,
+        'first line',
+        'second line',
+        `END RequestId: ${record.RequestId}`,
+        expect.stringMatching(/^REPORT RequestId: .*\tMemory Size: 128 MB/),
+      ])
+      // the same lines are in the tail the caller of Invoke asks for
+      expect(Buffer.from(answer.headers.get('x-amz-log-result')!, 'base64').toString().replace(/\n$/, '').split('\n')).toEqual(messages)
+
+      // the next invocation is another environment: a second stream in the same group
+      await invoke('logged')
+      expect(Object.keys(stored('logged').streams)).toHaveLength(2)
+      await remove('logged')
+    })
+
+    it('is not written, silently, when the role lacks the permissions, and the record says which one', async () => {
+      await fn('silent', HELLO)
+      const answer = await invoke('silent', { a: 1 }, { 'X-Amz-Log-Type': 'Tail' })
+
+      // the caller sees nothing wrong: the function ran, and the tail of the log is returned
+      expect(answer.status).toBe(200)
+      expect(answer.headers.get('x-amz-function-error')).toBeNull()
+      expect(Buffer.from(answer.headers.get('x-amz-log-result')!, 'base64').toString()).toContain('hello from silent')
+      expect(stored('silent')).toBeUndefined()
+      const delivery = (await inspect('silent')).LogDelivery
+      expect(delivery).toMatchObject({ Group: '/aws/lambda/silent', Status: 'not-written' })
+      expect(delivery.Reason).toBe(`User: arn:aws:sts::${account}:assumed-role/fn-role/silent is not authorized to perform: logs:CreateLogGroup on resource: arn:aws:logs:${region}:${account}:log-group:/aws/lambda/silent because no identity-based policy allows the logs:CreateLogGroup action`)
+
+      // creating the log group is enough to reveal the next missing permission
+      rolePolicy('logs:CreateLogGroup')
+      await invoke('silent')
+      expect((await inspect('silent')).LogDelivery.Reason).toMatch(/logs:CreateLogStream on resource: arn:aws:logs:.*:log-group:\/aws\/lambda\/silent:log-stream:.*because no identity-based policy/)
+      expect(stored('silent')).toBeUndefined()
+      await remove('silent')
+    })
+
+    it('needs no permission to create the log group when it exists already', async () => {
+      const state = loadLogs(scope)
+      createGroup(state, '/aws/lambda/existing')
+      saveLogs(scope, state)
+      rolePolicy('logs:CreateLogStream', 'logs:PutLogEvents')
+      await fn('existing', HELLO)
+      await invoke('existing')
+
+      expect((await inspect('existing')).LogDelivery.Status).toBe('written')
+      expect(Object.keys(stored('existing').streams)).toHaveLength(1)
+      await remove('existing')
+    })
+
+    it('stays when the function is deleted, as in AWS', async () => {
+      rolePolicy('logs:CreateLogGroup', 'logs:CreateLogStream', 'logs:PutLogEvents')
+      await fn('kept-log', HELLO)
+      await invoke('kept-log')
+      await remove('kept-log')
+      expect(stored('kept-log')).toBeDefined()
+    })
   })
 
   it('answers DryRun and Event invocations without waiting, and refuses a payload that is not JSON', async () => {
