@@ -1,0 +1,89 @@
+# Walking skeleton: the first Lambda-in-a-VPC test
+
+Status: **steps 1 and 2 are built**: the network model v0 and the trace types (`src/app/api/network/`, 25 unit tests of the four variants and the edge cases), and the EC2 slice of phase 4 that lets the variants be built through the real API. The shim, the runner and Lambda are not. This is the thin end-to-end slice that exercises the end goal of the app (run code *as if* it were somewhere, let the emulated network and IAM decide) before more APIs are implemented. See [lambda-plan.md](./lambda-plan.md), [network-traces-plan.md](./network-traces-plan.md) and the design in [architecture.md](./architecture.md#execution-contexts-and-the-emulated-network-design-not-started).
+
+## Step 1 as built
+
+`reachPublicService(state, source, destination, options)` in `src/app/api/network/reach.ts` answers "can this interface reach this public service name or address, and why (not)?" and returns a `Trace` (`trace.ts`, with `renderTrace` for the text form); `routes.ts` has the route table helpers and `effectiveRouteState`, the route state derived from the target. It reads the EC2 state as it is stored; `Ec2State` got two empty collections, `natGateways` and `addresses` (API-shaped records), which the phase 4 operations will fill.
+
+Modelled: the VPC resolver (`enableDnsSupport`, public names, address literals), security group egress, network ACLs in both directions (rule order, the final rule, and the *return* traffic on the client's port, which the shim reports), the subnet's route table (explicit association, else main; most specific route; routes whose target is gone are blackholes), internet gateways and public NAT gateways (state, the NAT subnet's own ACL and route to an internet gateway, the Elastic IP as the source address), and the request context that results (`sourceIp`, path, NAT gateway). Everything else is reported as **not modelled** and makes the outcome `unknown`, never allow or deny: destinations inside a VPC, other route targets (peering, transit gateway, ...), IPv6 and prefix list routes, endpoints and private DNS, the NAT return path.
+
+Decision made while building it: **independent checks are all evaluated**, so one run shows every problem (security group, network ACLs and route do not depend on each other); the cause is the first failing step in packet order and `problems` lists them all. Only steps that depend on a failed one (the gateway steps after a missing route, everything after a failed name lookup, delivery) are `not-evaluated`. Service addresses are stand-ins from the documentation range `198.51.100.0/24` until the real ranges become reference data.
+
+Not done in step 1, on purpose: `DescribeRouteTables` still returned the stored route state and nothing created NAT gateways or Elastic IPs. Both were done in step 2 (below).
+
+## Step 2 as built
+
+The EC2 slice of phase 4, verified with Terraform (27 resources: apply, empty plan, destroy), boto3 and the AWS CLI (`scripts/verify-ec2/`); details and the lifetime rules are in `src/app/api/ec2/ec2.md` ("Phase 4, partial"). Elastic IPs (`AllocateAddress`, `ReleaseAddress`, `DescribeAddresses`, `DisassociateAddress` as far as Terraform needs it), NAT gateways (`CreateNatGateway`, `DeleteNatGateway`, `DescribeNatGateways`, public and private), requester-managed network interface records that NAT gateways create and delete, the derived route state in `DescribeRouteTables`, the derived `AvailableIpAddressCount`, `InsufficientFreeAddressesInSubnet`, and their quotas in the registry. So the four variants of the scenario can now be built through the real API: variant D is simply deleting the NAT gateway and watching the route become a blackhole.
+
+What building it taught, for the next steps:
+- **Real clients decide what partial may mean.** Rejecting unsupported parameters by name is right, but Terraform sends parameters that are harmless (`NetworkBorderGroup` on `ReleaseAddress`) and calls operations a clean design would not need (`DisassociateAddress` with a stale association id). Only a real run of Terraform finds these; every partial operation must be run with Terraform before it counts as verified.
+- **Hidden failures need assertions.** A crash in deleting a private NAT gateway (no address, so `undefined === undefined`) was found only because a stray NAT gateway showed up in the next test's state. Cleanup calls in tests now assert their status.
+- **The network model is not connected to the live state yet.** It reads an `Ec2State`; nothing hands it the state of a real function or interface yet. That is the first part of step 3, and it is also what makes manual inspection possible.
+
+## Principle: scenario-driven, partial APIs on purpose
+
+APIs are implemented only as far as the scenarios need them, and *partial is stated, not hidden*: an operation that supports a subset of its parameters rejects the rest with `UnsupportedOperation` / `InvalidParameterValue` naming the parameter, never ignores it silently, and the supported subset is listed in the service's `.md`. A scenario that needs more extends the operation then. This keeps the next months about the end goal (predicting connectivity and permissions), not about API coverage. Full coverage of an API happens when a scenario or a real client (Terraform, CDK) needs it.
+
+## The scenario
+
+*Lambda `orders-fn` runs in a VPC and calls `sts:GetCallerIdentity`.* One function, one call, four variants; each differs by a single change in the network and must give a different, explained result:
+
+| | Setup | Expected result | Trace says |
+| --- | --- | --- | --- |
+| A | Private subnet whose route table has only the `local` route | Call fails like a connect timeout | no route to a public address from `subnet-private` (`rtb-...` has only `10.0.0.0/16 -> local`); delivery was not evaluated, and the security group and network ACL checks, which do not depend on the route, passed |
+| B | Private route `0.0.0.0/0 -> nat-...`, the NAT gateway in a public subnet whose route table has `0.0.0.0/0 -> igw-...` | Call works, `GetCallerIdentity` returns the execution role session | route via NAT, internet gateway, source address is the NAT's Elastic IP, security group and NACL allow |
+| C | As B, but the function's security group has no egress rule for 443 | Call fails like a connect timeout | `sg-...` has no egress rule matching `tcp/443` to the destination (names the group and the rules it does have) |
+| D | As B, but the NAT gateway was deleted (the route is now `blackhole`) | Call fails like a connect timeout | route `0.0.0.0/0 -> nat-...` is `blackhole`: the target does not exist |
+
+B shows that the identity is right (execution role through the existing `sts:AssumeRole` machinery) and that the request context (source IP) is attached by the network layer. Variant E (later): an interface endpoint for the service with private DNS makes A work without NAT, and the request carries `aws:SourceVpce` instead of a source IP. A scenario with a policy that checks those keys needs the policy engine and is the step after the skeleton.
+
+## What the skeleton needs, and nothing more
+
+1. **EC2, the slice of phase 4**: Elastic IPs (`AllocateAddress`, `DescribeAddresses`, `ReleaseAddress`), NAT gateways (`CreateNatGateway`, `DescribeNatGateways`, `DeleteNatGateway`, public type only), network interfaces as records (created internally for NAT gateways and Lambda, listed by `DescribeNetworkInterfaces`; no `CreateNetworkInterface` API yet), route state derived from the target (`blackhole`), and `AvailableIpAddressCount` derived from the interfaces in a subnet. Quotas for these go through the registry.
+2. **Lambda**, minimal: `CreateFunction` (inline `ZipFile`, Python runtime, `VpcConfig`, role), `GetFunction`, `DeleteFunction`, `Invoke` (synchronous). A `VpcConfig` finds or creates the shared interface per (subnet, security groups). No versions, aliases, layers, event sources.
+3. **Network model v0**, pure functions over the EC2 state, every function returning `{ decision, trace }`: resolve a service hostname (public address only; no endpoints yet), route lookup in the subnet's table (explicit association, else main; longest prefix; `local`, `igw`, `nat`, `blackhole`), NAT and internet gateway hop, security group egress, network ACL egress/ingress, and the source address. Unit tests with hand-built state.
+4. **Shim v0** (Python), see the spikes below, and a **runner** that starts the handler in a subprocess with the Lambda environment variables and the credentials of the execution role.
+5. **Run registry and request context**: each run gets a random run token; the shim sends it with every request; the server looks up the run and derives the context (source address, VPC, function) itself and records it with the request. Policy evaluation of the context is the next step.
+6. **Scenario tests** (Jest) that build the four setups through the EC2 API, create the function, invoke it, and assert result, trace and recorded context.
+
+Deliberately left out: S3, KMS, CloudFormation, other runtimes, VPC endpoints, Route 53, policy evaluation, the EC2 instance context, packages with native dependencies.
+
+## What the spikes showed (run against the dev server)
+
+Throwaway code, kept in the session files, not in the repo.
+
+**Works, confirmed**
+- Unmodified botocore code can be redirected with a hook on its HTTP layer (`before-send` event, or patching `URLLib3Session.send`) with the credentials and region from the environment, as in Lambda. The request was *signed for the real service name* (`sts.amazonaws.com`) and delivered to the simulator with that `Host` preserved; `proxy.ts` verified the SigV4 signature unchanged, because it re-signs exactly the headers the client signed. No change to the proxy is needed for a client that talks to a real service name. (Today's clients use `endpoint_url=http://localhost:3000`, which is a different path.)
+- One patch at urllib3's connection level (`HTTPConnection.connect` / `HTTPSConnection.connect`, replaced by a plain TCP connection to the simulator, no TLS) covered botocore **and** `requests` with a single change, kept the original `Host`, and called the network decision once per connection with the host name, port and scheme. Python startup plus the patch plus `import boto3` took about 0.16 s, one signed call about 0.16 s, so a subprocess per invoke is affordable.
+- Session credentials for a role come from the existing `sts:AssumeRole` path (`ASIA...` keys with a token), so a function's execution-role credentials need no new mechanism.
+- A denied connection raised as botocore's own `ConnectTimeoutError` is what the code under test sees; the SDK reacts as it would to a real timeout.
+
+**Found: problems the skeleton must handle**
+- **Retries make failures slow.** The simulated failure took 9.3 s, because botocore retried the timeout five times with exponential backoff, and the network decision ran five times (five identical trace entries). Real AWS would take far longer (each attempt waits for the connect timeout). The shim needs a **virtual clock** (replace `time.sleep` and the SDK's backoff inside the run, add the virtual time to a "this would have taken ..." line in the trace), and the trace must **collapse retries** ("attempt 1 to 5, same decision").
+- **The simulator answers anything.** An unsigned `requests.get` to a service name got the Next.js HTML page with status 200. An emulated endpoint must answer like AWS (`MissingAuthenticationToken`, `403`) for requests that no service route claims; today the UI shell answers.
+
+**Not spiked, reasoned (the real risks)**
+
+| Risk | Why | Proposed handling |
+| --- | --- | --- |
+| **Coverage of the hook** | Patching urllib3 and `http.client` covers botocore, `requests`, urllib3 and the standard library clients. Libraries with their own sockets or TLS (`aiohttp`, `httpx`/`httpcore`, `grpc`) and C extensions (`psycopg2`/libpq, database drivers, `pycurl`) bypass it. | Say so: the trace reports "not modelled: the code opened a connection the shim cannot see" when it can detect it (a `socket.socket.connect` patch that decides but cannot deliver sees pure-Python sockets), and list the supported clients. Decision-only mode (the connect is allowed or refused, the delivery goes to a stub) for TCP that has no emulated server. Native or non-Python code needs a network namespace or container (Linux, root): not for macOS and not now. |
+| **TLS** | The in-process hook skips TLS, so certificates are never exercised. Clients with their own TLS stack, or tests of certificate problems (hostname mismatch, expiry, wrong CA), need a real handshake. | Later: a simulator CA, certificates per emulated endpoint (the ACM plan in [encryption-plan.md](./encryption-plan.md)), and a CA bundle passed to the run through `AWS_CA_BUNDLE` / `SSL_CERT_FILE`, so the server really terminates TLS. Not needed for the skeleton. |
+| **Deadlock** | `Invoke` is a request to the Node server; the handler subprocess calls back into the same server. If `Invoke` waits with a synchronous spawn it blocks the event loop and the callbacks never get served. | `Invoke` must be asynchronous (`spawn`, awaited), and a test must make the handler call the API. |
+| **Forged context** | The context keys (`aws:SourceIp`, `aws:SourceVpce`, ...) must come from the network layer, not from the code under test, which runs as a subprocess that could send any header. | The per-run token: the shim sends only the token, the server maps it to the run and derives everything else; `proxy.ts` keeps stripping incoming context headers; unknown or expired tokens mean "outside" context. |
+| **DNS fidelity** | The connection-level hook sees the host name that the client already chose and skips DNS. Code that resolves names itself or connects to an IP literal (a private address of a database) bypasses the name step. | Also patch `socket.getaddrinfo` / `gethostbyname` to answer from the emulated DNS (and record the step) and `socket.socket.connect` to decide for IP targets; the name step in the trace then exists for every client. |
+| **Shared state** | The store reads and writes whole files without locking, which is safe only because a handler loads and saves within one synchronous turn. A run's API calls arrive concurrently with the invoker. | Keep operations synchronous between load and save (already the rule); add a test with concurrent calls; revisit if an async handler appears. |
+| **Process lifetime** | A function that never returns, spawns children or writes a lot of output. | Timeout (virtual and real), kill the process group, cap captured output; warm reuse of a process is a later optimisation. |
+
+## Order of work
+
+1. **Done.** Network model v0 and the trace types, as pure functions with hand-built state (no Lambda yet): the four variants as unit tests. This is where the model and the explanations got their shape (see "Step 1 as built").
+2. **Done.** EC2 slice of phase 4 and the derived route state, so the variants can be built through the API (see "Step 2 as built").
+3. **Next.** Connect the model to the live state and make it inspectable by hand: a small internal API and a command-line script that take a source (a subnet, security groups, private address, optional public address) and a destination and print the rendered trace of the dev server's state, so the four variants can be built with the AWS CLI or Terraform and looked at before any Lambda exists. Then the shim v0 and a runner that runs a plain Python script (no Lambda API) in a context named by hand: variants A and B end to end, with the virtual clock and run token.
+4. Lambda minimal on top (function state, shared interface, execution-role credentials, `Invoke`), and variants C and D.
+5. The decision that follows: the policy engine (to give the recorded context an effect), or VPC endpoints and Route 53 (to make variant E work).
+
+## Open questions
+
+- Where does the network model live? Pure TypeScript functions in the server, with the shim asking over HTTP ("resolve", "connect") is the recommended split (the shim stays small and other languages can reuse the model); the alternative is evaluating in Python inside the shim from a state snapshot, which duplicates the model.
+- Does the skeleton need the Terraform-level completeness of phase 4 (`CreateNetworkInterface`, attachment, secondary IPs)? Recommended: no, only what the scenarios call; Terraform support for those resources follows when a scenario needs it.
