@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto'
 import { Builder } from 'xml2js'
 import { AwsError } from './common'
+import type { RequestContext } from './registry'
 
 export const IAM_NS = 'https://iam.amazonaws.com/doc/2010-05-08/'
 export const STS_NS = 'https://sts.amazonaws.com/doc/2011-06-15/'
@@ -29,14 +30,7 @@ export class QueryParams {
   }
 }
 
-export interface QueryContext {
-  account: string
-  principal: string
-  userId: string
-  q: QueryParams
-}
-
-export type QueryHandler = (ctx: QueryContext) => Record<string, unknown> | undefined
+export type QueryHandler = (ctx: RequestContext<QueryParams>) => Record<string, unknown> | undefined
 
 const builder = new Builder({ headless: true })
 

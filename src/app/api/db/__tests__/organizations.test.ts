@@ -1,4 +1,5 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
+import { provisionAccount } from '@/app/api/db/ec2/state'
 import {
   getAccount,
   accountExists,
@@ -42,6 +43,9 @@ jest.mock('@/app/api/db/reference', () => ({
 }))
 
 jest.mock('fs')
+
+// Default VPC provisioning has its own tests (ec2.test.ts); here it only needs to be called.
+jest.mock('@/app/api/db/ec2/state', () => ({ provisionAccount: jest.fn() }))
 
 describe('Organizations Database Operations', () => {
   beforeEach(() => {
@@ -141,6 +145,7 @@ describe('Organizations Database Operations', () => {
       expect(account.joinMethod).toBe('CREATED')
       expect(mockWrite).toHaveBeenCalled()
       expect(mockMkdir).toHaveBeenCalled()
+      expect(provisionAccount).toHaveBeenCalledWith(account.id)
     })
 
     it('should register account with INVITED join method', () => {

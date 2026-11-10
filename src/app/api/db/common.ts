@@ -1,4 +1,5 @@
-import { existsSync } from "fs"
+import { accountDirExists } from "./store"
+import { AwsError } from "../common"
 
 export const enableByDefaultRegions = [
   'ap-northeast-1',
@@ -46,13 +47,13 @@ function isValidRegion(region: string): boolean {
 
 export function assertValidRegion(region: string) {
   if (!isValidRegion(region)) {
-    throw Error(`Invalid region ${region}`)
+    throw new AwsError('ValidationException', `Invalid region ${region}`)
   }
 }
 
 export function assertAccountExists(account: string) {
-  if (!existsSync(`db/${account}`)) {
-    throw Error("Account not found")
+  if (!accountDirExists(account)) {
+    throw new AwsError('ResourceNotFoundException', "Account not found", 404)
   }
 }
 

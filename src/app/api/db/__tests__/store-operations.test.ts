@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, existsSync } from 'fs'
+import { readFileSync, writeFileSync, existsSync, renameSync } from 'fs'
 import {
   enableRegion,
   disableRegion,
@@ -32,7 +32,7 @@ describe('Account Database Operations - Store/Retrieve Tests', () => {
 
       expect(mockWrite).toHaveBeenCalled()
       const writeCall = mockWrite.mock.calls[0]
-      expect(writeCall[0]).toBe('db/123456789012/account.json')
+      expect(renameSync).toHaveBeenCalledWith(writeCall[0], 'db/123456789012/account.json')
 
       const writtenData = JSON.parse(writeCall[1] as string)
       expect(writtenData.regions['af-south-1']).toBe('ENABLED')

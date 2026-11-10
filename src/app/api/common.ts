@@ -59,13 +59,6 @@ export function awsJsonError(e: unknown, version: '1.0' | '1.1' = '1.1'): Respon
   })
 }
 
-export function error(e: any): Response {
-  return new Response(JSON.stringify({
-    code: 'InvalidInputException',
-    message: (e as Error).message
-  }), { status: 400 })
-}
-
 const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890'
 
 export function generateIamId(prefix: string, len: number = 21): string {

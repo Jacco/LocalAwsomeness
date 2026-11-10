@@ -1,8 +1,10 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from "fs"
 import { randomBytes } from "crypto"
 import { AwsError } from "../common"
+import { QUOTAS, hardLimit } from "../quotas"
 import { attachRolePolicy, createRole, type PolicyDocument } from "./iam"
 import { defaultOrganizationPolicies } from "./reference"
+import { provisionAccount } from "./ec2/state"
+import * as store from "./store"
 
 // *****************************************************************************
 // ***                                                                       ***
@@ -10,8 +12,7 @@ import { defaultOrganizationPolicies } from "./reference"
 // ***                                                                       ***
 // *****************************************************************************
 
-const DB = 'db'
-const ACCOUNTS_FILE = `${DB}/accounts.json`
+const ACCOUNTS_KEY: store.StoreKey = { service: 'accounts' }
 
 export interface AccountRecord {
   id: string
@@ -30,13 +31,13 @@ function randomId(length: number, chars: string = LOWER_ALNUM): string {
 }
 
 function loadAccounts(): AccountRecord[] {
-  return existsSync(ACCOUNTS_FILE) ? JSON.parse(readFileSync(ACCOUNTS_FILE).toString()) : []
+  return store.read<AccountRecord[]>(ACCOUNTS_KEY, [])
 }
 
 export function getAccount(id: string): AccountRecord {
   const account = loadAccounts().find(x => x.id === id)
   if (!account) {
-    throw Error("Account not found")
+    throw new AwsError('ResourceNotFoundException', "Account not found", 404)
   }
   return account
 }
@@ -52,15 +53,15 @@ export function emailInUse(email: string): boolean {
 export function registerAccount(name: string, email: string, joinMethod: AccountRecord['joinMethod'] = 'CREATED'): AccountRecord {
   const accounts = loadAccounts()
   let id = randomId(12, DIGITS)
-  while (accounts.some(x => x.id === id) || existsSync(`${DB}/${id}`)) {
+  while (accounts.some(x => x.id === id) || store.accountDirExists(id)) {
     id = randomId(12, DIGITS)
   }
   const now = Date.now()
   const account: AccountRecord = { id, name, email, joinMethod, joinedTimestamp: now, requestedTimestamp: now }
   accounts.push(account)
-  writeFileSync(ACCOUNTS_FILE, JSON.stringify(accounts, null, 2))
-  mkdirSync(`${DB}/${id}`, { recursive: true })
-  writeFileSync(`${DB}/${id}/account.json`, '{}')
+  store.write(ACCOUNTS_KEY, accounts)
+  store.write({ service: 'account', account: id }, {})
+  provisionAccount(id)
   return account
 }
 
@@ -131,27 +132,17 @@ export interface OrgState {
 
 export type TargetType = 'ROOT' | 'ORGANIZATIONAL_UNIT' | 'ACCOUNT'
 
-const MAX_OU_DEPTH = 5
-const MAX_SCP_SIZE = 5120
-
-const orgFile = (managementAccountId: string) => `${DB}/${managementAccountId}/organization.json`
+const orgKey = (managementAccountId: string): store.StoreKey => ({ service: 'organization', account: managementAccountId })
 
 function saveOrg(org: OrgState) {
-  mkdirSync(`${DB}/${org.managementAccountId}`, { recursive: true })
-  writeFileSync(orgFile(org.managementAccountId), JSON.stringify(org, null, 2))
+  store.write(orgKey(org.managementAccountId), org)
 }
 
 export function findOrg(accountId: string): OrgState | undefined {
-  if (!existsSync(DB)) {
-    return undefined
-  }
-  for (const dir of readdirSync(DB)) {
-    const fn = `${DB}/${dir}/organization.json`
-    if (statSync(`${DB}/${dir}`).isDirectory() && existsSync(fn)) {
-      const org: OrgState = JSON.parse(readFileSync(fn).toString())
-      if (accountId in org.members) {
-        return org
-      }
+  for (const dir of store.listAccountDirs()) {
+    const org = store.read<OrgState | undefined>(orgKey(dir), undefined)
+    if (org && accountId in org.members) {
+      return org
     }
   }
   return undefined
@@ -262,7 +253,7 @@ export function deleteOrganization(org: OrgState) {
   if (Object.keys(org.members).length > 1 || Object.keys(org.ous).length > 0) {
     throw new AwsError('OrganizationNotEmptyException', 'The organization still contains accounts or OUs.')
   }
-  unlinkSync(orgFile(org.managementAccountId))
+  store.remove(orgKey(org.managementAccountId))
 }
 
 export function enablePolicyType(org: OrgState, rootId: string, type: string) {
@@ -326,7 +317,8 @@ export function createOrganizationalUnit(org: OrgState, parentId: string, name: 
   if (childrenOf(org, parentId).ous.some(x => x.name === name)) {
     throw new AwsError('DuplicateOrganizationalUnitException', 'An OU with the same name already exists.')
   }
-  if (ouDepth(org, parentId) >= MAX_OU_DEPTH) {
+  // ouDepth counts the root as level 1, the OU to create goes one level below its parent.
+  if (ouDepth(org, parentId) > hardLimit(QUOTAS.ouNestingDepth)) {
     throw new AwsError('ConstraintViolationException', 'MAX_OU_DEPTH: You exceeded the number of levels of OUs.')
   }
   const ou: OrgUnit = { id: `ou-${org.rootId.substring(2)}-${randomId(8)}`, name, parentId }
@@ -467,7 +459,7 @@ function parsePolicyContent(type: string, content: string): PolicyDocument {
     if (typeof doc !== 'object' || doc === null || !('Statement' in doc)) {
       throw new AwsError('MalformedPolicyDocumentException', 'The provided policy document does not meet the requirements of the specified policy type.')
     }
-    if (content.length > MAX_SCP_SIZE) {
+    if (content.length > hardLimit(type === SCP ? QUOTAS.scpMaxSize : QUOTAS.rcpMaxSize)) {
       throw new AwsError('ConstraintViolationException', 'POLICY_CONTENT_LIMIT_EXCEEDED: You exceeded the maximum size of the policy content.')
     }
   }

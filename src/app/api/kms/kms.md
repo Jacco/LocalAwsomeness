@@ -2,6 +2,8 @@ we don't encrypt enything just register the keys
 
 but we validate access
 
+(The plan that builds on this, with fake encryption for services, real crypto for manual use, key policy conflict tracking and ACM: [docs/encryption-plan.md](../../../../docs/encryption-plan.md).)
+
 Key
 ===
 CancelKeyDeletion

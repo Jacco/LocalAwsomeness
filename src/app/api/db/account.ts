@@ -1,5 +1,6 @@
-import { existsSync, readFileSync, writeFileSync } from "fs"
+import { AwsError } from "../common"
 import { assertAccountExists, assertValidRegion, enableByDefaultRegions, optinRegions } from "./common"
+import * as store from "./store"
 
 enum RegionOptStatus { 
   ENABLED = "ENABLED",
@@ -18,83 +19,29 @@ interface Regions { [region: string]: RegionOptStatus | undefined }
 
 function assertValidAlternateContactType(type: AlternateContactType) {
   if(!Object.values(AlternateContactType).includes(type)) {
-    throw Error(`${type} is not in BILLING OPERATIONS SECURITY`)
+    throw new AwsError('ValidationException', `${type} is not in BILLING OPERATIONS SECURITY`)
   }
 }
 
-function loadAccountRegionOptStatus(account: string): Regions {
-  const fn = `db/${account}/account.json`
-  let regions: Regions = {}
-  if (existsSync(fn)) {
-    const contents = JSON.parse(readFileSync(fn).toString())
-    if ('regions' in contents) {
-      regions = contents['regions']
-    }
-  }
-  return regions
+const accountKey = (account: string): store.StoreKey => ({ service: 'account', account })
+
+function loadSection(account: string, section: string): any {
+  return store.read<Record<string, any>>(accountKey(account), {})[section] ?? {}
 }
 
-function saveAccountRegionOptStatus(account: string, regions: Regions) {
-  const fn = `db/${account}/account.json`
-  let contents: any = {}
-  if (existsSync(fn)) {
-    contents = JSON.parse(readFileSync(fn).toString())
-  }
-  if (Object.values(regions).filter(Boolean).length > 0) {
-    contents['regions'] = regions
-  } else {
-    contents['regions'] = undefined
-  }
-  writeFileSync(fn, JSON.stringify(contents, null, 2))
+// An empty section is dropped so account.json does not accumulate empty objects.
+function saveSection(account: string, section: string, value: any, keepEmpty = false) {
+  store.update<Record<string, any>>(accountKey(account), {}, contents => {
+    contents[section] = keepEmpty || Object.values(value).some(Boolean) ? value : undefined
+  })
 }
 
-function loadContactInformation(account: string): Regions {
-  const fn = `db/${account}/account.json`
-  let info: any = {}
-  if (existsSync(fn)) {
-    const contents = JSON.parse(readFileSync(fn).toString())
-    if ('contact' in contents) {
-      info = contents['contact']
-    }
-  }
-  return info
-}
-
-function saveContactInformation(account: string, info: any) {
-  const fn = `db/${account}/account.json`
-  let contents: any = {}
-  if (existsSync(fn)) {
-    contents = JSON.parse(readFileSync(fn).toString())
-  }
-  contents['contact'] = info
-  writeFileSync(fn, JSON.stringify(contents, null, 2))
-}
-
-function loadAlternateContact(account: string): Regions {
-  const fn = `db/${account}/account.json`
-  let info: any = {}
-  if (existsSync(fn)) {
-    const contents = JSON.parse(readFileSync(fn).toString())
-    if ('alternate' in contents) {
-      info = contents['alternate']
-    }
-  }
-  return info
-}
-
-function saveAlternateContact(account: string, info: any) {
-  const fn = `db/${account}/account.json`
-  let contents: any = {}
-  if (existsSync(fn)) {
-    contents = JSON.parse(readFileSync(fn).toString())
-  }
-  if (Object.values(info).filter(Boolean).length > 0) {
-    contents['alternate'] = info
-  } else {
-    contents['alternate'] = undefined
-  }
-  writeFileSync(fn, JSON.stringify(contents, null, 2))
-}
+const loadAccountRegionOptStatus = (account: string): Regions => loadSection(account, 'regions')
+const saveAccountRegionOptStatus = (account: string, regions: Regions) => saveSection(account, 'regions', regions)
+const loadContactInformation = (account: string): any => loadSection(account, 'contact')
+const saveContactInformation = (account: string, info: any) => saveSection(account, 'contact', info, true)
+const loadAlternateContact = (account: string): any => loadSection(account, 'alternate')
+const saveAlternateContact = (account: string, info: any) => saveSection(account, 'alternate', info)
 
 export function enableRegion(account: string, region: string) {
   assertValidRegion(region)
@@ -111,7 +58,7 @@ export function disableRegion(account: string, region: string) {
   assertValidRegion(region)
   assertAccountExists(account)
   if (enableByDefaultRegions.includes(region)) {
-    throw Error(`Region ${region} cannot be disabled (it is enabled by default)`)
+    throw new AwsError('ValidationException', `Region ${region} cannot be disabled (it is enabled by default)`)
   }
   const regions = loadAccountRegionOptStatus(account)
   regions[region] = undefined
@@ -180,12 +127,12 @@ export function deleteAlternateContact(account: string, alternateContactType: Al
 
 export function putAccountName(account: string, name: string) {
   assertAccountExists(account)
-  const fn = 'db/accounts.json'
-  const accounts = JSON.parse(readFileSync(fn).toString())
+  const accountsKey: store.StoreKey = { service: 'accounts' }
+  const accounts = store.read<any[]>(accountsKey, [])
   const idx = accounts.findIndex((x: any) => x.id == account)
   if (idx === -1) {
-    throw Error('Account not found')
+    throw new AwsError('ResourceNotFoundException', 'Account not found', 404)
   }
   accounts[idx].name = name
-  writeFileSync(fn, JSON.stringify(accounts, null, 2))
+  store.write(accountsKey, accounts)
 }

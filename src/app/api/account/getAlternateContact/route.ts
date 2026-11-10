@@ -1,32 +1,3 @@
-// {
-//    "AlternateContact": { 
-//       "AlternateContactType": "string",
-//       "EmailAddress": "string",
-//       "Name": "string",
-//       "PhoneNumber": "string",
-//       "Title": "string"
-//    }
-// }
+import { account } from "../service"
 
-import { error, getRequestInfo, ok } from "../../common"
-import { getAlternateContact } from "../../db/account"
-
-export async function POST(request: Request) {
-  // parse request info
-  const { principalAccount } = getRequestInfo(request)
-  // process parameters
-  const body = await request.json()
-  let { AccountId, AlternateContactType } = body
-  if (!AccountId) {
-    AccountId = principalAccount
-  }
-  // TODO check if calling role has account:GetAccountInformation
-  try {
-    const info = getAlternateContact(AccountId, AlternateContactType)
-    return ok({
-        ContactInformation: info
-    })
-  } catch (e) {
-    return error(e)
-  }
-}
+export const POST = account.postAction('GetAlternateContact')

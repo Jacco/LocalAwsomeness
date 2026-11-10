@@ -101,8 +101,7 @@ describe('SSM Database Operations', () => {
         value: 'new-value',
       })
 
-      expect(result.Version).toBe(1)
-      // The returned version should be the previous version; the stored version should be 2
+      expect(result.Version).toBe(2)
       const writtenData = JSON.parse(mockWrite.mock.calls[0][1] as string)
       expect(writtenData.parameters['/app/key'].Version).toBe(2)
     })

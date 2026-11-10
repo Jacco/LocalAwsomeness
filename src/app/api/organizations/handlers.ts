@@ -2,12 +2,9 @@ import { AwsError } from "../common"
 import * as org from "../db/organizations"
 import type { OrgState } from "../db/organizations"
 
-export interface Ctx {
-  account: string
-  body: any
-}
+import type { RequestContext } from "../registry"
 
-type Handler = (ctx: Ctx) => unknown
+type Handler = (ctx: RequestContext) => unknown
 
 // ---------------------------------------------------------------------------
 // request helpers
@@ -157,7 +154,7 @@ function requestStatusView(r: org.CreateAccountRequest) {
 
 export const handlers: Record<string, Handler> = {
   // Organization
-  CreateOrganization({ account, body }) {
+  CreateOrganization({ account, params: body }) {
     const o = org.createOrganization(account, optional(body, 'FeatureSet'))
     return { Organization: organizationView(o) }
   },
@@ -168,52 +165,52 @@ export const handlers: Record<string, Handler> = {
     org.deleteOrganization(org.requireManagement(account))
     return {}
   },
-  ListRoots({ account, body }) {
+  ListRoots({ account, params: body }) {
     const o = org.requireManagement(account)
     return paginate([rootView(o)], body, 'Roots')
   },
-  EnablePolicyType({ account, body }) {
+  EnablePolicyType({ account, params: body }) {
     const o = org.requireManagement(account)
     org.enablePolicyType(o, required(body, 'RootId'), required(body, 'PolicyType'))
     return { Root: rootView(o) }
   },
-  DisablePolicyType({ account, body }) {
+  DisablePolicyType({ account, params: body }) {
     const o = org.requireManagement(account)
     org.disablePolicyType(o, required(body, 'RootId'), required(body, 'PolicyType'))
     return { Root: rootView(o) }
   },
 
   // Organizational units
-  CreateOrganizationalUnit({ account, body }) {
+  CreateOrganizationalUnit({ account, params: body }) {
     const o = org.requireManagement(account)
     const ou = org.createOrganizationalUnit(o, required(body, 'ParentId'), required(body, 'Name', 1, 128))
     return { OrganizationalUnit: ouView(o, ou) }
   },
-  DescribeOrganizationalUnit({ account, body }) {
+  DescribeOrganizationalUnit({ account, params: body }) {
     const o = org.requireManagement(account)
     return { OrganizationalUnit: ouView(o, org.getOrganizationalUnit(o, required(body, 'OrganizationalUnitId'))) }
   },
-  UpdateOrganizationalUnit({ account, body }) {
+  UpdateOrganizationalUnit({ account, params: body }) {
     const o = org.requireManagement(account)
     const ou = org.updateOrganizationalUnit(o, required(body, 'OrganizationalUnitId'), required(body, 'Name', 1, 128))
     return { OrganizationalUnit: ouView(o, ou) }
   },
-  DeleteOrganizationalUnit({ account, body }) {
+  DeleteOrganizationalUnit({ account, params: body }) {
     org.deleteOrganizationalUnit(org.requireManagement(account), required(body, 'OrganizationalUnitId'))
     return {}
   },
-  ListOrganizationalUnitsForParent({ account, body }) {
+  ListOrganizationalUnitsForParent({ account, params: body }) {
     const o = org.requireManagement(account)
     const parentId = required(body, 'ParentId')
     requireParent(o, parentId)
     return paginate(org.childrenOf(o, parentId).ous.map(ou => ouView(o, ou)), body, 'OrganizationalUnits')
   },
-  ListParents({ account, body }) {
+  ListParents({ account, params: body }) {
     const o = org.requireManagement(account)
     const parent = org.parentOf(o, required(body, 'ChildId'))
     return paginate([{ Id: parent.id, Type: parent.type }], body, 'Parents')
   },
-  ListChildren({ account, body }) {
+  ListChildren({ account, params: body }) {
     const o = org.requireManagement(account)
     const parentId = required(body, 'ParentId')
     const childType = required(body, 'ChildType')
@@ -229,7 +226,7 @@ export const handlers: Record<string, Handler> = {
   },
 
   // Accounts
-  CreateAccount({ account, body }) {
+  CreateAccount({ account, params: body }) {
     const o = org.requireManagement(account)
     const name = required(body, 'AccountName', 1, 50)
     if (!/^[\u0020-\u007E]+$/.test(name)) {
@@ -243,11 +240,11 @@ export const handlers: Record<string, Handler> = {
     }
     return { CreateAccountStatus: requestStatusView(org.createAccountRequest(o, name, email, roleName)) }
   },
-  DescribeCreateAccountStatus({ account, body }) {
+  DescribeCreateAccountStatus({ account, params: body }) {
     const o = org.requireManagement(account)
     return { CreateAccountStatus: requestStatusView(org.getCreateAccountRequest(o, required(body, 'CreateAccountRequestId'))) }
   },
-  ListCreateAccountStatus({ account, body }) {
+  ListCreateAccountStatus({ account, params: body }) {
     const o = org.requireManagement(account)
     const states: string[] | undefined = body?.States
     const requests = Object.values(o.createAccountRequests)
@@ -255,21 +252,21 @@ export const handlers: Record<string, Handler> = {
       .map(requestStatusView)
     return paginate(requests, body, 'CreateAccountStatuses')
   },
-  DescribeAccount({ account, body }) {
+  DescribeAccount({ account, params: body }) {
     const o = org.requireManagement(account)
     return { Account: accountView(o, required(body, 'AccountId')) }
   },
-  ListAccounts({ account, body }) {
+  ListAccounts({ account, params: body }) {
     const o = org.requireManagement(account)
     return paginate(Object.keys(o.members).map(id => accountView(o, id)), body, 'Accounts')
   },
-  ListAccountsForParent({ account, body }) {
+  ListAccountsForParent({ account, params: body }) {
     const o = org.requireManagement(account)
     const parentId = required(body, 'ParentId')
     requireParent(o, parentId)
     return paginate(org.childrenOf(o, parentId).accounts.map(id => accountView(o, id)), body, 'Accounts')
   },
-  MoveAccount({ account, body }) {
+  MoveAccount({ account, params: body }) {
     org.moveAccount(
       org.requireManagement(account),
       required(body, 'AccountId'),
@@ -278,13 +275,13 @@ export const handlers: Record<string, Handler> = {
     )
     return {}
   },
-  CloseAccount({ account, body }) {
+  CloseAccount({ account, params: body }) {
     org.closeAccount(org.requireManagement(account), required(body, 'AccountId'))
     return {}
   },
 
   // Policies
-  CreatePolicy({ account, body }) {
+  CreatePolicy({ account, params: body }) {
     const o = org.requireManagement(account)
     const policy = org.createPolicy(
       o,
@@ -295,11 +292,11 @@ export const handlers: Record<string, Handler> = {
     )
     return { Policy: policyView(o, policy) }
   },
-  DescribePolicy({ account, body }) {
+  DescribePolicy({ account, params: body }) {
     const o = org.requireManagement(account)
     return { Policy: policyView(o, org.getPolicy(o, required(body, 'PolicyId'))) }
   },
-  UpdatePolicy({ account, body }) {
+  UpdatePolicy({ account, params: body }) {
     const o = org.requireManagement(account)
     const policy = org.updatePolicy(o, required(body, 'PolicyId'), {
       name: optional(body, 'Name', 128),
@@ -308,29 +305,29 @@ export const handlers: Record<string, Handler> = {
     })
     return { Policy: policyView(o, policy) }
   },
-  DeletePolicy({ account, body }) {
+  DeletePolicy({ account, params: body }) {
     org.deletePolicy(org.requireManagement(account), required(body, 'PolicyId'))
     return {}
   },
-  ListPolicies({ account, body }) {
+  ListPolicies({ account, params: body }) {
     const o = org.requireManagement(account)
     const policies = org.listPolicies(o, required(body, 'Filter'))
     return paginate(policies.map(p => policySummary(o, p)), body, 'Policies')
   },
-  AttachPolicy({ account, body }) {
+  AttachPolicy({ account, params: body }) {
     org.attachPolicy(org.requireManagement(account), required(body, 'PolicyId'), required(body, 'TargetId'))
     return {}
   },
-  DetachPolicy({ account, body }) {
+  DetachPolicy({ account, params: body }) {
     org.detachPolicy(org.requireManagement(account), required(body, 'PolicyId'), required(body, 'TargetId'))
     return {}
   },
-  ListPoliciesForTarget({ account, body }) {
+  ListPoliciesForTarget({ account, params: body }) {
     const o = org.requireManagement(account)
     const policies = org.policiesForTarget(o, required(body, 'TargetId'), required(body, 'Filter'))
     return paginate(policies.map(p => policySummary(o, p)), body, 'Policies')
   },
-  ListTargetsForPolicy({ account, body }) {
+  ListTargetsForPolicy({ account, params: body }) {
     const o = org.requireManagement(account)
     const targets = org.targetsForPolicy(o, required(body, 'PolicyId')).map(t => ({
       TargetId: t.id,

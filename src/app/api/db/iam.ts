@@ -5,9 +5,9 @@
 // ***                                                                       ***
 // *****************************************************************************
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs"
 import { AwsError, generateIamId } from "../common"
 import { findManagedPolicy, listManagedPolicies, type ManagedPolicy, type PolicyDocument } from "./reference"
+import * as store from "./store"
 
 export type { PolicyDocument }
 
@@ -48,15 +48,14 @@ interface IamState {
 
 const NAME_PATTERN = /^[\w+=,.@-]{1,64}$/
 
-const iamFile = (account: string) => `db/${account}/iam.json`
+const iamKey = (account: string): store.StoreKey => ({ service: 'iam', account })
 
 function loadIam(account: string): IamState {
-  return existsSync(iamFile(account)) ? JSON.parse(readFileSync(iamFile(account)).toString()) : { roles: {} }
+  return store.read<IamState>(iamKey(account), { roles: {} })
 }
 
 function saveIam(account: string, state: IamState) {
-  mkdirSync(`db/${account}`, { recursive: true })
-  writeFileSync(iamFile(account), JSON.stringify(state, null, 2))
+  store.write(iamKey(account), state)
 }
 
 function validationError(message: string): never {

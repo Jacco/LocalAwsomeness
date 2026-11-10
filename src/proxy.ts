@@ -5,7 +5,11 @@ import { Sha256 } from '@aws-crypto/sha256-js'
 import { randomUUID } from 'crypto'
 import { findCredential } from './app/api/db/credentials'
 
-function authError(req: NextRequest, code: string, message: string): Response {
+function authError(req: NextRequest, service: string, code: string, message: string): Response {
+  if (service === 'ec2') {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<Response><Errors><Error><Code>${code}</Code><Message>${message}</Message></Error></Errors><RequestID>${randomUUID()}</RequestID></Response>`
+    return new Response(xml, { status: 403, headers: { 'Content-Type': 'text/xml;charset=UTF-8' } })
+  }
   if (req.headers.get('content-type')?.includes('json')) {
     return new Response(JSON.stringify({ __type: code, message }), {
       status: 403,
@@ -17,8 +21,6 @@ function authError(req: NextRequest, code: string, message: string): Response {
 }
 
 export async function proxy(req: NextRequest, event: NextFetchEvent) {
-  console.log(req.headers)
-  
   const requestHeaders = new Headers(req.headers)
   requestHeaders.delete('x-aws-principal')
   requestHeaders.delete('x-aws-userid')
@@ -30,14 +32,14 @@ export async function proxy(req: NextRequest, event: NextFetchEvent) {
   }
   const credential = findCredential(keyid!)
   if (!credential) {
-    return authError(req, 'InvalidClientTokenId', 'The security token included in the request is invalid.')
+    return authError(req, service, 'InvalidClientTokenId', 'The security token included in the request is invalid.')
   }
   if (credential.sessionToken) {
     if (req.headers.get('x-amz-security-token') !== credential.sessionToken) {
-      return authError(req, 'InvalidClientTokenId', 'The security token included in the request is invalid.')
+      return authError(req, service, 'InvalidClientTokenId', 'The security token included in the request is invalid.')
     }
     if (credential.expiration !== undefined && credential.expiration < Date.now()) {
-      return authError(req, 'ExpiredToken', 'The security token included in the request is expired')
+      return authError(req, service, 'ExpiredToken', 'The security token included in the request is expired')
     }
   }
   requestHeaders.set('x-aws-principal', credential.principal)
@@ -52,10 +54,12 @@ export async function proxy(req: NextRequest, event: NextFetchEvent) {
     sha256: Sha256,
     applyChecksum: false, // TODO if the header is there x-amz-content-sha256
   })
-  let toencode = []
-  for(const header of req.headers) {
-    if (header[0].startsWith('x-amz-') || header[0] == 'content-type' || header[0] == 'host') {
-        toencode.push(header)
+  // Re-sign exactly the headers the client signed (SignedHeaders=a;b;c).
+  const signedHeaders = req.headers.get('authorization')?.match(/SignedHeaders=([^,\s]+)/)?.[1]?.split(';') ?? []
+  const toencode: [string, string][] = []
+  for (const header of req.headers) {
+    if (signedHeaders.includes(header[0].toLowerCase())) {
+      toencode.push(header)
     }
   }
   const dt = req.headers.get('x-amz-date')!
@@ -75,18 +79,11 @@ export async function proxy(req: NextRequest, event: NextFetchEvent) {
   const calculated_sig = sig.headers['authorization'].split(' ').at(-1)?.split('=').at(-1)
   const actual_sig = req.headers.get('authorization')?.split(' ').at(-1)?.split('=').at(-1)
   if (calculated_sig != actual_sig) {
-    console.log('sig mismatch')
-    return authError(req, 'SignatureDoesNotMatch', 'The request signature we calculated does not match the signature you provided. Check your AWS Secret Access Key and signing method.')
-  } else {
-    // console.log('signatures match')
+    return authError(req, service, 'SignatureDoesNotMatch', 'The request signature we calculated does not match the signature you provided. Check your AWS Secret Access Key and signing method.')
   }
 
-  /*
-    now that we know that this signagture is known we can set the account/role/user
-  */
   const target = req.headers.get('x-amz-target')?.replace('.', '/')
   if (target) {
-    console.log('using target')
     const destination = req.url + 'api/' + service + '/' + target
     const newurl = new URL(destination, req.url)
     return NextResponse.rewrite(newurl, {
@@ -96,7 +93,6 @@ export async function proxy(req: NextRequest, event: NextFetchEvent) {
     })
   }
   if (service) {
-    console.log('using service')
     const destination = req.nextUrl.protocol + req.nextUrl.host + '/api/' + service + req.nextUrl.pathname
     const newurl = new URL(destination)
     return NextResponse.rewrite(newurl, {

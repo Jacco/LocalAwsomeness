@@ -1,0 +1,62 @@
+{
+  "vpc.vpcs-per-region": {
+    "service": "vpc", "name": "VPCs per Region", "code": "L-F678F1CE", "default": 5, "adjustable": true, "global": false, "unit": "None",
+    "source": "https://docs.aws.amazon.com/vpc/latest/userguide/amazon-vpc-limits.html", "checked": "2026-11-10"
+  },
+  "vpc.subnets-per-vpc": {
+    "service": "vpc", "name": "Subnets per VPC", "code": "L-407747CB", "default": 200, "adjustable": true, "global": false, "unit": "None",
+    "source": "https://docs.aws.amazon.com/vpc/latest/userguide/amazon-vpc-limits.html", "checked": "2026-11-10"
+  },
+  "vpc.ipv4-cidr-blocks-per-vpc": {
+    "service": "vpc", "name": "IPv4 CIDR blocks per VPC", "code": "L-83CA0A9D", "default": 5, "maximum": 50, "adjustable": true, "global": false, "unit": "None",
+    "source": "https://docs.aws.amazon.com/vpc/latest/userguide/amazon-vpc-limits.html", "checked": "2026-11-10"
+  },
+  "vpc.network-acls-per-vpc": {
+    "service": "vpc", "name": "Network ACLs per VPC", "code": "L-B4A6D682", "default": 200, "adjustable": true, "global": false, "unit": "None",
+    "source": "https://docs.aws.amazon.com/vpc/latest/userguide/amazon-vpc-limits.html", "checked": "2026-11-10"
+  },
+  "vpc.rules-per-network-acl": {
+    "service": "vpc", "name": "Rules per network ACL", "code": "L-2AEEBF1A", "default": 20, "maximum": 40, "adjustable": true, "global": false, "unit": "None",
+    "note": "Applies to inbound and outbound rules separately; the final deny rule (32767) is not counted here.",
+    "source": "https://docs.aws.amazon.com/vpc/latest/userguide/amazon-vpc-limits.html", "checked": "2026-11-10"
+  },
+  "vpc.security-groups-per-region": {
+    "service": "vpc", "name": "VPC security groups per Region", "code": "L-E79EC296", "default": 2500, "adjustable": true, "global": false, "unit": "None",
+    "source": "https://docs.aws.amazon.com/vpc/latest/userguide/amazon-vpc-limits.html", "checked": "2026-11-10"
+  },
+  "vpc.rules-per-security-group": {
+    "service": "vpc", "name": "Inbound or outbound rules per security group", "code": "L-0EA8095F", "default": 60, "adjustable": true, "global": false, "unit": "None",
+    "note": "Enforced separately for inbound and outbound rules, and separately for IPv4 and IPv6 rules. A rule that references a security group counts as one rule; prefix lists count by their size.",
+    "source": "https://docs.aws.amazon.com/vpc/latest/userguide/amazon-vpc-limits.html", "checked": "2026-11-10"
+  },
+  "ec2.elastic-ip-addresses-per-region": {
+    "service": "ec2", "name": "Elastic IP addresses per Region", "code": "L-0263D0A3", "default": 5, "adjustable": true, "global": false, "unit": "None",
+    "source": "https://docs.aws.amazon.com/vpc/latest/userguide/amazon-vpc-limits.html", "checked": "2026-11-10"
+  },
+  "vpc.nat-gateways-per-availability-zone": {
+    "service": "vpc", "name": "NAT gateways per Availability Zone", "code": "L-FE5A380F", "default": 5, "adjustable": true, "global": false, "unit": "None",
+    "note": "NAT gateways only count in the pending, available and deleting states.",
+    "source": "https://docs.aws.amazon.com/vpc/latest/userguide/amazon-vpc-limits.html", "checked": "2026-11-10"
+  },
+  "vpc.network-interfaces-per-region": {
+    "service": "vpc", "name": "Network interfaces per Region", "code": "L-DF5E4CA3", "default": 5000, "adjustable": true, "global": false, "unit": "None",
+    "note": "AWS documents this limit as enforced per Availability Zone; it is modelled per Region.",
+    "source": "https://docs.aws.amazon.com/vpc/latest/userguide/amazon-vpc-limits.html", "checked": "2026-11-10"
+  },
+  "ec2.tags-per-resource": {
+    "service": "ec2", "name": "Tags per resource", "code": null, "default": 50, "adjustable": false, "global": true, "unit": "None",
+    "source": "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html", "checked": "2026-11-10"
+  },
+  "organizations.ou-nesting-depth": {
+    "service": "organizations", "name": "OU maximum nesting in a root", "code": null, "default": 5, "adjustable": false, "global": true, "unit": "Levels",
+    "source": "https://docs.aws.amazon.com/organizations/latest/userguide/orgs_reference_limits.html", "checked": "2026-11-10"
+  },
+  "organizations.scp-max-size": {
+    "service": "organizations", "name": "Maximum size of a service control policy", "code": null, "default": 10240, "adjustable": false, "global": true, "unit": "Characters",
+    "source": "https://docs.aws.amazon.com/organizations/latest/userguide/orgs_reference_limits.html", "checked": "2026-11-10"
+  },
+  "organizations.rcp-max-size": {
+    "service": "organizations", "name": "Maximum size of a resource control policy", "code": null, "default": 5120, "adjustable": false, "global": true, "unit": "Characters",
+    "source": "https://docs.aws.amazon.com/organizations/latest/userguide/orgs_reference_limits.html", "checked": "2026-11-10"
+  }
+}

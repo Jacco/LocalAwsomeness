@@ -5,7 +5,6 @@ import {
   AwsError,
   awsJson,
   awsJsonError,
-  error,
   generateIamId,
 } from '@/app/api/common'
 
@@ -187,23 +186,6 @@ describe('API Common Utilities', () => {
       const response = awsJsonError(awsErr, '1.0')
 
       expect(response.headers.get('Content-Type')).toBe('application/x-amz-json-1.0')
-    })
-  })
-
-  describe('error', () => {
-    it('should return 400 error response with InvalidInputException', () => {
-      const response = error(new Error('Missing required field'))
-
-      expect(response.status).toBe(400)
-    })
-
-    it('should include error message in response', async () => {
-      const response = error(new Error('Invalid value provided'))
-
-      const text = await response.text()
-      const data = JSON.parse(text)
-      expect(data.code).toBe('InvalidInputException')
-      expect(data.message).toBe('Invalid value provided')
     })
   })
 

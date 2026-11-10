@@ -18,7 +18,7 @@ export function roleView(r: iam.Role) {
 }
 
 export const roleHandlers: Record<string, QueryHandler> = {
-  CreateRole({ account, q }) {
+  CreateRole({ account, params: q }) {
     const maxSessionDuration = q.optional('MaxSessionDuration')
     const role = iam.createRole(account, {
       roleName: q.required('RoleName'),
@@ -29,24 +29,24 @@ export const roleHandlers: Record<string, QueryHandler> = {
     })
     return { Role: roleView(role) }
   },
-  GetRole({ account, q }) {
+  GetRole({ account, params: q }) {
     return { Role: roleView(iam.getRole(account, q.required('RoleName'))) }
   },
-  ListRoles({ account, q }) {
+  ListRoles({ account, params: q }) {
     return {
       Roles: { member: iam.listRoles(account, q.optional('PathPrefix')).map(roleView) },
       IsTruncated: false
     }
   },
-  DeleteRole({ account, q }) {
+  DeleteRole({ account, params: q }) {
     iam.deleteRole(account, q.required('RoleName'))
     return undefined
   },
-  PutRolePolicy({ account, q }) {
+  PutRolePolicy({ account, params: q }) {
     iam.putRolePolicy(account, q.required('RoleName'), q.required('PolicyName'), iam.parsePolicyDocument(q.required('PolicyDocument')))
     return undefined
   },
-  GetRolePolicy({ account, q }) {
+  GetRolePolicy({ account, params: q }) {
     const roleName = q.required('RoleName')
     const policyName = q.required('PolicyName')
     return {
@@ -55,23 +55,23 @@ export const roleHandlers: Record<string, QueryHandler> = {
       PolicyDocument: encodeDocument(iam.getRolePolicy(account, roleName, policyName))
     }
   },
-  DeleteRolePolicy({ account, q }) {
+  DeleteRolePolicy({ account, params: q }) {
     iam.deleteRolePolicy(account, q.required('RoleName'), q.required('PolicyName'))
     return undefined
   },
-  ListRolePolicies({ account, q }) {
+  ListRolePolicies({ account, params: q }) {
     const role = iam.getRole(account, q.required('RoleName'))
     return { PolicyNames: { member: Object.keys(role.inlinePolicies) }, IsTruncated: false }
   },
-  AttachRolePolicy({ account, q }) {
+  AttachRolePolicy({ account, params: q }) {
     iam.attachRolePolicy(account, q.required('RoleName'), q.required('PolicyArn'))
     return undefined
   },
-  DetachRolePolicy({ account, q }) {
+  DetachRolePolicy({ account, params: q }) {
     iam.detachRolePolicy(account, q.required('RoleName'), q.required('PolicyArn'))
     return undefined
   },
-  ListAttachedRolePolicies({ account, q }) {
+  ListAttachedRolePolicies({ account, params: q }) {
     const role = iam.getRole(account, q.required('RoleName'))
     return {
       AttachedPolicies: {

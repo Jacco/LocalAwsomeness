@@ -26,7 +26,7 @@ function requirePolicy(arn: string): ManagedPolicy {
 }
 
 export const policyHandlers: Record<string, QueryHandler> = {
-  ListPolicies({ account, q }) {
+  ListPolicies({ account, params: q }) {
     const scope = q.optional('Scope') ?? iam.PolicyScope.All
     if (!Object.values<string>(iam.PolicyScope).includes(scope)) {
       throw new AwsError('ValidationError', `1 validation error detected: Value '${scope}' at 'scope' failed to satisfy constraint: Member must satisfy enum value set: [All, AWS, Local]`)
@@ -37,10 +37,10 @@ export const policyHandlers: Record<string, QueryHandler> = {
       .filter(p => !onlyAttached || counts[p.arn])
     return { Policies: { member: policies.map(p => policyView(p, counts)) }, IsTruncated: false }
   },
-  GetPolicy({ account, q }) {
+  GetPolicy({ account, params: q }) {
     return { Policy: policyView(requirePolicy(q.required('PolicyArn')), iam.attachmentCounts(account)) }
   },
-  GetPolicyVersion({ q }) {
+  GetPolicyVersion({ params: q }) {
     const arn = q.required('PolicyArn')
     const versionId = q.required('VersionId')
     const policy = requirePolicy(arn)

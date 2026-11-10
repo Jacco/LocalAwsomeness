@@ -1,30 +1,18 @@
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs"
-import path from "path"
+import { AwsError } from "../common"
 import { assertAccountExists, assertValidRegion, PARTITION } from "./common"
+import * as store from "./store"
+
+const ssmKey = (account: string, region: string): store.StoreKey => ({ service: 'ssm', account, region })
 
 function loadSsmSection(account: string, region: string, section: string) {
-  const fn = `db/${account}/${region}/ssm.json`
-  let contents: any = {}
-  if (existsSync(fn)) {
-    contents = JSON.parse(readFileSync(fn).toString())
-  }
-  if (section in contents) {
-    contents = contents[section]
-  }
-  return contents
+  return store.read<Record<string, any>>(ssmKey(account, region), {})[section] ?? {}
 }
 
 function saveSsmSection(account: string, region: string, section: string, sectionContents: any) {
-  const fn = `db/${account}/${region}/ssm.json`
-  let contents: { [key: string]: any } = {}
-  if (existsSync(fn)) {
-    contents = JSON.parse(readFileSync(fn).toString())
-  } else {
-    mkdirSync(path.dirname(fn), { recursive: true })
-  }
-  contents[section] = sectionContents
-  writeFileSync(fn, JSON.stringify(contents, null, 2))
+  store.update<Record<string, any>>(ssmKey(account, region), {}, contents => {
+    contents[section] = sectionContents
+  })
 }
 
 enum SsmParameterDataType {
@@ -72,7 +60,7 @@ export function putParameter(
   saveSsmSection(account, region, 'parameters', parameters)
   return {
     Tier: tierSetting,
-    Version: version
+    Version: version + 1
   }
 }
 
@@ -83,7 +71,7 @@ export function getParameter(account: string, region: string, name: string) {
   // TODO withdecrytpion
   const parameters = loadSsmSection(account, region, 'parameters')
   if (!(name in parameters)) {
-    throw Error(`Parameter ${name} not found`)
+    throw new AwsError('ParameterNotFound', `Parameter ${name} not found`)
   }
   const parameter = parameters[name]
   const result = {
@@ -133,7 +121,7 @@ export function getServiceSetting(account: string, region: string, settingId: st
   assertAccountExists(account)
   assertValidRegion(region)
   if (!(settingId in ssmServiceSettings)) {
-    throw Error(`${settingId} does not exist`)
+    throw new AwsError('ServiceSettingNotFound', `${settingId} does not exist`)
   }
   const settings = loadSsmSection(account, region, 'settings')
   let value = settingId in settings ? settings[settingId] : {
@@ -151,7 +139,7 @@ export function setServiceSetting(account: string, region: string, settingId: st
   assertAccountExists(account)
   assertValidRegion(region)
   if (!(settingId in ssmServiceSettings)) {
-    throw Error(`${settingId} does not exist`)
+    throw new AwsError('ServiceSettingNotFound', `${settingId} does not exist`)
   }
   const settings = loadSsmSection(account, region, 'settings')
   settings[settingId] = {

@@ -73,3 +73,40 @@ export function findManagedPolicy(arn: string): ManagedPolicy | undefined {
 export function defaultOrganizationPolicies(): Record<string, OrganizationPolicyDefinition> {
   return readData('organizations-policies.json')
 }
+
+// A default quota or hard limit. `code` is the Service Quotas quota code (null for limits Service Quotas does not list).
+export interface QuotaDefinition {
+  service: string
+  name: string
+  code: string | null
+  default: number
+  // The highest value a quota increase can reach, when AWS documents one.
+  maximum?: number
+  adjustable: boolean
+  // Not per Region.
+  global: boolean
+  unit: string
+  note?: string
+  source: string
+  checked: string
+}
+
+let quotas: Record<string, QuotaDefinition> | undefined
+
+// Keyed by the symbolic quota key (`vpc.vpcs-per-region`), see src/app/api/quotas.ts.
+export function quotaDefinitions(): Record<string, QuotaDefinition> {
+  if (!quotas) {
+    quotas = readData<Record<string, QuotaDefinition>>('quotas.json')
+  }
+  return quotas
+}
+
+let quotaServices: Record<string, string> | undefined
+
+// Service code -> service name, as Service Quotas lists them.
+export function quotaServiceNames(): Record<string, string> {
+  if (!quotaServices) {
+    quotaServices = readData<Record<string, string>>('quota-services.json')
+  }
+  return quotaServices
+}

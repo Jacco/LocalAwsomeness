@@ -12,8 +12,10 @@ import { POST as accountGetInformationHandler } from '@/app/api/account/getAccou
 import { POST as accountEnableRegionHandler } from '@/app/api/account/enableRegion/route'
 import { POST as accountDisableRegionHandler } from '@/app/api/account/disableRegion/route'
 import { POST as accountPutContactHandler } from '@/app/api/account/putContactInformation/route'
-import { POST as ssmPutParameterHandler } from '@/app/api/ssm/AmazonSSM/PutParameter/route'
-import { POST as ssmGetParameterHandler } from '@/app/api/ssm/AmazonSSM/GetParameter/route'
+import { POST as ssmHandler } from '@/app/api/ssm/AmazonSSM/[action]/route'
+
+const ssmPutParameterHandler = (request: Request) => ssmHandler(request, { params: Promise.resolve({ action: 'PutParameter' }) })
+const ssmGetParameterHandler = (request: Request) => ssmHandler(request, { params: Promise.resolve({ action: 'GetParameter' }) })
 
 // Mock request info
 jest.mock('@/app/api/common', () => {
