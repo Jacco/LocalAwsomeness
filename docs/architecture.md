@@ -177,7 +177,7 @@ Done: store, service registry with protocol adapters, authorization hook, cleanu
 
 - **Store** (`src/app/api/db/store.ts`). The only code that knows the `db/` layout (`db/<service>.json`, `db/<account>/<service>.json`, `db/<account>/<region>/<service>.json`). The root is `DB_ROOT` (env `JPK_DB_ROOT`, default `db`). Writes go to a temp file and are renamed into place. `account`, `ssm`, `iam` and `organizations` use it; `credentials.ts` still does its own file access (it is excluded from Copilot edits, so migrate it by hand).
 - **Registry and adapters** (`registry.ts`, `protocols.ts`). iam, sts, ssm, organizations, account and ec2 are on it; efs is a stub and still hand-rolls its route.
-- **Authorization hook** (`authorization.ts`). The dispatcher calls `authorize({ principal, action: 'ssm:PutParameter', resources, context })` before every handler. The default authorizer always allows; `setAuthorizer()` installs a real one. The same engine should back a "can X perform Y" query.
+- **Authorization hook** (`authorization.ts`). The dispatcher calls `authorize({ principal, action: 'ssm:PutParameter', resources, context })` before every handler. The default authorizer evaluates the identity-based policies of roles (`src/app/api/policy/`) and allows identities it holds no policies for; `setAuthorizer()` installs another one. The same engine backs a "can X perform Y" query (`GET /api/policy/check`).
 - **Cleanup.** Dead modules removed, the legacy `error()` helper removed, db code throws `AwsError` (`ValidationException`, `ResourceNotFoundException`, `ParameterNotFound`, ...), debug logging dropped from the proxy.
 
 Remaining:

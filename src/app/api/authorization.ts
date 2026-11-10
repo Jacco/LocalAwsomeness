@@ -1,4 +1,5 @@
 import type { RequestContext } from "./registry"
+import { identityAuthorizer } from "./policy/authorizer"
 
 export interface AuthorizationRequest {
   principal: string
@@ -10,9 +11,9 @@ export interface AuthorizationRequest {
 // Throws an AwsError (AccessDenied) to reject the request.
 export type Authorizer = (request: AuthorizationRequest) => void
 
-// No policy evaluation exists yet, so everything is allowed. The future policy engine
-// plugs in here and should also back a "can X perform Y" query.
-let authorizer: Authorizer = () => {}
+// Identity-based policies of roles are evaluated (src/app/api/policy/policy.md); identities the simulator holds no policies
+// for are not restricted. The rest of the policy engine plugs in here and should also back a "can X perform Y" query.
+let authorizer: Authorizer = identityAuthorizer
 
 export function setAuthorizer(next: Authorizer) {
   authorizer = next

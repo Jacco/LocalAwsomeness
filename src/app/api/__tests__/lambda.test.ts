@@ -1,5 +1,5 @@
 import { execFileSync } from 'child_process'
-import { mkdirSync, mkdtempSync, rmSync } from 'fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'fs'
 import { createServer, type IncomingMessage, type Server } from 'http'
 import type { AddressInfo } from 'net'
 import { tmpdir } from 'os'
@@ -21,6 +21,7 @@ jest.mock('@/app/api/db/credentials', () => ({
 const functionsRoute = require('@/app/api/lambda/2015-03-31/functions/route')
 const functionRoute = require('@/app/api/lambda/2015-03-31/functions/[name]/route')
 const configurationRoute = require('@/app/api/lambda/2015-03-31/functions/[name]/configuration/route')
+const codeRoute = require('@/app/api/lambda/2015-03-31/functions/[name]/code/route')
 const invocationsRoute = require('@/app/api/lambda/2015-03-31/functions/[name]/invocations/route')
 const inspectRoute = require('@/app/api/lambda/inspect/route')
 const iam = require('@/app/api/db/iam')
@@ -87,6 +88,10 @@ const create = (body: Record<string, unknown>) => send(functionsRoute.POST, 'POS
 const invoke = (name: string, payload: unknown = {}, extra: Record<string, string> = {}) =>
   send(invocationsRoute.POST, 'POST', `/2015-03-31/functions/${name}/invocations`, typeof payload === 'string' ? payload : JSON.stringify(payload), extra)
 const remove = (name: string) => send(functionRoute.DELETE, 'DELETE', `/2015-03-31/functions/${name}`)
+const updateCode = (name: string, body: Record<string, unknown>) => send(codeRoute.PUT, 'PUT', `/2015-03-31/functions/${name}/code`, body)
+const codeDir = (name: string) => join(root, account, region, 'lambda-code', name)
+const filesOf = (directory: string, prefix = ''): string[] =>
+  readdirSync(directory, { withFileTypes: true }).flatMap(e => e.isDirectory() ? filesOf(join(directory, e.name), `${prefix}${e.name}/`) : [`${prefix}${e.name}`]).sort()
 const errorOf = (answer: Answer) => ({ type: answer.headers.get('x-amzn-errortype'), message: answer.body?.Message as string })
 
 // A deployment package with the given files, made by Python's zipfile (the same format Lambda unpacks).
@@ -109,6 +114,119 @@ const fn = (name: string, code: string, extra: Record<string, unknown> = {}) =>
 const ec2 = () => loadState(scope)
 const lambdaInterfaces = () => Object.values<any>(ec2().networkInterfaces).filter(eni => eni.InterfaceType === 'lambda')
 const defaultSubnet = () => Object.values<any>(ec2().subnets)[0]
+
+describe('the code of a function', () => {
+  const version1 = zip({
+    'index.py': 'import helpers.text\ndef handler(event, context):\n    return {"version": 1, "text": helpers.text.shout("hi")}\n',
+    'helpers/__init__.py': '',
+    'helpers/text.py': 'def shout(s):\n    return s.upper()\n',
+    'old.txt': 'only in version 1',
+  })
+
+  it('is kept as the files it consists of, readable, and nothing else', async () => {
+    const created = await fn('files', version1)
+
+    expect(created.status).toBe(201)
+    expect(filesOf(codeDir('files'))).toEqual(['helpers/__init__.py', 'helpers/text.py', 'index.py', 'old.txt'])
+    expect(readFileSync(join(codeDir('files'), 'helpers/text.py'), 'utf8')).toBe('def shout(s):\n    return s.upper()\n')
+    // the database file holds no code
+    expect(readFileSync(join(root, account, region, 'lambda.json'), 'utf8')).not.toContain('ZipFile')
+    expect((await invoke('files')).body).toEqual({ version: 1, text: 'HI' })
+    await remove('files')
+  })
+
+  it('is replaced by UpdateFunctionCode, and the files of the old code are removed', async () => {
+    const first = await fn('replace', version1)
+    const second = zip({ 'index.py': 'def handler(event, context):\n    return {"version": 2}\n', 'extra.py': 'x = 1\n' })
+
+    const updated = await updateCode('replace', { ZipFile: second })
+
+    expect(updated.status).toBe(200)
+    expect(updated.body.CodeSha256).not.toBe(first.body.CodeSha256)
+    expect(updated.body.CodeSize).toBe(Buffer.from(second, 'base64').length)
+    expect(updated.body.RevisionId).not.toBe(first.body.RevisionId)
+    expect(filesOf(codeDir('replace'))).toEqual(['extra.py', 'index.py'])
+    expect((await invoke('replace')).body).toEqual({ version: 2 })
+    expect((await send(functionRoute.GET, 'GET', '/2015-03-31/functions/replace')).body.Configuration.CodeSha256).toBe(updated.body.CodeSha256)
+
+    // a dry run checks the package and changes nothing
+    const dry = await updateCode('replace', { ZipFile: version1, DryRun: true })
+    expect(dry.status).toBe(200)
+    expect(filesOf(codeDir('replace'))).toEqual(['extra.py', 'index.py'])
+    await remove('replace')
+  })
+
+  it('runs what is in the directory, so a file can be edited by hand for an experiment', async () => {
+    await fn('edited', version1)
+    writeFileSync(join(codeDir('edited'), 'helpers/text.py'), 'def shout(s):\n    return s + "!!!"\n')
+
+    expect((await invoke('edited')).body).toEqual({ version: 1, text: 'hi!!!' })
+    // and the function cannot change its own code
+    writeFileSync(join(codeDir('edited'), 'index.py'), 'def handler(event, context):\n    open(__file__, "w").write("broken")\n    return "wrote"\n')
+    expect((await invoke('edited')).body).toBe('wrote')
+    expect(readFileSync(join(codeDir('edited'), 'index.py'), 'utf8')).toContain('return "wrote"')
+    await remove('edited')
+  })
+
+  it('is found whatever the working directory: the path handed to the function is absolute, also for a relative database root', () => {
+    const { isAbsolute } = require('path')
+    const previous = process.env.JPK_DB_ROOT
+    process.env.JPK_DB_ROOT = 'relative/db'
+    try {
+      jest.isolateModules(() => {
+        const { codeDirectory } = require('@/app/api/lambda/code')
+        expect(isAbsolute(codeDirectory(scope, 'any'))).toBe(true)
+        expect(codeDirectory(scope, 'any')).toMatch(/relative\/db\/111111111111\/eu-west-1\/lambda-code\/any$/)
+      })
+    } finally {
+      process.env.JPK_DB_ROOT = previous
+    }
+  })
+
+  it('is removed with the function', async () => {
+    await fn('gone', version1)
+    expect(existsSync(codeDir('gone'))).toBe(true)
+    await remove('gone')
+    expect(existsSync(codeDir('gone'))).toBe(false)
+  })
+
+  it('is refused when the package points outside itself or is damaged, and nothing is written', async () => {
+    const escape = zip({ '../escape.py': 'x = 1\n', 'index.py': 'x = 1\n' })
+    const refused = await fn('escape', escape)
+    expect(errorOf(refused)).toEqual({ type: 'InvalidParameterValueException', message: expect.stringContaining('Could not unzip') })
+    expect(existsSync(codeDir('escape'))).toBe(false)
+    expect(existsSync(join(root, account, region, 'escape.py'))).toBe(false)
+
+    // a truncated upload has lost its central directory
+    const damaged = Buffer.from(version1, 'base64').subarray(0, -30)
+    expect(errorOf(await fn('damaged', damaged.toString('base64'))).type).toBe('InvalidParameterValueException')
+    expect(existsSync(codeDir('damaged'))).toBe(false)
+
+    await fn('keeps', version1)
+    expect(errorOf(await updateCode('keeps', { ZipFile: Buffer.from('nope').toString('base64') })).message).toContain('Could not unzip')
+    expect(filesOf(codeDir('keeps'))).toHaveLength(4)
+    expect(errorOf(await updateCode('keeps', { S3Bucket: 'b', S3Key: 'k' })).message).toMatch(/S3Bucket is not supported/)
+    expect(errorOf(await updateCode('keeps', { ZipFile: version1, Publish: true })).message).toMatch(/Parameter 'Publish' is not supported/)
+    expect(errorOf(await updateCode('nothing', { ZipFile: version1 })).type).toBe('ResourceNotFoundException')
+    await remove('keeps')
+  })
+
+  it('accepts an empty package and a package whose files are stored without compression', async () => {
+    expect((await fn('empty', zip({}))).status).toBe(201)
+    expect(filesOf(codeDir('empty'))).toEqual([])
+    const stored = execFileSync('python3', ['-c', `
+import base64, io, sys, zipfile
+buffer = io.BytesIO()
+with zipfile.ZipFile(buffer, 'w', zipfile.ZIP_STORED) as archive:
+    archive.writestr('index.py', 'def handler(event, context):\\n    return "stored"\\n')
+sys.stdout.write(base64.b64encode(buffer.getvalue()).decode())
+`]).toString()
+    await fn('stored', stored)
+    expect((await invoke('stored')).body).toBe('stored')
+    await remove('empty')
+    await remove('stored')
+  })
+})
 
 describe('Lambda control plane', () => {
   it('creates, reads, lists and deletes a function', async () => {

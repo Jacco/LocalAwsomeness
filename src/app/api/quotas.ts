@@ -27,6 +27,7 @@ export const QUOTAS = {
   lambdaMemoryMax: 'lambda.function-memory-max',
   lambdaEnvironmentSize: 'lambda.environment-variables-size',
   lambdaPackageDirectSize: 'lambda.deployment-package-direct-size',
+  lambdaPackageUnzippedSize: 'lambda.deployment-package-unzipped-size',
   lambdaPayloadSynchronous: 'lambda.invocation-payload-synchronous',
 } as const
 

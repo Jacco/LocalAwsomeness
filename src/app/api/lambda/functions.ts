@@ -6,6 +6,8 @@ import { functionArn, loadLambda, notFound, parseReference, saveLambda, type Fun
 import { QUOTAS, hardLimit } from "../quotas"
 import type { RequestContext } from "../registry"
 import { reconcileInterfaces } from "./network"
+import { removeCode, unpack, writeCode } from "./code"
+import { invalidParameter, validation } from "./errors"
 
 // The control plane of Lambda, as far as the walking skeleton needs it (docs/walking-skeleton.md): inline Python functions,
 // optionally in a VPC. What is not supported is rejected by name. Behaviour written from the API reference and from
@@ -28,10 +30,7 @@ const UNSUPPORTED = ['DeadLetterConfig', 'KMSKeyArn', 'Layers', 'FileSystemConfi
 const ROLE = /^arn:(aws[a-zA-Z-]*)?:iam::(\d{12}):role\/?([a-zA-Z_0-9+=,.@\-_/]+)$/
 const NAME = /^[a-zA-Z0-9-_]+$/
 
-export const invalidParameter = (message: string) => new AwsError('InvalidParameterValueException', message, 400)
-const validation = (message: string) => new AwsError('ValidationException', message, 400)
 const present = (value: unknown) => value !== undefined && value !== null && !(Array.isArray(value) && value.length === 0)
-
 const timestamp = () => new Date().toISOString().replace('Z', '+0000')
 
 function resolveVpc(ctx: RequestContext, vpc: any): Record<string, any> | undefined {
@@ -154,10 +153,7 @@ export function createFunction(ctx: RequestContext) {
   if (zip.length > hardLimit(QUOTAS.lambdaPackageDirectSize)) {
     throw new AwsError('RequestEntityTooLargeException', `Zipped file size must be smaller than ${hardLimit(QUOTAS.lambdaPackageDirectSize)} bytes when uploaded through the API; upload larger packages through S3`, 413)
   }
-  if (zip.length < 4 || zip.readUInt32LE(0) !== 0x04034b50 && zip.readUInt32LE(0) !== 0x06054b50) {
-    throw invalidParameter('Could not unzip uploaded file. Please check your file, then try to upload again.')
-  }
-
+  const files = unpack(zip)
   const iamRole = iam.findRole(role[2], role[3].split('/').at(-1)!)
   if (!iamRole || iamRole.arn !== p.Role || !iam.trustsService(iamRole, 'lambda.amazonaws.com')) {
     throw invalidParameter('The role defined for the function cannot be assumed by Lambda.')
@@ -194,7 +190,7 @@ export function createFunction(ctx: RequestContext) {
     SnapStart: { ApplyOn: 'None', OptimizationStatus: 'Off' },
     LoggingConfig: { LogFormat: 'Text', LogGroup: `/aws/lambda/${name}` },
   }
-  const record: FunctionRecord = { Configuration: configuration, ZipFile: p.Code.ZipFile, Tags: p.Tags ?? {} }
+  const record: FunctionRecord = { Configuration: configuration, Tags: p.Tags ?? {} }
   lambda.functions[name] = record
 
   // Creating the shared interface can fail (a full subnet, the interface quota): the function is then created in the
@@ -203,8 +199,49 @@ export function createFunction(ctx: RequestContext) {
   if (failure) {
     Object.assign(configuration, { State: 'Failed', StateReason: failure.message, StateReasonCode: failure.code, LastUpdateStatus: 'Failed' })
   }
+  writeCode(scope, name, files)
   saveLambda(scope, lambda)
   return configuration
+}
+
+// Replaces the code of a function. The files of the old code are removed; the code size and hash are those of the new
+// upload. Only $LATEST exists, so there is no Publish.
+export function updateFunctionCode(ctx: RequestContext) {
+  const { params: p } = ctx
+  const { name, record } = lookup(ctx, p.FunctionName)
+  const scope = { account: ctx.account, region: ctx.region }
+  for (const member of ['S3Bucket', 'S3Key', 'S3ObjectVersion', 'ImageUri', 'SourceKMSKeyArn']) {
+    if (present(p[member])) {
+      throw invalidParameter(`${member} is not supported by this simulator yet (only ZipFile; there is no S3 or ECR)`)
+    }
+  }
+  if (p.Publish) {
+    throw invalidParameter(`Parameter 'Publish' is not supported by this simulator yet (no versions)`)
+  }
+  if (present(p.Architectures)) {
+    throw invalidParameter(`Parameter 'Architectures' is not supported by this simulator yet when updating code`)
+  }
+  if (typeof p.ZipFile !== 'string') {
+    throw invalidParameter('ZipFile is required')
+  }
+  const zip = Buffer.from(p.ZipFile, 'base64')
+  if (zip.length > hardLimit(QUOTAS.lambdaPackageDirectSize)) {
+    throw new AwsError('RequestEntityTooLargeException', `Zipped file size must be smaller than ${hardLimit(QUOTAS.lambdaPackageDirectSize)} bytes when uploaded through the API; upload larger packages through S3`, 413)
+  }
+  const files = unpack(zip)
+  if (!p.DryRun) {
+    writeCode(scope, name, files)
+    Object.assign(record.Configuration, {
+      CodeSize: zip.length,
+      CodeSha256: createHash('sha256').update(zip).digest('base64'),
+      LastModified: timestamp(),
+      RevisionId: randomUUID(),
+    })
+    const lambda = loadLambda(scope)
+    lambda.functions[name] = record
+    saveLambda(scope, lambda)
+  }
+  return record.Configuration
 }
 
 // Finds the function a request names (name, partial or full ARN, qualifier). Only $LATEST exists.
@@ -284,6 +321,7 @@ export function deleteFunction(ctx: RequestContext) {
   const lambda = loadLambda(scope)
   delete lambda.functions[name]
   delete lambda.invocations?.[name]
+  removeCode(scope, name)
   // the shared interface goes with the last function that used it
   reconcileInterfaces(scope, lambda)
   saveLambda(scope, lambda)

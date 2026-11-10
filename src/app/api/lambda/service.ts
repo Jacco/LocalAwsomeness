@@ -1,6 +1,6 @@
 import { defineService, type RequestContext } from "../registry"
 import { functionArn, parseReference } from "../db/lambda"
-import { createFunction, deleteFunction, getFunction, getFunctionCodeSigningConfig, getFunctionConcurrency, getFunctionConfiguration, getFunctionRecursionConfig, listFunctions, listTags, listVersionsByFunction } from "./functions"
+import { createFunction, deleteFunction, getFunction, getFunctionCodeSigningConfig, getFunctionConcurrency, getFunctionConfiguration, getFunctionRecursionConfig, listFunctions, listTags, listVersionsByFunction, updateFunctionCode } from "./functions"
 import { invoke } from "./invoke"
 import { LambdaProtocol } from "./protocol"
 
@@ -28,6 +28,7 @@ export const lambda = defineService({
     GetFunctionConcurrency: { handler: getFunctionConcurrency, action: 'lambda:GetFunctionConcurrency', resources: functionResource },
     ListTags: { handler: listTags, resources: ({ params }) => [String(params.Resource)] },
     DeleteFunction: { handler: deleteFunction, resources: functionResource },
+    UpdateFunctionCode: { handler: updateFunctionCode, resources: functionResource },
     Invoke: { handler: invoke, action: 'lambda:InvokeFunction', resources: functionResource },
   },
 })

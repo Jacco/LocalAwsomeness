@@ -7,7 +7,9 @@ import { loadLambda, saveLambda, type FunctionRecord, type InvocationRecord } fr
 import { QUOTAS, hardLimit } from "../quotas"
 import type { RequestContext } from "../registry"
 import { BadRunRequest, runInContext, type RunResult } from "../runtime/run"
-import { invalidParameter, lookup } from "./functions"
+import { codeDirectory } from "./code"
+import { invalidParameter } from "./errors"
+import { lookup } from "./functions"
 import { sharedInterface, vpcSettings } from "./network"
 
 // Invoke: the function runs in a Python subprocess behind the network shim (src/app/api/runtime/), in the network position
@@ -65,9 +67,10 @@ async function execute(ctx: RequestContext, name: string, record: FunctionRecord
       role: c.Role.split('/').at(-1),
       sessionName: name,
       code: bootstrap(),
-      files: { 'function.zip': Buffer.from(record.ZipFile, 'base64'), 'event.json': payload },
+      files: { 'event.json': payload },
       env: {
         ...c.Environment?.Variables,
+        JPK_CODE_DIR: codeDirectory(scope, name),
         AWS_LAMBDA_FUNCTION_NAME: name,
         AWS_LAMBDA_FUNCTION_VERSION: '$LATEST',
         AWS_LAMBDA_FUNCTION_MEMORY_SIZE: String(c.MemorySize),

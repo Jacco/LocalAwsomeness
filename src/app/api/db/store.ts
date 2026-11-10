@@ -1,9 +1,10 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from "fs"
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from "fs"
 
 // The only place that knows where state lives on disk:
 //   db/<service>.json                      no account (accounts, tokens)
 //   db/<account>/<service>.json            account-wide (global) state
 //   db/<account>/<region>/<service>.json   regional state
+//   db/<account>/<region>/<service>/...    files that belong to a service's state (the code of Lambda functions)
 export const DB_ROOT = process.env.JPK_DB_ROOT ?? 'db'
 
 export interface StoreKey {
@@ -52,6 +53,19 @@ export function remove(key: StoreKey): void {
 
 export function accountDirExists(account: string): boolean {
   return existsSync(`${DB_ROOT}/${account}`)
+}
+
+// A directory of files that belongs to a service's state (the code of Lambda functions), next to its JSON:
+//   db/<account>/<region>/<service>/<name>/...
+export function directoryPath({ service, account, region }: StoreKey, ...names: string[]): string {
+  if (!account) {
+    throw Error('A directory belongs to an account')
+  }
+  return [DB_ROOT, account, region, service, ...names].filter(Boolean).join('/')
+}
+
+export function removeDirectory(path: string): void {
+  rmSync(path, { recursive: true, force: true })
 }
 
 export function listAccountDirs(): string[] {

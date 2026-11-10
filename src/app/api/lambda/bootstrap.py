@@ -1,18 +1,18 @@
 """What the Lambda Python runtime does around a handler, for functions run by the simulator (src/app/api/lambda/invoke.ts).
 
-Runs inside the network shim (src/app/api/runtime/netshim.py) as its script. Reads function.zip and event.json from the
-working directory, extracts the package, calls the handler with the event and a context object, and writes outcome.json
-(the response is not written to standard output, so the function's own output stays the log). The Lambda service adds
-the START, END and REPORT lines and the timeout.
+Runs inside the network shim (src/app/api/runtime/netshim.py) as its script. Copies the code of the function (the files in
+JPK_CODE_DIR) to the task root, calls the handler with the event.json of the working directory and a context object, and
+writes outcome.json (the response is not written to standard output, so the function's own output stays the log). The
+Lambda service adds the START, END and REPORT lines and the timeout.
 """
 import importlib
 import json
 import logging
 import os
+import shutil
 import sys
 import time
 import traceback
-import zipfile
 
 REQUEST_ID = os.environ["JPK_REQUEST_ID"]
 TIMEOUT_MS = int(os.environ['JPK_TIMEOUT_MS'])
@@ -67,11 +67,11 @@ def finish(payload=None, error=None):
 
 def main():
     module_name, _, function_name = os.environ['_HANDLER'].rpartition('.')
-    try:
-        with zipfile.ZipFile('function.zip') as package:
-            package.extractall(ROOT)
-    except zipfile.BadZipFile as exc:
-        return finish(error=failure('Runtime.ImportModuleError', f"Unable to import module '{module_name}': {exc}"))
+    code_dir = os.environ['JPK_CODE_DIR']
+    if not os.path.isdir(code_dir):
+        return finish(error=failure('Runtime.ImportModuleError', f"Unable to import module '{module_name}': the code of the function is missing ({code_dir})"))
+    # the function gets its own copy of the code, so what it writes next to it never changes the stored code
+    shutil.copytree(code_dir, ROOT)
     sys.path.insert(0, ROOT)
     configure_logging()
     try:

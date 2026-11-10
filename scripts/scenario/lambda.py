@@ -3,7 +3,13 @@
 
     python3 scripts/scenario/network.py --until B   # build the network (variants A, B, C or D)
     python3 scripts/scenario/lambda.py              # create orders-fn in it (or replace it), invoke it, show what happened
-    python3 scripts/scenario/lambda.py --clean      # delete the function (and its shared interface)
+    python3 scripts/scenario/lambda.py --invoke     # invoke again (after changing the network or the permissions)
+    python3 scripts/scenario/lambda.py --grant ec2:DescribeVpcs    # give the role a permission, then create and invoke
+    python3 scripts/scenario/lambda.py --revoke     # take the permission away again
+    python3 scripts/scenario/lambda.py --clean      # delete the function and the permissions
+
+The function asks STS who it is (needs no permission, as in AWS) and calls ec2:DescribeVpcs (needs the permission): the role
+starts without any policy, so the second call is denied until it is granted.
 
 Uses the default AWS profile and endpoint like scripts/verify-ec2/check.py, through the Lambda API with boto3. The role
 `orders-fn-role` (trusting lambda.amazonaws.com) is created when it does not exist. After the invocation it prints the
@@ -30,16 +36,25 @@ iam = boto3.client('iam', region_name=region, endpoint_url=ENDPOINT)
 sts = boto3.client('sts', region_name=region, endpoint_url=ENDPOINT)
 NAME = 'orders-fn'
 ROLE = 'orders-fn-role'
+GRANT = 'orders-fn-grant'
 
 CODE = '''
 import boto3
 from botocore.config import Config
+from botocore.exceptions import ClientError
 
 def handler(event, context):
-    sts = boto3.client("sts", config=Config(connect_timeout=2, retries={"max_attempts": 1}))
-    identity = sts.get_caller_identity()
+    config = Config(connect_timeout=2, retries={"max_attempts": 1})
+    identity = boto3.client("sts", config=config).get_caller_identity()
     print("calling as", identity["Arn"])
-    return {"arn": identity["Arn"], "account": identity["Account"], "remaining_ms": context.get_remaining_time_in_millis()}
+    result = {"arn": identity["Arn"], "remaining_ms": context.get_remaining_time_in_millis()}
+    # needs the permission ec2:DescribeVpcs, unlike sts:GetCallerIdentity, which needs none
+    try:
+        result["ec2"] = "ok, %d VPCs" % len(boto3.client("ec2", config=config).describe_vpcs()["Vpcs"])
+    except ClientError as error:
+        result["ec2"] = error.response["Error"]["Code"] + ": " + error.response["Error"]["Message"]
+    print("ec2:", result["ec2"])
+    return result
 '''
 
 
@@ -104,11 +119,32 @@ def invoke():
     print(record['Network'])
 
 
+def grant(actions):
+    document = {'Version': '2012-10-17', 'Statement': [{'Effect': 'Allow', 'Action': actions, 'Resource': '*'}]}
+    iam.put_role_policy(RoleName=ROLE, PolicyName=GRANT, PolicyDocument=json.dumps(document))
+    print(f'granted {", ".join(actions)} to {ROLE}')
+
+
+def revoke():
+    try:
+        iam.delete_role_policy(RoleName=ROLE, PolicyName=GRANT)
+        print(f'removed the permissions granted to {ROLE}')
+    except ClientError as error:
+        if error.response['Error']['Code'] != 'NoSuchEntity':
+            raise
+
+
 if __name__ == '__main__':
     try:
         if '--clean' in sys.argv:
             delete()
+            revoke()
         else:
+            ensure_role()
+            if '--revoke' in sys.argv:
+                revoke()
+            if '--grant' in sys.argv:
+                grant(sys.argv[sys.argv.index('--grant') + 1].split(','))
             if '--invoke' not in sys.argv:
                 create()
             invoke()

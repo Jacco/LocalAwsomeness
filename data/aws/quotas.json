@@ -81,6 +81,10 @@
     "service": "lambda", "name": "Deployment package (.zip file archive) size, uploaded through the API", "code": null, "default": 52428800, "adjustable": false, "global": true, "unit": "Bytes",
     "source": "https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html", "checked": "2026-11-10"
   },
+  "lambda.deployment-package-unzipped-size": {
+    "service": "lambda", "name": "Deployment package (.zip file archive) size, unzipped, including layers", "code": null, "default": 262144000, "adjustable": false, "global": true, "unit": "Bytes",
+    "source": "https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html", "checked": "2026-11-10"
+  },
   "lambda.invocation-payload-synchronous": {
     "service": "lambda", "name": "Invocation payload (request and response), synchronous", "code": null, "default": 6291456, "adjustable": false, "global": true, "unit": "Bytes",
     "note": "Documented as 6 MB each; AWS reports a limit of a few bytes more in its error message, which is not verified here.",

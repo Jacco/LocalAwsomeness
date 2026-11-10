@@ -6,8 +6,7 @@ import * as store from "./store"
 
 export interface FunctionRecord {
   Configuration: Record<string, any>
-  // The deployment package, base64. Inline ZipFile only, until S3 exists.
-  ZipFile: string
+  // The code is not here: it is the files in db/<account>/<region>/lambda-code/<function>/ (src/app/api/lambda/code.ts).
   Tags: Record<string, string>
 }
 
