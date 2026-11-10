@@ -99,9 +99,9 @@ export function createLogGroup(ctx: RequestContext) {
 }
 
 export const deleteLogGroup = (ctx: RequestContext) => writing(ctx, state => {
-  const name = group(state, ctx.params.logGroupName).logGroupName
-  removeGroupData(scopeOf(ctx), name)
-  delete state.groups[name]
+  const g = group(state, ctx.params.logGroupName)
+  removeGroupData(scopeOf(ctx), g)
+  delete state.groups[g.logGroupName]
   return {}
 })
 
@@ -142,7 +142,7 @@ export const createLogStream = (ctx: RequestContext) => writing(ctx, state => {
 
 export const deleteLogStream = (ctx: RequestContext) => writing(ctx, state => {
   const { group: g, stream: s } = stream(state, ctx.params.logGroupName, ctx.params.logStreamName)
-  removeStreamData(scopeOf(ctx), g.logGroupName, s.logStreamName)
+  removeStreamData(scopeOf(ctx), g, s)
   delete g.streams[s.logStreamName]
   return {}
 })
@@ -215,7 +215,7 @@ export function putLogEvents(ctx: RequestContext) {
     const tooOld = events.filter(e => e.timestamp < oldest).length
     const tooNewFrom = events.findIndex(e => e.timestamp > now + TWO_HOURS)
     const accepted = events.filter((e, index) => e.timestamp >= oldest && (tooNewFrom < 0 || index < tooNewFrom))
-    appendEvents(scopeOf(ctx), g.logGroupName, s, accepted, now)
+    appendEvents(scopeOf(ctx), g, s, accepted, now)
     const rejected = {
       ...(tooOld ? { tooOldLogEventEndIndex: tooOld } : {}),
       ...(tooNewFrom >= 0 ? { tooNewLogEventStartIndex: tooNewFrom } : {}),
@@ -231,9 +231,9 @@ export function getLogEvents(ctx: RequestContext) {
   const { params: p } = ctx
   refuse(p, ['logGroupIdentifier', 'unmask'])
   const limit = pageSize(p.limit, MAX_READ, MAX_READ)
-  const { stream: s } = stream(loadLogs(scopeOf(ctx)), p.logGroupName, p.logStreamName)
+  const { group: g, stream: s } = stream(loadLogs(scopeOf(ctx)), p.logGroupName, p.logStreamName)
   // events with their position in the stream; the tokens are positions: f/<n> reads on from n, b/<n> reads back from n
-  const events = readEvents(scopeOf(ctx), p.logGroupName, s.logStreamName)
+  const events = readEvents(scopeOf(ctx), g, s)
   const all = events.map((e, index) => ({ e, index })).filter(({ e }) => inRange(e, p.startTime, p.endTime))
   let chosen: typeof all
   if (typeof p.nextToken === 'string') {
@@ -283,7 +283,7 @@ export function filterLogEvents(ctx: RequestContext) {
     if (!s) {
       throw noStream()
     }
-    return readEvents(scopeOf(ctx), g.logGroupName, name).map((e, index) => ({ e, name, index }))
+    return readEvents(scopeOf(ctx), g, s).map((e, index) => ({ e, name, index }))
   }).filter(({ e }) => inRange(e, p.startTime, p.endTime) && terms.every(t => e.message.includes(t)))
     .sort((a, b) => a.e.timestamp - b.e.timestamp || (a.name < b.name ? -1 : a.name > b.name ? 1 : a.index - b.index))
   const offset = p.nextToken === undefined ? 0 : Number(p.nextToken)

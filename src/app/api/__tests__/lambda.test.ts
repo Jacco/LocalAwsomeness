@@ -517,7 +517,11 @@ describe('Invoke', () => {
       const group = stored('logged')
       expect(Object.keys(group.streams)).toEqual([record.LogDelivery.Stream])
       expect(record.LogDelivery.Stream).toMatch(/^\d{4}\/\d\d\/\d\d\/\[\$LATEST\][0-9a-f]{32}$/)
-      const messages = readEvents(scope, '/aws/lambda/logged', record.LogDelivery.Stream).map((e: { message: string }) => e.message)
+      const g = loadLogs(scope).groups['/aws/lambda/logged']
+      // readable names on disk: the group directory is aws_lambda_logged, the stream file the stream name made readable
+      expect(g.dataDirectory).toBe('aws_lambda_logged')
+      expect(g.streams[record.LogDelivery.Stream].dataFile).toMatch(/^\d{4}_\d\d_\d\d_LATEST_[0-9a-f]{32}\.jsonl$/)
+      const messages = readEvents(scope, g, g.streams[record.LogDelivery.Stream]).map((e: { message: string }) => e.message)
       expect(messages).toEqual([
         `START RequestId: ${record.RequestId} Version: $LATEST`,
         'first line',

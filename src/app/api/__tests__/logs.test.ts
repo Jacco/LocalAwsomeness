@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
 
@@ -202,21 +202,30 @@ describe('state and data', () => {
   const scope = { account, region }
   const dataDir = join(root, account, region, 'data', 'logs')
   const state = () => JSON.parse(readFileSync(join(root, account, region, 'logs.json'), 'utf8'))
+  const read = (group: string, stream: string) => {
+    const g = loadLogs(scope).groups[group]
+    return readEvents(scope, g, g.streams[stream]).map((e: { message: string }) => e.message)
+  }
 
-  it('keep the events in the data directory, one JSON Lines file per stream, and only the metadata of the stream in the state', async () => {
+  it('keep the events in the data directory, one JSON Lines file per stream, under names that can be read', async () => {
     await call('CreateLogGroup', { logGroupName: '/aws/lambda/split' })
     await call('CreateLogStream', { logGroupName: '/aws/lambda/split', logStreamName: '2026/11/10/[$LATEST]abc' })
     await call('PutLogEvents', { logGroupName: '/aws/lambda/split', logStreamName: '2026/11/10/[$LATEST]abc', logEvents: [{ timestamp: NOW, message: 'one' }, { timestamp: NOW + 1, message: 'two' }] })
 
-    const file = join(dataDir, '%2Faws%2Flambda%2Fsplit', '2026%2F11%2F10%2F%5B%24LATEST%5Dabc.jsonl')
-    expect(existsSync(file)).toBe(true)
+    // /aws/lambda/split is the directory aws_lambda_split, and the stream a file in it
+    expect(readdirSync(dataDir)).toContain('aws_lambda_split')
+    expect(readdirSync(join(dataDir, 'aws_lambda_split'))).toEqual(['2026_11_10_LATEST_abc.jsonl'])
+    const file = join(dataDir, 'aws_lambda_split', '2026_11_10_LATEST_abc.jsonl')
     expect(readFileSync(file, 'utf8').trimEnd().split('\n').map(line => JSON.parse(line).message)).toEqual(['one', 'two'])
 
-    const stream = state().groups['/aws/lambda/split'].streams['2026/11/10/[$LATEST]abc']
-    expect(stream).toMatchObject({ logStreamName: '2026/11/10/[$LATEST]abc', firstEventTimestamp: NOW, lastEventTimestamp: NOW + 1, storedBytes: 2 * 26 + 6 })
+    // the state has the real names, says where the data is, and holds no events
+    const group = state().groups['/aws/lambda/split']
+    expect(group).toMatchObject({ logGroupName: '/aws/lambda/split', dataDirectory: 'aws_lambda_split' })
+    const stream = group.streams['2026/11/10/[$LATEST]abc']
+    expect(stream).toMatchObject({ logStreamName: '2026/11/10/[$LATEST]abc', dataFile: '2026_11_10_LATEST_abc.jsonl', firstEventTimestamp: NOW, lastEventTimestamp: NOW + 1, storedBytes: 2 * 26 + 6 })
     expect(stream.events).toBeUndefined()
     expect(readFileSync(join(root, account, region, 'logs.json'), 'utf8')).not.toContain('"one"')
-    expect(readEvents(scope, '/aws/lambda/split', '2026/11/10/[$LATEST]abc').map((e: { message: string }) => e.message)).toEqual(['one', 'two'])
+    expect(read('/aws/lambda/split', '2026/11/10/[$LATEST]abc')).toEqual(['one', 'two'])
   })
 
   it('append to the file, and read the events in the order of their timestamps', async () => {
@@ -224,41 +233,88 @@ describe('state and data', () => {
     await call('PutLogEvents', { logGroupName: '/aws/lambda/split', logStreamName: 'late', logEvents: [{ timestamp: NOW, message: 'second batch, later event' }] })
     await call('PutLogEvents', { logGroupName: '/aws/lambda/split', logStreamName: 'late', logEvents: [{ timestamp: NOW - 100, message: 'earlier event, arrived later' }] })
 
-    expect(readFileSync(join(dataDir, '%2Faws%2Flambda%2Fsplit', 'late.jsonl'), 'utf8').trimEnd().split('\n')).toHaveLength(2)
-    const read = (await call('GetLogEvents', { logGroupName: '/aws/lambda/split', logStreamName: 'late', startFromHead: true })).body.events
-    expect(read.map((e: { message: string }) => e.message)).toEqual(['earlier event, arrived later', 'second batch, later event'])
-    const stream = state().groups['/aws/lambda/split'].streams.late
-    expect(stream).toMatchObject({ firstEventTimestamp: NOW - 100, lastEventTimestamp: NOW })
+    expect(readFileSync(join(dataDir, 'aws_lambda_split', 'late.jsonl'), 'utf8').trimEnd().split('\n')).toHaveLength(2)
+    const events = (await call('GetLogEvents', { logGroupName: '/aws/lambda/split', logStreamName: 'late', startFromHead: true })).body.events
+    expect(events.map((e: { message: string }) => e.message)).toEqual(['earlier event, arrived later', 'second batch, later event'])
+    expect(state().groups['/aws/lambda/split'].streams.late).toMatchObject({ firstEventTimestamp: NOW - 100, lastEventTimestamp: NOW })
   })
 
-  it('go when the stream or the log group is deleted', async () => {
+  it('give names that differ only in what a file name cannot hold different files, also when only the case differs', async () => {
+    await call('CreateLogGroup', { logGroupName: '/a/b' })
+    await call('CreateLogGroup', { logGroupName: 'a_b' })
+    await call('CreateLogGroup', { logGroupName: '/A/B' })
+    expect(['/a/b', 'a_b', '/A/B'].map(name => state().groups[name].dataDirectory)).toEqual(['a_b', 'a_b-2', 'A_B-3'])
+
+    await call('CreateLogStream', { logGroupName: '/a/b', logStreamName: 'x/y' })
+    await call('CreateLogStream', { logGroupName: '/a/b', logStreamName: 'x_y' })
+    await call('PutLogEvents', { logGroupName: '/a/b', logStreamName: 'x/y', logEvents: [{ timestamp: NOW, message: 'in x/y' }] })
+    await call('PutLogEvents', { logGroupName: '/a/b', logStreamName: 'x_y', logEvents: [{ timestamp: NOW, message: 'in x_y' }] })
+    expect(read('/a/b', 'x/y')).toEqual(['in x/y'])
+    expect(read('/a/b', 'x_y')).toEqual(['in x_y'])
+    expect(readdirSync(join(dataDir, 'a_b')).sort()).toEqual(['x_y-2.jsonl', 'x_y.jsonl'])
+    for (const name of ['/a/b', 'a_b', '/A/B']) {
+      await call('DeleteLogGroup', { logGroupName: name })
+    }
+  })
+
+  it('go when the stream or the log group is deleted, and the name can be used again', async () => {
     await call('DeleteLogStream', { logGroupName: '/aws/lambda/split', logStreamName: 'late' })
-    expect(existsSync(join(dataDir, '%2Faws%2Flambda%2Fsplit', 'late.jsonl'))).toBe(false)
-    expect(existsSync(join(dataDir, '%2Faws%2Flambda%2Fsplit'))).toBe(true)
+    expect(existsSync(join(dataDir, 'aws_lambda_split', 'late.jsonl'))).toBe(false)
+    expect(existsSync(join(dataDir, 'aws_lambda_split'))).toBe(true)
     await call('DeleteLogGroup', { logGroupName: '/aws/lambda/split' })
-    expect(existsSync(join(dataDir, '%2Faws%2Flambda%2Fsplit'))).toBe(false)
+    expect(existsSync(join(dataDir, 'aws_lambda_split'))).toBe(false)
+
+    await call('CreateLogGroup', { logGroupName: '/aws/lambda/split' })
+    expect(state().groups['/aws/lambda/split'].dataDirectory).toBe('aws_lambda_split')
+    await call('DeleteLogGroup', { logGroupName: '/aws/lambda/split' })
   })
 
-  it('drop events that an older state file carried in the streams', () => {
+  it('give a name from a state written before the data had files of their own, and drop the events it carried', () => {
     const old = state()
-    old.groups.legacy = { logGroupName: 'legacy', creationTime: 1, tags: {}, streams: { s: { logStreamName: 's', creationTime: 1, events: [{ timestamp: 1, message: 'x', ingestionTime: 1 }] } } }
+    old.groups['/legacy/group'] = { logGroupName: '/legacy/group', creationTime: 1, tags: {}, streams: { 'a/b': { logStreamName: 'a/b', creationTime: 1, events: [{ timestamp: 1, message: 'x', ingestionTime: 1 }] } } }
     writeFileSync(join(root, account, region, 'logs.json'), JSON.stringify(old))
 
-    const loaded = loadLogs(scope).groups.legacy.streams.s
-    expect(loaded.events).toBeUndefined()
-    expect(loaded.storedBytes).toBe(0)
+    const loaded = loadLogs(scope).groups['/legacy/group']
+    expect(loaded.dataDirectory).toBe('legacy_group')
+    expect(loaded.streams['a/b']).toMatchObject({ dataFile: 'a_b.jsonl', storedBytes: 0 })
+    expect(loaded.streams['a/b'].events).toBeUndefined()
+  })
+})
+
+describe('names of files', () => {
+  const { readableName, uniqueName, safeFileName } = require('@/app/api/db/store')
+
+  it('are readable versions of the names they come from', () => {
+    expect(readableName('/aws/lambda/orders-fn')).toBe('aws_lambda_orders-fn')
+    expect(readableName('2026/11/10/[$LATEST]0341cc')).toBe('2026_11_10_LATEST_0341cc')
+    expect(readableName('plain-name_1.v2')).toBe('plain-name_1.v2')
+    expect(readableName('my group (prod)!')).toBe('my_group_prod')
   })
 
-  it('name files safely: slashes and a dot name are escaped and a long name is cut and hashed', () => {
-    const { fileName } = require('@/app/api/db/store')
-    expect(fileName('/aws/lambda/fn')).toBe('%2Faws%2Flambda%2Ffn')
-    expect(fileName('..')).toBe('%2E.')
-    expect(fileName('.')).toBe('%2E')
-    expect(fileName('plain-name_1')).toBe('plain-name_1')
-    const long = `/${'a'.repeat(400)}`
-    expect(fileName(long).length).toBeLessThanOrEqual(140)
-    expect(fileName(long)).toMatch(/~[0-9a-f]{16}$/)
-    expect(fileName(long)).not.toBe(fileName(`/${'a'.repeat(399)}b`))
+  it('can never be a path: no dot names, no separators, no empty name, bounded length', () => {
+    expect(readableName('..')).toBe('_')
+    expect(readableName('.')).toBe('_')
+    expect(readableName('../../etc/passwd')).toBe('etc_passwd')
+    expect(readableName('///')).toBe('_')
+    expect(readableName('.hidden')).toBe('hidden')
+    expect(readableName('a'.repeat(500))).toHaveLength(100)
+  })
+
+  it('are made different from the names that are taken', () => {
+    expect(uniqueName('/a/b', [])).toBe('a_b')
+    expect(uniqueName('/a/b', ['a_b'])).toBe('a_b-2')
+    expect(uniqueName('/a/b', ['a_b', 'a_b-2'])).toBe('a_b-3')
+    expect(uniqueName('/A/B', ['a_b'])).toBe('A_B-2')
+    expect(uniqueName('x', ['x.jsonl'], '.jsonl')).toBe('x-2.jsonl')
+    expect(uniqueName('x', [], '.jsonl')).toBe('x.jsonl')
+  })
+
+  it('are used as they are when the API already restricts the name, and refused otherwise', () => {
+    expect(safeFileName('orders-fn')).toBe('orders-fn')
+    expect(safeFileName('_internal_1')).toBe('_internal_1')
+    for (const bad of ['', '.', '..', '../x', 'a/b', '.hidden']) {
+      expect(() => safeFileName(bad)).toThrow(/cannot be used as a file name/)
+    }
   })
 })
 

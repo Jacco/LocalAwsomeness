@@ -1,5 +1,4 @@
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from "fs"
-import { createHash } from "crypto"
 
 // The only place that knows where things live on disk. Two kinds, kept apart:
 //
@@ -15,7 +14,9 @@ import { createHash } from "crypto"
 // a `data` directory of its own, one directory per service:
 //   db/<account>/data/<service>/...             account-wide data
 //   db/<account>/<region>/data/<service>/...    regional data
-// State may point at data (a log stream's state says when its last event was, the events are data), never the other way.
+// State may point at data (a log stream's state says when its last event was and which file holds its events), never the other
+// way. The names of data directories and files are readable versions of the names they belong to, chosen when the thing is
+// created and kept in the state (see readableName and uniqueName below), not escapes that have to be decoded.
 export const DB_ROOT = process.env.JPK_DB_ROOT ?? 'db'
 
 export interface StoreKey {
@@ -75,8 +76,8 @@ export function directoryPath({ service, account, region }: StoreKey, ...names: 
   return [DB_ROOT, account, region, service, ...names].filter(Boolean).join('/')
 }
 
-// The directory of a service's data (see above), or a path inside it. Names that come from the API (a log group, a stream)
-// go through fileName() first.
+// The directory of a service's data (see above), or a path inside it. File names that come from API names go through
+// readableName() and uniqueName(), or safeFileName() when the API already restricts the name.
 export function dataPath({ service, account, region }: StoreKey, ...names: string[]): string {
   if (!account) {
     throw Error('Data belongs to an account')
@@ -84,12 +85,34 @@ export function dataPath({ service, account, region }: StoreKey, ...names: strin
   return [DB_ROOT, account, region, 'data', service, ...names].filter(Boolean).join('/')
 }
 
-// A name from the API as a file name: `/` and the other characters that do not belong in one are escaped (`/aws/lambda/fn`
-// is `%2Faws%2Flambda%2Ffn`), a leading dot is escaped so a name can never be `.` or `..`, and a name too long for a file
-// name is cut and given a hash of the whole name.
-export function fileName(name: string): string {
-  const escaped = encodeURIComponent(name).replace(/^\./, '%2E')
-  return escaped.length <= 200 ? escaped : `${escaped.slice(0, 120)}~${createHash('sha256').update(name).digest('hex').slice(0, 16)}`
+// A name from the API as a file name that is easy to read: runs of anything but letters, digits, `.`, `-` and `_` become one
+// `_` (`/aws/lambda/orders-fn` is `aws_lambda_orders-fn`), leading dots and underscores and trailing underscores are dropped,
+// and it is cut at 100 characters. Not reversible and not unique: the state keeps the real name and the file name that was
+// chosen for it (see uniqueName), so nothing ever has to be decoded.
+export function readableName(name: string): string {
+  const readable = name.replace(/[^A-Za-z0-9._-]+/g, '_').replace(/^[._]+/, '').replace(/_+$/, '').slice(0, 100)
+  return readable === '' ? '_' : readable
+}
+
+// `readableName`, made different from the names that are taken (compared without regard to case, since a file system may
+// not tell `A` from `a`) by adding -2, -3, ...
+export function uniqueName(name: string, taken: string[], suffix = ''): string {
+  const used = new Set(taken.map(t => t.toLowerCase()))
+  const base = readableName(name)
+  let candidate = `${base}${suffix}`
+  for (let n = 2; used.has(candidate.toLowerCase()); n++) {
+    candidate = `${base}-${n}${suffix}`
+  }
+  return candidate
+}
+
+// For names the API already restricts to something safe (a Lambda function name): used as the file name itself, and refused
+// when it could be anything else.
+export function safeFileName(name: string): string {
+  if (!/^[A-Za-z0-9_-][A-Za-z0-9._-]{0,254}$/.test(name)) {
+    throw Error(`'${name}' cannot be used as a file name`)
+  }
+  return name
 }
 
 export function removeData(path: string): void {

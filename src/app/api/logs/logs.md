@@ -2,8 +2,8 @@
 
 Status: a minimal service, enough for the log of Lambda functions, `aws logs` and the SDKs. JSON 1.1, target `Logs_20140328` (`logs` credential scope; route `Logs_20140328/[action]`). It keeps **state** and **data** apart (see `src/app/api/db/store.ts`):
 
-- **State**, `db/<account>/<region>/logs.json`: the log groups (retention, tags) and, per stream, only its metadata (creation time, timestamps of the first and last event, last ingestion, stored bytes), in the shape of the API.
-- **Data**, `db/<account>/<region>/data/logs/<log group>/<log stream>.jsonl`: the events of a stream, one JSON object per line in the order they arrived (read back ordered by timestamp). Group and stream names are escaped to file names, so `/aws/lambda/fn` is the directory `%2Faws%2Flambda%2Ffn`. Deleting a stream or a group deletes its data.
+- **State**, `db/<account>/<region>/logs.json`: the log groups (retention, tags) and, per stream, only its metadata (creation time, timestamps of the first and last event, last ingestion, stored bytes), in the shape of the API. It also says where the data is: `dataDirectory` of a group, `dataFile` of a stream.
+- **Data**, `db/<account>/<region>/data/logs/<dataDirectory>/<dataFile>`: the events of a stream, one JSON object per line in the order they arrived (read back ordered by timestamp). The names are readable versions of the log group and stream names: `/aws/lambda/orders-fn` is the directory `aws_lambda_orders-fn`, the stream `2026/11/10/[$LATEST]0341cc…` the file `2026_11_10_LATEST_0341cc….jsonl`. They are chosen when the group or stream is created, made different from the others (`-2`, `-3`, also when only the case differs) and remembered in the state, so a name is never decoded from a file name. Deleting a stream or a group deletes its data.
 
 ## What is there
 

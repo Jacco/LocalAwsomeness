@@ -43,7 +43,7 @@ interface Scope {
 // A function's invocations, newest first, are data (db/<account>/<region>/data/lambda-invocations/<function>.json), one file per
 // function; they are not state of the service.
 const invocationsFile = (scope: Scope, name: string) =>
-  store.dataPath({ service: 'lambda-invocations', account: scope.account, region: scope.region }, `${store.fileName(name)}.json`)
+  store.dataPath({ service: 'lambda-invocations', account: scope.account, region: scope.region }, `${store.safeFileName(name)}.json`)
 export const loadInvocations = (scope: Scope, name: string): InvocationRecord[] => store.readJson<InvocationRecord[]>(invocationsFile(scope, name), [])
 export const saveInvocations = (scope: Scope, name: string, records: InvocationRecord[]) => store.writeJson(invocationsFile(scope, name), records)
 export const removeInvocations = (scope: Scope, name: string) => store.removeData(invocationsFile(scope, name))
