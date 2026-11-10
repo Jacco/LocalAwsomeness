@@ -8,7 +8,8 @@ Started by run.ts (see "Step 3b as built" in docs/walking-skeleton.md), never by
     the simulator instead (plain TCP, the Host header stays the original name), if not it fails the way a dropped packet
     does (a connect timeout);
   - refuses every other IP connection, because it cannot see where it would go (reported as "not modelled");
-  - replaces time.sleep, time.time and time.monotonic by a virtual clock, so retries and back-off take no real time.
+  - replaces time.sleep, time.time and time.monotonic by a virtual clock, so retries and back-off take no real time; when
+    JPK_DEADLINE is set (a Lambda timeout) the code is stopped as soon as the virtual clock passes it.
 
 The runner and the shim talk over file descriptor 3, one JSON object per line. The runner derives where the script runs
 from its own state, never from anything the script sends.
@@ -37,14 +38,26 @@ _real_monotonic = time.monotonic
 _real_connect = socket.socket.connect
 _real_connect_ex = socket.socket.connect_ex
 _offset = 0.0
+_deadline = float(os.environ['JPK_DEADLINE']) if 'JPK_DEADLINE' in os.environ else None
 _delivering = False
 _channel = None
 
 
-def _sleep(seconds):
+def _advance(seconds):
+    """Moves the virtual clock; past the deadline (a Lambda timeout) the code is stopped there, as AWS stops it."""
     global _offset
+    _offset += seconds
+    if _deadline is not None and _offset > _deadline:
+        _offset = _deadline
+        _send({'op': 'deadline'})
+        sys.stdout.flush()
+        sys.stderr.flush()
+        os._exit(124)
+
+
+def _sleep(seconds):
     if seconds and seconds > 0:
-        _offset += seconds
+        _advance(seconds)
 
 
 def _open_channel():
@@ -68,7 +81,7 @@ def _ask(message):
 
 def _connect(self):
     """Replaces HTTPConnection.connect and HTTPSConnection.connect."""
-    global _offset, _delivering
+    global _delivering
     timeout = self.timeout if isinstance(self.timeout, (int, float)) and self.timeout > 0 else None
     answer = _ask({
         'op': 'connect', 'host': self.host, 'port': self.port,
@@ -88,7 +101,7 @@ def _connect(self):
     if answer['verdict'] == 'unknown':
         raise OSError(errno.ENETUNREACH, message)
     # a dropped packet gets no answer: the code waits for its connect timeout
-    _offset += timeout or DEFAULT_CONNECT_TIMEOUT
+    _advance(timeout or DEFAULT_CONNECT_TIMEOUT)
     if _urllib3_connection is not None and isinstance(self, _urllib3_connection.HTTPConnection):
         raise _urllib3_connection.ConnectTimeoutError(self, message)
     raise socket.timeout(message)

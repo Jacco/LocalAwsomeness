@@ -22,6 +22,12 @@ export const QUOTAS = {
   ouNestingDepth: 'organizations.ou-nesting-depth',
   scpMaxSize: 'organizations.scp-max-size',
   rcpMaxSize: 'organizations.rcp-max-size',
+  lambdaTimeout: 'lambda.function-timeout',
+  lambdaMemoryMin: 'lambda.function-memory-min',
+  lambdaMemoryMax: 'lambda.function-memory-max',
+  lambdaEnvironmentSize: 'lambda.environment-variables-size',
+  lambdaPackageDirectSize: 'lambda.deployment-package-direct-size',
+  lambdaPayloadSynchronous: 'lambda.invocation-payload-synchronous',
 } as const
 
 export type QuotaKey = (typeof QUOTAS)[keyof typeof QUOTAS]

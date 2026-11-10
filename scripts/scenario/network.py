@@ -41,6 +41,12 @@ def find_vpc():
 
 
 def clean():
+    # a function in the VPC owns an interface in the subnet; AWS refuses to delete the subnet before it is gone
+    try:
+        boto3.client('lambda', region_name=REGION, endpoint_url=ENDPOINT).delete_function(FunctionName='orders-fn')
+    except ClientError as error:
+        if error.response['Error']['Code'] != 'ResourceNotFoundException':
+            raise
     vpc = find_vpc()
     for nat in ec2.describe_nat_gateways(Filter=[{'Name': 'tag:Name', 'Values': [f'{NAME}-nat']}])['NatGateways']:
         if nat['State'] != 'deleted':

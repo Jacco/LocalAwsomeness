@@ -58,5 +58,32 @@
   "organizations.rcp-max-size": {
     "service": "organizations", "name": "Maximum size of a resource control policy", "code": null, "default": 5120, "adjustable": false, "global": true, "unit": "Characters",
     "source": "https://docs.aws.amazon.com/organizations/latest/userguide/orgs_reference_limits.html", "checked": "2026-11-10"
+  },
+  "lambda.function-timeout": {
+    "service": "lambda", "name": "Function timeout", "code": null, "default": 900, "adjustable": false, "global": true, "unit": "Seconds",
+    "source": "https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html", "checked": "2026-11-10"
+  },
+  "lambda.function-memory-min": {
+    "service": "lambda", "name": "Function memory allocation, minimum", "code": null, "default": 128, "adjustable": false, "global": true, "unit": "Megabytes",
+    "source": "https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html", "checked": "2026-11-10"
+  },
+  "lambda.function-memory-max": {
+    "service": "lambda", "name": "Function memory allocation, maximum", "code": null, "default": 10240, "adjustable": false, "global": true, "unit": "Megabytes",
+    "note": "New accounts can have a lower maximum that AWS raises with usage; the documented maximum is modelled.",
+    "source": "https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html", "checked": "2026-11-10"
+  },
+  "lambda.environment-variables-size": {
+    "service": "lambda", "name": "Function environment variables, total size", "code": null, "default": 4096, "adjustable": false, "global": true, "unit": "Bytes",
+    "note": "Documented as 4 KB in aggregate; counted here as the length of all names and values.",
+    "source": "https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html", "checked": "2026-11-10"
+  },
+  "lambda.deployment-package-direct-size": {
+    "service": "lambda", "name": "Deployment package (.zip file archive) size, uploaded through the API", "code": null, "default": 52428800, "adjustable": false, "global": true, "unit": "Bytes",
+    "source": "https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html", "checked": "2026-11-10"
+  },
+  "lambda.invocation-payload-synchronous": {
+    "service": "lambda", "name": "Invocation payload (request and response), synchronous", "code": null, "default": 6291456, "adjustable": false, "global": true, "unit": "Bytes",
+    "note": "Documented as 6 MB each; AWS reports a limit of a few bytes more in its error message, which is not verified here.",
+    "source": "https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html", "checked": "2026-11-10"
   }
 }

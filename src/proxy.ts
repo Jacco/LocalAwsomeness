@@ -20,6 +20,16 @@ function authError(req: NextRequest, service: string, code: string, message: str
   return new Response(xml, { status: 403, headers: { 'Content-Type': 'text/xml' } })
 }
 
+// The query string as the signer wants it: a repeated name has all its values.
+function queryOf(params: URLSearchParams): Record<string, string | string[]> {
+  const query: Record<string, string | string[]> = {}
+  for (const name of new Set(params.keys())) {
+    const values = params.getAll(name)
+    query[name] = values.length === 1 ? values[0] : values
+  }
+  return query
+}
+
 export async function proxy(req: NextRequest, event: NextFetchEvent) {
   const requestHeaders = new Headers(req.headers)
   requestHeaders.delete('x-aws-principal')
@@ -67,7 +77,7 @@ export async function proxy(req: NextRequest, event: NextFetchEvent) {
   const sig = await signer.sign({
     headers: Object.fromEntries(toencode),
     hostname: req.nextUrl.hostname,
-    // query: req.nextUrl.,
+    query: queryOf(req.nextUrl.searchParams),
     body: await req.text(),
     path: req.nextUrl.pathname,
     method: req.method,
@@ -93,7 +103,7 @@ export async function proxy(req: NextRequest, event: NextFetchEvent) {
     })
   }
   if (service) {
-    const destination = req.nextUrl.protocol + req.nextUrl.host + '/api/' + service + req.nextUrl.pathname
+    const destination = req.nextUrl.protocol + req.nextUrl.host + '/api/' + service + req.nextUrl.pathname + req.nextUrl.search
     const newurl = new URL(destination)
     return NextResponse.rewrite(newurl, {
         request: {

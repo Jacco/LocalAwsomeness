@@ -86,6 +86,19 @@ describe('API End-to-End Tests', () => {
       expect(responseText).toContain('service-role')
     })
 
+    it('should list no instance profiles for a role (instance profiles are not implemented)', async () => {
+      const call = async (params: Record<string, string>) => {
+        const body = new URLSearchParams({ Version: '2010-05-08', ...params }).toString()
+        const response = await iamHandler(new Request('http://localhost/api/iam', { method: 'POST', body }))
+        return { status: response.status, text: await response.text() }
+      }
+      const listed = await call({ Action: 'ListInstanceProfilesForRole', RoleName: 'TestRole' })
+      expect(listed.status).toBe(200)
+      expect(listed.text).toContain('ListInstanceProfilesForRoleResponse')
+      expect(listed.text).not.toContain('<member>')
+      expect((await call({ Action: 'ListInstanceProfilesForRole', RoleName: 'NoSuchRole' })).status).toBe(404)
+    })
+
     it('should return error for invalid role name', async () => {
       const body = new URLSearchParams({
         Action: 'CreateRole',

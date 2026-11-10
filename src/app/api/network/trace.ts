@@ -54,7 +54,7 @@ export type Observed = 'reached' | 'connect-timeout' | 'dns-failure' | 'unknown'
 // Facts the network layer attaches to the request; the policy engine reads them as condition keys later.
 export interface RequestContext {
   sourceIp?: string
-  path: 'internet-gateway' | 'nat-gateway'
+  path: 'internet-gateway' | 'nat-gateway' | 'aws-managed'
   natGatewayId?: string
 }
 

@@ -239,3 +239,15 @@ export function trustAllows(role: Role, callerArn: string): boolean {
   })
   return applicable.some(s => s.Effect === 'Allow') && !applicable.some(s => s.Effect === 'Deny')
 }
+
+// Whether a service (lambda.amazonaws.com) can assume the role: Principal.Service in the trust policy. Conditions are not
+// evaluated yet.
+export function trustsService(role: Role, service: string): boolean {
+  const statements: any[] = [].concat(role.assumeRolePolicyDocument.Statement as any)
+  const applicable = statements.filter(s => {
+    const actions: string[] = [].concat(s.Action ?? [])
+    const services: string[] = [].concat(s.Principal?.Service ?? [])
+    return actions.some(a => a === '*' || a === 'sts:*' || a === 'sts:AssumeRole') && services.includes(service)
+  })
+  return applicable.some(s => s.Effect === 'Allow') && !applicable.some(s => s.Effect === 'Deny')
+}

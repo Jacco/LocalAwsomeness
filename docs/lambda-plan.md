@@ -1,6 +1,6 @@
 # Plan: Lambda as the first execution context
 
-Status: planned, starts after the EC2 networking phases (see "Prerequisites"). Nothing here is implemented.
+Status: **built (steps 1 to 4)**; the policy engine or VPC endpoints are the decision that follows (see "Order of work"). This plan was written before the work and is kept for the reasoning; what exists is described in [walking-skeleton.md](./walking-skeleton.md) ("Step 4 as built") and the Lambda reference [lambda.md](../src/app/api/lambda/lambda.md). Parts of the steps below that are still open: updates and versions of functions, the run token and request context on requests, IMDS and container credentials, the EC2 instance context.
 
 This is the first concrete use of the design in [architecture.md](./architecture.md#execution-contexts-and-the-emulated-network-design-not-started): run code *as if* it were somewhere and let the emulated network and IAM decide what happens.
 

@@ -71,6 +71,12 @@ export const roleHandlers: Record<string, QueryHandler> = {
     iam.detachRolePolicy(account, q.required('RoleName'), q.required('PolicyArn'))
     return undefined
   },
+  // Instance profiles are not implemented (they come with the EC2 instance context), so no role is in one. Terraform asks
+  // before it deletes a role.
+  ListInstanceProfilesForRole({ account, params: q }) {
+    iam.getRole(account, q.required('RoleName'))
+    return { InstanceProfiles: { member: [] }, IsTruncated: false }
+  },
   ListAttachedRolePolicies({ account, params: q }) {
     const role = iam.getRole(account, q.required('RoleName'))
     return {

@@ -1,5 +1,6 @@
 {
   "vpc": "Amazon Virtual Private Cloud (Amazon VPC)",
   "ec2": "Amazon Elastic Compute Cloud (Amazon EC2)",
-  "organizations": "AWS Organizations"
+  "organizations": "AWS Organizations",
+  "lambda": "AWS Lambda"
 }
