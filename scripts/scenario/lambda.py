@@ -116,7 +116,7 @@ def invoke():
     with urllib.request.urlopen(f'{SERVER}/api/lambda/inspect?{query}') as response:
         record = json.load(response)['invocations'][0]
     print('\n--- network (what the simulator recorded) ---')
-    print(record['Network'])
+    print('\n'.join(record['Network']))
 
 
 def grant(actions):

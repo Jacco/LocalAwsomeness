@@ -3,7 +3,7 @@ import { readFileSync } from "fs"
 import { join } from "path"
 import { AwsError } from "../common"
 import { loadState } from "../db/ec2/state"
-import { loadLambda, saveLambda, type FunctionRecord, type InvocationRecord } from "../db/lambda"
+import { loadInvocations, loadLambda, saveInvocations, type FunctionRecord, type InvocationRecord } from "../db/lambda"
 import { QUOTAS, hardLimit } from "../quotas"
 import type { RequestContext } from "../registry"
 import { BadRunRequest, runInContext, type RunResult } from "../runtime/run"
@@ -130,10 +130,12 @@ async function execute(ctx: RequestContext, name: string, record: FunctionRecord
   return { outcome: { statusCode: 200, functionError, payload: payloadOut, log, durationMs }, run }
 }
 
+// Text as the lines it is read in, without the empty piece after a final newline.
+const lines = (text: string): string[] => text.replace(/\n$/, '').split('\n')
+
 function remember(ctx: RequestContext, name: string, requestId: string, type: string, outcome: Outcome, run: RunResult) {
   const scope = { account: ctx.account, region: ctx.region }
-  const lambda = loadLambda(scope)
-  if (!lambda.functions[name]) {
+  if (!loadLambda(scope).functions[name]) {
     return
   }
   const record: InvocationRecord = {
@@ -144,13 +146,13 @@ function remember(ctx: RequestContext, name: string, requestId: string, type: st
     FunctionError: outcome.functionError,
     DurationMs: outcome.durationMs,
     VirtualSeconds: run.virtualSeconds,
-    Log: outcome.log,
-    Network: run.text,
+    Log: lines(outcome.log),
+    Network: lines(run.text),
     Connections: run.connections.map(c => ({ host: c.host, port: c.port, verdict: c.verdict, attempts: c.attempts, cause: c.trace.cause })),
   }
-  lambda.invocations ??= {}
-  lambda.invocations[name] = [record, ...(lambda.invocations[name] ?? [])].slice(0, KEPT_INVOCATIONS)
-  saveLambda(scope, lambda)
+  const invocations = loadInvocations(scope)
+  invocations[name] = [record, ...(invocations[name] ?? [])].slice(0, KEPT_INVOCATIONS)
+  saveInvocations(scope, invocations)
 }
 
 export async function invoke(ctx: RequestContext): Promise<Response> {

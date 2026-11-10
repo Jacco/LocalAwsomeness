@@ -10,8 +10,10 @@ export interface FunctionRecord {
   Tags: Record<string, string>
 }
 
-// What an invocation did, kept for looking at afterwards (the newest first, the last few per function): the API answers
-// with the payload only, but the connections the code made and their traces are what this app is for.
+// What an invocation did, kept for looking at afterwards (the newest first, the last few per function). This is not state
+// of the Lambda service and AWS has no API for it, so it is not in lambda.json: it is what the simulator observed, in
+// db/<account>/<region>/lambda-invocations.json, read with GET /api/lambda/inspect. The log output belongs in CloudWatch
+// Logs once that exists; the connections and their traces are what this app is for. Text is kept as lines.
 export interface InvocationRecord {
   RequestId: string
   Time: string
@@ -21,25 +23,33 @@ export interface InvocationRecord {
   DurationMs: number
   // What the code saw, in virtual seconds, against the real time it took.
   VirtualSeconds: number
-  Log: string
-  // The rendered connections and traces (src/app/api/runtime/run.ts).
-  Network: string
+  // The log of the invocation, as AWS shows it (START, the output of the function, END, REPORT).
+  Log: string[]
+  // Every connection the code made with the trace of the decision (src/app/api/runtime/run.ts), line by line.
+  Network: string[]
   Connections: { host: string; port: number; verdict: string; attempts: number; cause?: string }[]
 }
 
 export interface LambdaState {
   functions: Record<string, FunctionRecord>
-  invocations?: Record<string, InvocationRecord[]>
 }
+
+// Function name -> its invocations, newest first.
+export type Invocations = Record<string, InvocationRecord[]>
 
 interface Scope {
   account: string
   region: string
 }
 
+const invocationsKey = ({ account, region }: Scope): store.StoreKey => ({ service: 'lambda-invocations', account, region })
+export const loadInvocations = (scope: Scope): Invocations => store.read<Invocations>(invocationsKey(scope), {})
+export const saveInvocations = (scope: Scope, invocations: Invocations) => store.write(invocationsKey(scope), invocations)
+
 const key = ({ account, region }: Scope): store.StoreKey => ({ service: 'lambda', account, region })
 
-export const loadLambda = (scope: Scope): LambdaState => store.read<LambdaState>(key(scope), { functions: {} })
+// Only `functions` is state of the service; invocation records used to be kept here too and are dropped on the next save.
+export const loadLambda = (scope: Scope): LambdaState => ({ functions: store.read<LambdaState>(key(scope), { functions: {} }).functions })
 export const saveLambda = (scope: Scope, state: LambdaState) => store.write(key(scope), state)
 
 export const functionArn = ({ account, region }: Scope, name: string) => `arn:aws:lambda:${region}:${account}:function:${name}`

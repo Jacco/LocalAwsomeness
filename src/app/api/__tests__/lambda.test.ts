@@ -468,6 +468,32 @@ describe('Invoke', () => {
     await remove('slow')
   })
 
+  it('keeps what the simulator observed of an invocation apart from the state of the service, as lines', async () => {
+    await fn('observed', source('def handler(event, context):\n    print("first line")\n    print("second line")\n    return 1'))
+    await invoke('observed')
+
+    const record = (await send(inspectRoute.GET, 'GET', `/api/lambda/inspect?account=${account}&region=${region}&function=observed`)).body.invocations[0]
+    expect(record.Log).toEqual([
+      `START RequestId: ${record.RequestId} Version: $LATEST`,
+      'first line',
+      'second line',
+      `END RequestId: ${record.RequestId}`,
+      expect.stringMatching(new RegExp(`^REPORT RequestId: ${record.RequestId}\\tDuration: [\\d.]+ ms\\tBilled Duration: \\d+ ms\\tMemory Size: 128 MB`)),
+    ])
+    expect(Array.isArray(record.Network)).toBe(true)
+    expect(record.Network.every((line: string) => !line.includes('\n'))).toBe(true)
+    expect(record.Network[0]).toMatch(/^exit 0;/)
+
+    // not in the state of the Lambda service
+    const state = readFileSync(join(root, account, region, 'lambda.json'), 'utf8')
+    expect(state).not.toContain(record.RequestId)
+    expect(JSON.parse(readFileSync(join(root, account, region, 'lambda-invocations.json'), 'utf8')).observed).toHaveLength(1)
+
+    // and it goes with the function
+    await remove('observed')
+    expect(JSON.parse(readFileSync(join(root, account, region, 'lambda-invocations.json'), 'utf8')).observed).toBeUndefined()
+  })
+
   it('answers DryRun and Event invocations without waiting, and refuses a payload that is not JSON', async () => {
     await fn('modes', HELLO)
     const dry = await invoke('modes', {}, { 'X-Amz-Invocation-Type': 'DryRun' })
@@ -507,7 +533,7 @@ describe('Invoke', () => {
       expect(received[0].headers['user-agent']).toMatch(/Python-urllib/)
       const inspect = await send(inspectRoute.GET, 'GET', `/api/lambda/inspect?account=${account}&region=${region}&function=no-vpc`)
       expect(inspect.body.invocations[0].Connections).toEqual([{ host: STS, port: 443, verdict: 'allow', attempts: 1 }])
-      expect(inspect.body.invocations[0].Network).toContain('A function without a VPC runs in a network managed by AWS')
+      expect(inspect.body.invocations[0].Network.join('\n')).toContain('A function without a VPC runs in a network managed by AWS')
 
       await fn('private', source('def handler(event, context):\n    import urllib.request\n    try:\n        urllib.request.urlopen("http://10.0.1.5/", timeout=2)\n    except Exception as e:\n        return "FAILED " + type(e).__name__'))
       expect((await invoke('private')).body).toBe('FAILED URLError')
@@ -525,7 +551,7 @@ describe('Invoke', () => {
       expect(received).toHaveLength(0)
       const inspect = await send(inspectRoute.GET, 'GET', `/api/lambda/inspect?account=${account}&region=${region}&function=public-subnet`)
       expect(inspect.body.invocations[0].Connections[0]).toMatchObject({ verdict: 'deny', cause: 'no-public-ip' })
-      expect(inspect.body.invocations[0].Network).toContain('give the interface a public IPv4 address')
+      expect(inspect.body.invocations[0].Network.join('\n')).toContain('give the interface a public IPv4 address')
       await remove('public-subnet')
     })
 
@@ -573,7 +599,7 @@ describe('Invoke', () => {
       expect((await invoke('nat-fn')).body).toBe('the simulator answers')
       const reached = await inspectOf()
       expect(reached.Connections[0]).toMatchObject({ verdict: 'allow' })
-      expect(reached.Network).toContain('source 203.0.113.77 via nat-gateway nat-fn')
+      expect(reached.Network.join('\n')).toContain('source 203.0.113.77 via nat-gateway nat-fn')
 
       // D: the NAT gateway is gone, the route is a blackhole
       const gone = ec2()

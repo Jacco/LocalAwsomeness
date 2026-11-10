@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { loadLambda } from '../../db/lambda'
+import { loadInvocations, loadLambda } from '../../db/lambda'
 import { accountDirExists } from '../../db/store'
 
 // An internal endpoint, not an AWS API (like /api/network/inspect): what the last invocations of a function did, with the
@@ -16,5 +16,5 @@ export async function GET(request: Request) {
   if (!state.functions[name]) {
     return NextResponse.json({ error: `No function '${name}' in ${account}/${region}` }, { status: 404 })
   }
-  return NextResponse.json({ function: state.functions[name].Configuration, invocations: state.invocations?.[name] ?? [] })
+  return NextResponse.json({ function: state.functions[name].Configuration, invocations: loadInvocations({ account, region })[name] ?? [] })
 }
