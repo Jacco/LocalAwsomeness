@@ -448,7 +448,7 @@ describe('ec2 route tables (phase 2)', () => {
     const subnet_rtb = subnet_rtbs[0]
     expect(subnet_rtb.routeTableId).toBe(rtb1)
     const assocs = items(subnet_rtb.associationSet)
-    expect(assocs.find(a => a.subnetId === subnet)).toMatchObject({ routeTableAssociationId: assocId })
+    expect(assocs.find(a => a.subnetId === subnet)).toMatchObject({ routeTableAssociationId: assocId, main: 'false' })
 
     expect((await call('DisassociateRouteTable', { AssociationId: assocId })).status).toBe(200)
     const afterDisassoc = items((await call('DescribeRouteTables', { 'Filter.1.Name': 'association.subnet-id', 'Filter.1.Value.1': subnet })).body.DescribeRouteTablesResponse.routeTableSet)
@@ -459,7 +459,7 @@ describe('ec2 route tables (phase 2)', () => {
     const after_replace = items((await call('DescribeRouteTables', { 'Filter.1.Name': 'association.subnet-id', 'Filter.1.Value.1': subnet })).body.DescribeRouteTablesResponse.routeTableSet)[0]
     expect(after_replace.routeTableId).toBe(rtb2)
     const after_assocs = items(after_replace.associationSet)
-    expect(after_assocs.find(a => a.subnetId === subnet)).toMatchObject({ routeTableAssociationId: newAssocId })
+    expect(after_assocs.find(a => a.subnetId === subnet)).toMatchObject({ routeTableAssociationId: newAssocId, main: 'false' })
 
     await call('DisassociateRouteTable', { AssociationId: newAssocId })
     for (const id of [rtb1, rtb2]) {

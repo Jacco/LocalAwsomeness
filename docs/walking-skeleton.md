@@ -1,6 +1,6 @@
 # Walking skeleton: the first Lambda-in-a-VPC test
 
-Status: **steps 1 and 2 are built**: the network model v0 and the trace types (`src/app/api/network/`, 25 unit tests of the four variants and the edge cases), and the EC2 slice of phase 4 that lets the variants be built through the real API. The shim, the runner and Lambda are not. This is the thin end-to-end slice that exercises the end goal of the app (run code *as if* it were somewhere, let the emulated network and IAM decide) before more APIs are implemented. See [lambda-plan.md](./lambda-plan.md), [network-traces-plan.md](./network-traces-plan.md) and the design in [architecture.md](./architecture.md#execution-contexts-and-the-emulated-network-design-not-started).
+Status: **steps 1 to 3a are built**: the network model v0 and the trace types (`src/app/api/network/`, 25 unit tests of the four variants and the edge cases), the EC2 slice of phase 4 that lets the variants be built through the real API, and the model connected to the live state with an endpoint and commands to read a trace by hand (step 3a, below). The shim, the runner and Lambda are not. This is the thin end-to-end slice that exercises the end goal of the app (run code *as if* it were somewhere, let the emulated network and IAM decide) before more APIs are implemented. See [lambda-plan.md](./lambda-plan.md), [network-traces-plan.md](./network-traces-plan.md) and the design in [architecture.md](./architecture.md#execution-contexts-and-the-emulated-network-design-not-started).
 
 ## Step 1 as built
 
@@ -19,7 +19,15 @@ The EC2 slice of phase 4, verified with Terraform (27 resources: apply, empty pl
 What building it taught, for the next steps:
 - **Real clients decide what partial may mean.** Rejecting unsupported parameters by name is right, but Terraform sends parameters that are harmless (`NetworkBorderGroup` on `ReleaseAddress`) and calls operations a clean design would not need (`DisassociateAddress` with a stale association id). Only a real run of Terraform finds these; every partial operation must be run with Terraform before it counts as verified.
 - **Hidden failures need assertions.** A crash in deleting a private NAT gateway (no address, so `undefined === undefined`) was found only because a stray NAT gateway showed up in the next test's state. Cleanup calls in tests now assert their status.
-- **The network model is not connected to the live state yet.** It reads an `Ec2State`; nothing hands it the state of a real function or interface yet. That is the first part of step 3, and it is also what makes manual inspection possible.
+- **The network model was not connected to the live state.** Step 3a below does that.
+
+## Step 3a as built: inspect a trace by hand
+
+- `src/app/api/network/live.ts` — `inspectReach({account, region, from, to})` loads the EC2 state and calls `reachPublicService`. The source is named the way a person names it: `from.networkInterfaceId`, or `from.subnet` (id or Name tag) with optional `securityGroups` (id, group name or Name tag), `privateIp`, `publicIp`. What is left out is filled in (the default group of the VPC, the next free address of the subnet) and returned in `assumptions`, never silently. Unknown names, ambiguous names, an address outside the subnet, an unknown account or region and a bad port are refused (`BadReachRequest`, HTTP 400). It only reads; like every EC2 call it creates the region's default VPC state on first use.
+- `POST /api/network/inspect` — an internal endpoint, not an AWS API. The proxy lets unsigned requests through and this endpoint does not ask who is calling, so it is for the local dev server only. The answer is `{trace, text, assumptions}`.
+- `scripts/reach.py` — `scripts/reach.py --subnet private-a --sg fn sts.eu-west-1.amazonaws.com` prints the assumptions and the rendered trace (`--json` for everything). Exit status 0 reached, 1 failed, 2 not modelled, 3 refused. Account and region default to the AWS CLI's.
+- `scripts/scenario/network.py` — builds the scenario network with boto3 through the real EC2 API and prints the trace after each change: A (only the local route), B (route to the NAT gateway), C (egress only tcp/80), B again, D (NAT gateway deleted). It leaves the VPC (`skeleton`, subnets `skeleton-public` / `skeleton-private`, group `skeleton-fn`) in state D for further inspection; `--clean` removes it. Run against the dev server this gave the expected result and cause for all four variants (`no-route`, reached via the NAT Elastic IP, `security-group-blocks`, `blackhole-route`).
+- Tests: `src/app/api/__tests__/network-live.test.ts` (source resolution, assumptions, refusals, default-VPC traces).
 
 ## Principle: scenario-driven, partial APIs on purpose
 
@@ -79,7 +87,7 @@ Throwaway code, kept in the session files, not in the repo.
 
 1. **Done.** Network model v0 and the trace types, as pure functions with hand-built state (no Lambda yet): the four variants as unit tests. This is where the model and the explanations got their shape (see "Step 1 as built").
 2. **Done.** EC2 slice of phase 4 and the derived route state, so the variants can be built through the API (see "Step 2 as built").
-3. **Next.** Connect the model to the live state and make it inspectable by hand: a small internal API and a command-line script that take a source (a subnet, security groups, private address, optional public address) and a destination and print the rendered trace of the dev server's state, so the four variants can be built with the AWS CLI or Terraform and looked at before any Lambda exists. Then the shim v0 and a runner that runs a plain Python script (no Lambda API) in a context named by hand: variants A and B end to end, with the virtual clock and run token.
+3. **Next.** ~~Connect the model to the live state and make it inspectable by hand~~ (done, step 3a: `POST /api/network/inspect`, `scripts/reach.py`, `scripts/scenario/network.py`; see "Step 3a as built"). Still to do in step 3: the shim v0 and a runner that runs a plain Python script (no Lambda API) in a context named by hand: variants A and B end to end, with the virtual clock and run token. (Original description: a small internal API and a command-line script that take a source (a subnet, security groups, private address, optional public address) and a destination and print the rendered trace of the dev server's state.)
 4. Lambda minimal on top (function state, shared interface, execution-role credentials, `Invoke`), and variants C and D.
 5. The decision that follows: the policy engine (to give the recorded context an effect), or VPC endpoints and Route 53 (to make variant E work).
 

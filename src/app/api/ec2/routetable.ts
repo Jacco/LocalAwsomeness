@@ -138,6 +138,7 @@ export const associateRouteTableOp: Op = (state, { params }) => {
   }
   const associationId = newId('rtbassoc')
   const association = {
+    Main: false,
     RouteTableAssociationId: associationId,
     RouteTableId: rtb.RouteTableId,
     SubnetId: subnet.SubnetId,
@@ -197,6 +198,7 @@ export const replaceRouteTableAssociationOp: Op = (state, { params }) => {
   oldRtb.Associations.splice(index, 1)
   const newAssociationId = newId('rtbassoc')
   const newAssociation = {
+    Main: false,
     RouteTableAssociationId: newAssociationId,
     RouteTableId: newRtb.RouteTableId,
     SubnetId: subnetId,
