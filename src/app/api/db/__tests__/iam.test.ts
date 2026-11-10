@@ -132,12 +132,12 @@ describe('IAM Database Operations', () => {
 
     it('should throw for invalid JSON', () => {
       const invalidJson = '{invalid json}'
-      expect(() => parsePolicyDocument(invalidJson)).toThrow('MalformedPolicyDocument')
+      expect(() => parsePolicyDocument(invalidJson)).toThrow(expect.objectContaining({ type: 'MalformedPolicyDocument' }))
     })
 
     it('should throw for missing Statement', () => {
       const noStatement = '{"Version":"2012-10-17"}'
-      expect(() => parsePolicyDocument(noStatement)).toThrow('MalformedPolicyDocument')
+      expect(() => parsePolicyDocument(noStatement)).toThrow(expect.objectContaining({ type: 'MalformedPolicyDocument' }))
     })
 
     it('should handle complex policy documents', () => {
@@ -454,8 +454,9 @@ describe('IAM Database Operations', () => {
         })
       )
 
+      // keyed by the ARN of the attached policy
       const counts = attachmentCounts('123456789012')
-      expect(counts.Role1).toBeGreaterThan(0)
+      expect(counts['arn:aws:iam::aws:policy/Policy1']).toBe(1)
     })
   })
 })

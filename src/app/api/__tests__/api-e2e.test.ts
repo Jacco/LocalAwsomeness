@@ -7,12 +7,30 @@
  * observable behavior (request/response) not implementation details.
  */
 
-import { POST as iamHandler } from '@/app/api/iam/route'
-import { POST as accountGetInformationHandler } from '@/app/api/account/getAccountInformation/route'
-import { POST as accountEnableRegionHandler } from '@/app/api/account/enableRegion/route'
-import { POST as accountDisableRegionHandler } from '@/app/api/account/disableRegion/route'
-import { POST as accountPutContactHandler } from '@/app/api/account/putContactInformation/route'
-import { POST as ssmHandler } from '@/app/api/ssm/AmazonSSM/[action]/route'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs'
+import { tmpdir } from 'os'
+import { join } from 'path'
+
+// The handlers read and write the database; point it at a scratch directory with one registered account so that the
+// tests neither depend on nor change the state of the development server (db/).
+const root = mkdtempSync(join(tmpdir(), 'jpk-e2e-'))
+process.env.JPK_DB_ROOT = root
+
+/* eslint-disable @typescript-eslint/no-require-imports */
+const { POST: iamHandler } = require('@/app/api/iam/route')
+const { POST: accountGetInformationHandler } = require('@/app/api/account/getAccountInformation/route')
+const { POST: accountEnableRegionHandler } = require('@/app/api/account/enableRegion/route')
+const { POST: accountDisableRegionHandler } = require('@/app/api/account/disableRegion/route')
+const { POST: accountPutContactHandler } = require('@/app/api/account/putContactInformation/route')
+const { POST: ssmHandler } = require('@/app/api/ssm/AmazonSSM/[action]/route')
+
+beforeAll(() => {
+  mkdirSync(join(root, '123456789012'), { recursive: true })
+  writeFileSync(join(root, 'accounts.json'), JSON.stringify([{
+    id: '123456789012', name: 'Test', email: 'test@example.com', joinMethod: 'CREATED', joinedTimestamp: 1, requestedTimestamp: 1,
+  }]))
+})
+afterAll(() => rmSync(root, { recursive: true, force: true }))
 
 const ssmPutParameterHandler = (request: Request) => ssmHandler(request, { params: Promise.resolve({ action: 'PutParameter' }) })
 const ssmGetParameterHandler = (request: Request) => ssmHandler(request, { params: Promise.resolve({ action: 'GetParameter' }) })
@@ -24,6 +42,7 @@ jest.mock('@/app/api/common', () => {
     ...actual,
     getRequestInfo: jest.fn(() => ({
       principalAccount: '123456789012',
+      region: 'eu-west-1',
       user: 'testuser',
       userId: 'user-123',
       signature: 'mock-signature',
@@ -165,22 +184,23 @@ describe('API End-to-End Tests', () => {
       expect(responseText).toBeDefined()
     })
 
-    it('should disable a region via POST request', async () => {
-      const body = JSON.stringify({
-        AccountId: '123456789012',
-        RegionName: 'ap-south-1',
-      })
-
-      const request = new Request('http://localhost/api/account/disableRegion', {
+    it('should disable an opt-in region via POST request', async () => {
+      const request = (RegionName: string) => new Request('http://localhost/api/account/disableRegion', {
         method: 'POST',
-        body,
+        body: JSON.stringify({ AccountId: '123456789012', RegionName }),
       })
 
-      const response = await accountDisableRegionHandler(request)
+      const response = await accountDisableRegionHandler(request('af-south-1'))
       expect(response.status).toBe(200)
+    })
 
-      const responseText = await response.text()
-      expect(responseText).toBeDefined()
+    it('should refuse to disable a region that is enabled by default', async () => {
+      const response = await accountDisableRegionHandler(new Request('http://localhost/api/account/disableRegion', {
+        method: 'POST',
+        body: JSON.stringify({ AccountId: '123456789012', RegionName: 'ap-south-1' }),
+      }))
+      expect(response.status).toBe(400)
+      expect(await response.text()).toContain('enabled by default')
     })
   })
 
@@ -234,10 +254,9 @@ describe('API End-to-End Tests', () => {
       expect(response.status).toBe(200)
 
       const responseText = await response.text()
-      expect(responseText).toContain('Account')
-      // Should contain account information in JSON format
+      // GetAccountInformation returns the fields at the top level
       const data = JSON.parse(responseText)
-      expect(data).toHaveProperty('Account')
+      expect(data).toMatchObject({ AccountId: '123456789012', AccountName: 'Test' })
     })
   })
 

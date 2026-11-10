@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSync, unlinkSync } from 'fs'
 import { provisionAccount } from '@/app/api/db/ec2/state'
 import {
   getAccount,
@@ -19,10 +19,13 @@ import {
   SCP,
   RCP,
   POLICY_TYPES,
+  type OrgState,
 } from '@/app/api/db/organizations'
 
 // Mock the reference module that loads AWS organization policies
 jest.mock('@/app/api/db/reference', () => ({
+  // fs is mocked below, so the quota definitions are read with the real one
+  quotaDefinitions: jest.fn(() => JSON.parse(jest.requireActual('fs').readFileSync('data/aws/quotas.json', 'utf8'))),
   defaultOrganizationPolicies: jest.fn(() => ({
     'service_control_policy': {
       id: 'service_control_policy',
@@ -46,6 +49,31 @@ jest.mock('fs')
 
 // Default VPC provisioning has its own tests (ec2.test.ts); here it only needs to be called.
 jest.mock('@/app/api/db/ec2/state', () => ({ provisionAccount: jest.fn() }))
+
+const MANAGEMENT = '123456789012'
+
+// An organization in the shape of OrgState: one management account in the root, SCPs and RCPs not yet enabled.
+const currentOrg = (overrides: Partial<OrgState> = {}): OrgState => ({
+  id: 'o-abcd1234',
+  featureSet: 'ALL',
+  managementAccountId: MANAGEMENT,
+  rootId: 'r-abcd',
+  policyTypes: [],
+  ous: {},
+  members: { [MANAGEMENT]: { parentId: 'r-abcd', joinedMethod: 'CREATED', joinedTimestamp: 1, state: 'ACTIVE' } },
+  policies: {},
+  attachments: {},
+  createAccountRequests: {},
+  ...overrides,
+})
+
+// The store lists the account directories and reads one file per account; fs is mocked, so say what is "on disk".
+function storeHolds(org: unknown) {
+  ;(readdirSync as jest.Mock).mockReturnValue([MANAGEMENT])
+  ;(statSync as jest.Mock).mockReturnValue({ isDirectory: () => true })
+  ;(existsSync as jest.Mock).mockReturnValue(true)
+  ;(readFileSync as jest.Mock).mockReturnValue(JSON.stringify(org))
+}
 
 describe('Organizations Database Operations', () => {
   beforeEach(() => {
@@ -164,92 +192,45 @@ describe('Organizations Database Operations', () => {
   })
 
   describe('Organization State Management', () => {
-    const mockOrgState = {
-      id: 'o-abcd1234',
-      arn: 'arn:aws:organizations::123456789012:organization/o-abcd1234',
-      featureSet: 'ALL',
-      managementAccountId: '123456789012',
-      managementAccountArn: 'arn:aws:organizations::123456789012:account/o-abcd1234/123456789012',
-      rootId: 'r-abcd',
-      policies: {},
-      roots: [],
-      organizationalUnits: [],
-      accountTree: {},
-    }
-
     it('should find organization', () => {
-      const mockRead = readFileSync as jest.MockedFunction<typeof readFileSync>
-      const mockExists = existsSync as jest.MockedFunction<typeof existsSync>
+      storeHolds(currentOrg())
 
-      mockExists.mockReturnValue(true)
-      mockRead.mockReturnValue(JSON.stringify(mockOrgState))
-
-      const org = findOrg('123456789012')
+      const org = findOrg(MANAGEMENT)
       expect(org).toBeDefined()
       expect(org?.id).toBe('o-abcd1234')
     })
 
     it('should return undefined when organization not found', () => {
-      const mockExists = existsSync as jest.MockedFunction<typeof existsSync>
-      mockExists.mockReturnValue(false)
+      storeHolds(currentOrg())
 
-      const org = findOrg('999999999999')
-      expect(org).toBeUndefined()
+      expect(findOrg('999999999999')).toBeUndefined()
     })
 
     it('should require organization to exist', () => {
-      const mockRead = readFileSync as jest.MockedFunction<typeof readFileSync>
-      const mockExists = existsSync as jest.MockedFunction<typeof existsSync>
+      storeHolds(currentOrg())
 
-      mockExists.mockReturnValue(true)
-      mockRead.mockReturnValue(JSON.stringify(mockOrgState))
-
-      const org = requireOrg('123456789012')
-      expect(org.id).toBe('o-abcd1234')
+      expect(requireOrg(MANAGEMENT).id).toBe('o-abcd1234')
     })
 
     it('should throw when organization required but missing', () => {
-      const mockExists = existsSync as jest.MockedFunction<typeof existsSync>
-      mockExists.mockReturnValue(false)
+      storeHolds(currentOrg())
 
-      expect(() => requireOrg('999999999999')).toThrow()
+      expect(() => requireOrg('999999999999')).toThrow(/not a member of an organization/)
     })
 
     it('should require management account organization', () => {
-      const mockRead = readFileSync as jest.MockedFunction<typeof readFileSync>
-      const mockExists = existsSync as jest.MockedFunction<typeof existsSync>
+      storeHolds(currentOrg())
 
-      mockExists.mockReturnValue(true)
-      mockRead.mockReturnValue(JSON.stringify(mockOrgState))
-
-      const org = requireManagement('123456789012')
-      expect(org.managementAccountId).toBe('123456789012')
+      expect(requireManagement(MANAGEMENT).managementAccountId).toBe(MANAGEMENT)
     })
   })
 
   describe('Policy Management', () => {
-    const mockOrgState = {
-      id: 'o-abcd1234',
-      arn: 'arn:aws:organizations::123456789012:organization/o-abcd1234',
-      featureSet: 'ALL',
-      managementAccountId: '123456789012',
-      managementAccountArn: 'arn:aws:organizations::123456789012:account/o-abcd1234/123456789012',
-      rootId: 'r-abcd',
+    const mockOrgState = currentOrg({
       policies: {
-        'p-policy1': {
-          id: 'p-policy1',
-          name: 'TestPolicy',
-          type: SCP,
-          arn: 'arn:aws:organizations::123456789012:policy/SCP/p-policy1',
-          content: '{}',
-          aWSManaged: false,
-          targets: [],
-        },
+        'p-policy1': { id: 'p-policy1', name: 'TestPolicy', type: SCP, description: '', content: { Version: '2012-10-17', Statement: [] }, awsManaged: false },
       },
-      roots: [],
-      organizationalUnits: [],
-      accountTree: {},
-    }
+    })
 
     it('should get a policy by ID', () => {
       const policy = getPolicy(mockOrgState, 'p-policy1')
@@ -277,157 +258,87 @@ describe('Organizations Database Operations', () => {
 
   describe('Organization Lifecycle', () => {
     it('should create an organization', () => {
-      const mockExists = existsSync as jest.MockedFunction<typeof existsSync>
-      const mockWrite = writeFileSync as jest.MockedFunction<typeof writeFileSync>
-      const mockMkdir = mkdirSync as jest.MockedFunction<typeof mkdirSync>
+      // the account must be registered, and no organization may contain it yet
+      ;(readdirSync as jest.Mock).mockReturnValue([])
+      ;(existsSync as jest.Mock).mockReturnValue(true)
+      ;(readFileSync as jest.Mock).mockReturnValue(JSON.stringify([{ id: MANAGEMENT, name: 'Management', email: 'm@example.com' }]))
 
-      mockExists.mockReturnValue(false)
+      const org = createOrganization(MANAGEMENT, 'ALL')
 
-      const org = createOrganization('123456789012', 'ALL')
-
-      expect(org.id).toBeDefined()
-      expect(org.managementAccountId).toBe('123456789012')
+      expect(org.id).toMatch(/^o-/)
+      expect(org.managementAccountId).toBe(MANAGEMENT)
       expect(org.featureSet).toBe('ALL')
-      expect(mockWrite).toHaveBeenCalled()
+      expect(Object.keys(org.members)).toEqual([MANAGEMENT])
+      expect(writeFileSync).toHaveBeenCalled()
     })
 
-    it('should delete an organization', () => {
-      const mockWrite = writeFileSync as jest.MockedFunction<typeof writeFileSync>
+    it('should refuse to create an organization for an unregistered account', () => {
+      ;(readdirSync as jest.Mock).mockReturnValue([])
+      ;(existsSync as jest.Mock).mockReturnValue(false)
 
-      const org = {
-        id: 'o-abcd1234',
-        arn: 'arn:aws:organizations::123456789012:organization/o-abcd1234',
-        featureSet: 'ALL',
-        managementAccountId: '123456789012',
-        managementAccountArn: 'arn:aws:organizations::123456789012:account/o-abcd1234/123456789012',
-        rootId: 'r-abcd',
-        policies: {},
-        roots: [],
-        organizationalUnits: [],
-        accountTree: {},
-      }
+      expect(() => createOrganization(MANAGEMENT)).toThrow(/permissions/)
+    })
 
-      deleteOrganization(org)
-      expect(mockWrite).toHaveBeenCalled()
+    it('should delete an organization that only holds the management account', () => {
+      deleteOrganization(currentOrg())
+      expect(unlinkSync).toHaveBeenCalledWith(expect.stringContaining(`${MANAGEMENT}/organization.json`))
+    })
+
+    it('should not delete an organization that still has other accounts or OUs', () => {
+      const other = { parentId: 'r-abcd', joinedMethod: 'CREATED' as const, joinedTimestamp: 1, state: 'ACTIVE' as const }
+      expect(() => deleteOrganization(currentOrg({ members: { ...currentOrg().members, '234567890123': other } }))).toThrow(/still contains/)
+      expect(() => deleteOrganization(currentOrg({ ous: { 'ou-eng': { id: 'ou-eng', parentId: 'r-abcd', name: 'Eng' } } }))).toThrow(/still contains/)
+      expect(unlinkSync).not.toHaveBeenCalled()
     })
   })
 
   describe('Policy Type Management', () => {
     it('should enable a policy type', () => {
-      const mockRead = readFileSync as jest.MockedFunction<typeof readFileSync>
-      const mockWrite = writeFileSync as jest.MockedFunction<typeof writeFileSync>
-
-      const org = {
-        id: 'o-abcd1234',
-        arn: 'arn:aws:organizations::123456789012:organization/o-abcd1234',
-        featureSet: 'ALL',
-        managementAccountId: '123456789012',
-        managementAccountArn: 'arn:aws:organizations::123456789012:account/o-abcd1234/123456789012',
-        rootId: 'r-abcd',
-        policies: {},
-        roots: [
-          {
-            id: 'r-abcd',
-            arn: 'arn:aws:organizations::123456789012:root/o-abcd1234/r-abcd',
-            name: 'Root',
-            policyTypes: [],
-          },
-        ],
-        organizationalUnits: [],
-        accountTree: {},
-      }
+      const org = currentOrg()
 
       enablePolicyType(org, 'r-abcd', SCP)
-      expect(mockWrite).toHaveBeenCalled()
+
+      expect(org.policyTypes).toEqual([SCP])
+      expect(writeFileSync).toHaveBeenCalled()
+      expect(() => enablePolicyType(org, 'r-abcd', SCP)).toThrow(/already enabled/)
     })
 
     it('should disable a policy type', () => {
-      const mockWrite = writeFileSync as jest.MockedFunction<typeof writeFileSync>
-
-      const org = {
-        id: 'o-abcd1234',
-        arn: 'arn:aws:organizations::123456789012:organization/o-abcd1234',
-        featureSet: 'ALL',
-        managementAccountId: '123456789012',
-        managementAccountArn: 'arn:aws:organizations::123456789012:account/o-abcd1234/123456789012',
-        rootId: 'r-abcd',
-        policies: {},
-        roots: [
-          {
-            id: 'r-abcd',
-            arn: 'arn:aws:organizations::123456789012:root/o-abcd1234/r-abcd',
-            name: 'Root',
-            policyTypes: [{ type: SCP, status: 'ENABLED' }],
-          },
-        ],
-        organizationalUnits: [],
-        accountTree: {},
-      }
+      const org = currentOrg({ policyTypes: [SCP] })
 
       disablePolicyType(org, 'r-abcd', SCP)
-      expect(mockWrite).toHaveBeenCalled()
+
+      expect(org.policyTypes).toEqual([])
+      expect(writeFileSync).toHaveBeenCalled()
+      expect(() => disablePolicyType(org, 'r-abcd', SCP)).toThrow(/isn't currently enabled/)
+    })
+
+    it('should refuse a root that does not exist', () => {
+      expect(() => enablePolicyType(currentOrg(), 'r-other', SCP)).toThrow(/RootId/)
     })
   })
 
   describe('Organizational Units', () => {
     it('should create an organizational unit', () => {
-      const mockWrite = writeFileSync as jest.MockedFunction<typeof writeFileSync>
-
-      const org = {
-        id: 'o-abcd1234',
-        arn: 'arn:aws:organizations::123456789012:organization/o-abcd1234',
-        featureSet: 'ALL',
-        managementAccountId: '123456789012',
-        managementAccountArn: 'arn:aws:organizations::123456789012:account/o-abcd1234/123456789012',
-        rootId: 'r-abcd',
-        policies: {},
-        roots: [
-          {
-            id: 'r-abcd',
-            arn: 'arn:aws:organizations::123456789012:root/o-abcd1234/r-abcd',
-            name: 'Root',
-            policyTypes: [],
-          },
-        ],
-        organizationalUnits: [],
-        accountTree: {},
-      }
+      const org = currentOrg()
 
       const ou = createOrganizationalUnit(org, 'r-abcd', 'Engineering')
+
       expect(ou.name).toBe('Engineering')
       expect(ou.parentId).toBe('r-abcd')
-      expect(mockWrite).toHaveBeenCalled()
+      expect(org.ous[ou.id]).toBe(ou)
+      expect(writeFileSync).toHaveBeenCalled()
+      expect(() => createOrganizationalUnit(org, 'r-abcd', 'Engineering')).toThrow(/same name/)
     })
 
     it('should get children of organizational unit', () => {
-      const org = {
-        id: 'o-abcd1234',
-        arn: 'arn:aws:organizations::123456789012:organization/o-abcd1234',
-        featureSet: 'ALL',
-        managementAccountId: '123456789012',
-        managementAccountArn: 'arn:aws:organizations::123456789012:account/o-abcd1234/123456789012',
-        rootId: 'r-abcd',
-        policies: {},
-        roots: [],
-        organizationalUnits: [],
-        accountTree: {
-          'r-abcd': {
-            ous: [
-              {
-                id: 'ou-eng',
-                parentId: 'r-abcd',
-                name: 'Engineering',
-                arn: 'arn:aws:organizations::123456789012:ou/o-abcd1234/ou-eng',
-              },
-            ],
-            accounts: ['123456789012', '234567890123'],
-          },
-        },
-      }
+      const org = currentOrg({ ous: { 'ou-eng': { id: 'ou-eng', parentId: 'r-abcd', name: 'Engineering' } } })
 
       const children = childrenOf(org, 'r-abcd')
-      expect(children.ous.length).toBeGreaterThan(0)
-      expect(children.accounts.length).toBeGreaterThan(0)
+
+      expect(children.ous.map(ou => ou.id)).toEqual(['ou-eng'])
+      expect(children.accounts).toEqual([MANAGEMENT])
+      expect(childrenOf(org, 'ou-eng')).toEqual({ ous: [], accounts: [] })
     })
   })
 
