@@ -2,6 +2,7 @@
 """Build the network of the walking-skeleton scenario step by step and print what the simulator says at each step.
 
     python3 scripts/scenario/network.py          # build, print the traces of A, B, C, D; leave the VPC for inspection
+    python3 scripts/scenario/network.py --until B  # stop after variant A, B, C or D and leave the VPC in that state
     python3 scripts/scenario/network.py --clean  # remove it again
 
 A function `orders-fn` in a private subnet calls sts (docs/walking-skeleton.md). Each variant changes one thing:
@@ -27,6 +28,7 @@ REGION = ec2.meta.region_name
 HOST = f'sts.{REGION}.amazonaws.com'
 REACH = os.path.join(os.path.dirname(__file__), '..', 'reach.py')
 NAME = 'skeleton'
+UNTIL = sys.argv[sys.argv.index('--until') + 1] if '--until' in sys.argv else None
 
 
 def tagged(kind, name):
@@ -68,6 +70,12 @@ def show(title):
     print(f'\n{"=" * 100}\n{title}\n{"=" * 100}')
     sys.stdout.flush()
     subprocess.run([sys.executable, REACH, '--region', REGION, '--subnet', f'{NAME}-private', '--sg', f'{NAME}-fn', HOST])
+    if UNTIL and title.startswith(UNTIL + ':'):
+        raise Done()
+
+
+class Done(Exception):
+    pass
 
 
 def build():
@@ -108,5 +116,7 @@ if __name__ == '__main__':
         clean()
         if '--clean' not in sys.argv:
             build()
+    except Done:
+        pass
     except ClientError as error:
         sys.exit(f'{error.response["Error"]["Code"]}: {error.response["Error"]["Message"]}')
