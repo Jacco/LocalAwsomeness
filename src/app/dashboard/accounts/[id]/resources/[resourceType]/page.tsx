@@ -31,7 +31,7 @@ export default function ResourceListPage() {
     if (types.length > 0 && !selectedTab) {
       setSelectedTab(types[0]);
     }
-  }, [data, selectedTab]);
+  }, [data]);
 
   const getDetailPageUrl = (type: string, key: string): string => {
     // Map resource type containers to their specialized detail page paths
