@@ -37,10 +37,13 @@ _real_time = time.time
 _real_monotonic = time.monotonic
 _real_connect = socket.socket.connect
 _real_connect_ex = socket.socket.connect_ex
+_real_stdout_write = sys.stdout.write
+_real_stderr_write = sys.stderr.write
 _offset = 0.0
 _deadline = float(os.environ['JPK_DEADLINE']) if 'JPK_DEADLINE' in os.environ else None
 _delivering = False
 _channel = None
+_log_messages = []
 
 
 def _advance(seconds):
@@ -125,6 +128,20 @@ def _guarded_connect_ex(self, address):
     return _refuse(address).errno
 
 
+def _write_stdout(message: str) -> int:
+    """Intercepts sys.stdout.write() to capture log messages."""
+    global _log_messages
+    _log_messages.append(('stdout', message))
+    return _real_stdout_write(message)
+
+
+def _write_stderr(message: str) -> int:
+    """Intercepts sys.stderr.write() to capture log messages."""
+    global _log_messages
+    _log_messages.append(('stderr', message))
+    return _real_stderr_write(message)
+
+
 def install():
     time.sleep = _sleep
     time.time = lambda: _real_time() + _offset
@@ -136,6 +153,8 @@ def install():
         _urllib3_connection.HTTPSConnection.connect = _connect
     socket.socket.connect = _guarded_connect
     socket.socket.connect_ex = _guarded_connect_ex
+    sys.stdout.write = _write_stdout
+    sys.stderr.write = _write_stderr
 
 
 def main():
@@ -158,6 +177,8 @@ def main():
         code = 1
     sys.stdout.flush()
     sys.stderr.flush()
+    if _log_messages:
+        _send({'op': 'log_write', 'messages': _log_messages})
     _send({'op': 'done', 'exitCode': code})
     os._exit(code)
 

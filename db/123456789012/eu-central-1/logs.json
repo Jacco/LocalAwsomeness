@@ -1,0 +1,30 @@
+{
+  "groups": {
+    "/aws/lambda/orders-fn": {
+      "logGroupName": "/aws/lambda/orders-fn",
+      "creationTime": 1794319958159,
+      "tags": {},
+      "streams": {
+        "2026/11/10/[$LATEST]2159c2cb3e8e40c298310d2f9cf58a95": {
+          "logStreamName": "2026/11/10/[$LATEST]2159c2cb3e8e40c298310d2f9cf58a95",
+          "creationTime": 1794319958159,
+          "storedBytes": 721,
+          "dataFile": "2026_11_10_LATEST_2159c2cb3e8e40c298310d2f9cf58a95.jsonl",
+          "firstEventTimestamp": 1794319958159,
+          "lastEventTimestamp": 1794319958526,
+          "lastIngestionTime": 1794319959661
+        },
+        "2026/11/10/[$LATEST]6712596ded504f078e5af6693553372c": {
+          "logStreamName": "2026/11/10/[$LATEST]6712596ded504f078e5af6693553372c",
+          "creationTime": 1794319960769,
+          "storedBytes": 721,
+          "dataFile": "2026_11_10_LATEST_6712596ded504f078e5af6693553372c.jsonl",
+          "firstEventTimestamp": 1794319960769,
+          "lastEventTimestamp": 1794319961061,
+          "lastIngestionTime": 1794319961208
+        }
+      },
+      "dataDirectory": "aws_lambda_orders-fn"
+    }
+  }
+}

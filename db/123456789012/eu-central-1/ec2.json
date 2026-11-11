@@ -1,0 +1,1000 @@
+{
+  "defaultDhcpOptionsId": "dopt-d87683c0494ea5fda",
+  "vpcs": {
+    "vpc-405eec05deb3de988": {
+      "OwnerId": "123456789012",
+      "InstanceTenancy": "default",
+      "CidrBlockAssociationSet": [
+        {
+          "AssociationId": "vpc-cidr-assoc-7e6f115797dc57e5a",
+          "CidrBlock": "172.31.0.0/16",
+          "CidrBlockState": {
+            "State": "associated"
+          }
+        }
+      ],
+      "IsDefault": true,
+      "Tags": [],
+      "VpcId": "vpc-405eec05deb3de988",
+      "State": "available",
+      "CidrBlock": "172.31.0.0/16",
+      "DhcpOptionsId": "dopt-d87683c0494ea5fda",
+      "BlockPublicAccessStates": {
+        "InternetGatewayBlockMode": "off"
+      }
+    },
+    "vpc-73727799e46a4f699": {
+      "OwnerId": "123456789012",
+      "InstanceTenancy": "default",
+      "CidrBlockAssociationSet": [
+        {
+          "AssociationId": "vpc-cidr-assoc-0828b6468c1a3349f",
+          "CidrBlock": "10.0.0.0/16",
+          "CidrBlockState": {
+            "State": "associated"
+          }
+        }
+      ],
+      "IsDefault": false,
+      "Tags": [
+        {
+          "Key": "Name",
+          "Value": "demo"
+        }
+      ],
+      "VpcId": "vpc-73727799e46a4f699",
+      "State": "available",
+      "CidrBlock": "10.0.0.0/16",
+      "DhcpOptionsId": "dopt-d87683c0494ea5fda",
+      "BlockPublicAccessStates": {
+        "InternetGatewayBlockMode": "off"
+      }
+    },
+    "vpc-eef01b4d9d3a03438": {
+      "OwnerId": "123456789012",
+      "InstanceTenancy": "default",
+      "CidrBlockAssociationSet": [
+        {
+          "AssociationId": "vpc-cidr-assoc-43fe57065ebe97a42",
+          "CidrBlock": "10.0.0.0/16",
+          "CidrBlockState": {
+            "State": "associated"
+          }
+        }
+      ],
+      "IsDefault": false,
+      "Tags": [
+        {
+          "Key": "Name",
+          "Value": "skeleton"
+        }
+      ],
+      "VpcId": "vpc-eef01b4d9d3a03438",
+      "State": "available",
+      "CidrBlock": "10.0.0.0/16",
+      "DhcpOptionsId": "dopt-d87683c0494ea5fda",
+      "BlockPublicAccessStates": {
+        "InternetGatewayBlockMode": "off"
+      }
+    }
+  },
+  "vpcAttributes": {
+    "vpc-405eec05deb3de988": {
+      "enableDnsSupport": true,
+      "enableDnsHostnames": true,
+      "enableNetworkAddressUsageMetrics": false
+    },
+    "vpc-73727799e46a4f699": {
+      "enableDnsSupport": true,
+      "enableDnsHostnames": false,
+      "enableNetworkAddressUsageMetrics": false
+    },
+    "vpc-eef01b4d9d3a03438": {
+      "enableDnsSupport": true,
+      "enableDnsHostnames": false,
+      "enableNetworkAddressUsageMetrics": false
+    }
+  },
+  "subnets": {
+    "subnet-15bd591f076c9ad22": {
+      "SubnetId": "subnet-15bd591f076c9ad22",
+      "SubnetArn": "arn:aws:ec2:eu-central-1:123456789012:subnet/subnet-15bd591f076c9ad22",
+      "State": "available",
+      "OwnerId": "123456789012",
+      "VpcId": "vpc-405eec05deb3de988",
+      "CidrBlock": "172.31.0.0/20",
+      "Ipv6CidrBlockAssociationSet": [],
+      "AvailableIpAddressCount": 4091,
+      "AvailabilityZone": "eu-central-1a",
+      "AvailabilityZoneId": "euc1-az1",
+      "DefaultForAz": true,
+      "MapPublicIpOnLaunch": true,
+      "MapCustomerOwnedIpOnLaunch": false,
+      "AssignIpv6AddressOnCreation": false,
+      "EnableDns64": false,
+      "Ipv6Native": false,
+      "PrivateDnsNameOptionsOnLaunch": {
+        "HostnameType": "ip-name",
+        "EnableResourceNameDnsARecord": false,
+        "EnableResourceNameDnsAAAARecord": false
+      },
+      "BlockPublicAccessStates": {
+        "InternetGatewayBlockMode": "off"
+      },
+      "Tags": []
+    },
+    "subnet-8bba72bca24062f49": {
+      "SubnetId": "subnet-8bba72bca24062f49",
+      "SubnetArn": "arn:aws:ec2:eu-central-1:123456789012:subnet/subnet-8bba72bca24062f49",
+      "State": "available",
+      "OwnerId": "123456789012",
+      "VpcId": "vpc-405eec05deb3de988",
+      "CidrBlock": "172.31.16.0/20",
+      "Ipv6CidrBlockAssociationSet": [],
+      "AvailableIpAddressCount": 4091,
+      "AvailabilityZone": "eu-central-1b",
+      "AvailabilityZoneId": "euc1-az2",
+      "DefaultForAz": true,
+      "MapPublicIpOnLaunch": true,
+      "MapCustomerOwnedIpOnLaunch": false,
+      "AssignIpv6AddressOnCreation": false,
+      "EnableDns64": false,
+      "Ipv6Native": false,
+      "PrivateDnsNameOptionsOnLaunch": {
+        "HostnameType": "ip-name",
+        "EnableResourceNameDnsARecord": false,
+        "EnableResourceNameDnsAAAARecord": false
+      },
+      "BlockPublicAccessStates": {
+        "InternetGatewayBlockMode": "off"
+      },
+      "Tags": []
+    },
+    "subnet-5e8300c6ff31551a0": {
+      "SubnetId": "subnet-5e8300c6ff31551a0",
+      "SubnetArn": "arn:aws:ec2:eu-central-1:123456789012:subnet/subnet-5e8300c6ff31551a0",
+      "State": "available",
+      "OwnerId": "123456789012",
+      "VpcId": "vpc-405eec05deb3de988",
+      "CidrBlock": "172.31.32.0/20",
+      "Ipv6CidrBlockAssociationSet": [],
+      "AvailableIpAddressCount": 4091,
+      "AvailabilityZone": "eu-central-1c",
+      "AvailabilityZoneId": "euc1-az3",
+      "DefaultForAz": true,
+      "MapPublicIpOnLaunch": true,
+      "MapCustomerOwnedIpOnLaunch": false,
+      "AssignIpv6AddressOnCreation": false,
+      "EnableDns64": false,
+      "Ipv6Native": false,
+      "PrivateDnsNameOptionsOnLaunch": {
+        "HostnameType": "ip-name",
+        "EnableResourceNameDnsARecord": false,
+        "EnableResourceNameDnsAAAARecord": false
+      },
+      "BlockPublicAccessStates": {
+        "InternetGatewayBlockMode": "off"
+      },
+      "Tags": []
+    },
+    "subnet-8966c36c5846b2c6d": {
+      "SubnetId": "subnet-8966c36c5846b2c6d",
+      "SubnetArn": "arn:aws:ec2:eu-central-1:123456789012:subnet/subnet-8966c36c5846b2c6d",
+      "State": "available",
+      "OwnerId": "123456789012",
+      "VpcId": "vpc-73727799e46a4f699",
+      "CidrBlock": "10.0.1.0/24",
+      "Ipv6CidrBlockAssociationSet": [],
+      "AvailableIpAddressCount": 251,
+      "AvailabilityZone": "eu-central-1a",
+      "AvailabilityZoneId": "euc1-az1",
+      "DefaultForAz": false,
+      "MapPublicIpOnLaunch": false,
+      "MapCustomerOwnedIpOnLaunch": false,
+      "AssignIpv6AddressOnCreation": false,
+      "EnableDns64": false,
+      "Ipv6Native": false,
+      "PrivateDnsNameOptionsOnLaunch": {
+        "HostnameType": "ip-name",
+        "EnableResourceNameDnsARecord": false,
+        "EnableResourceNameDnsAAAARecord": false
+      },
+      "BlockPublicAccessStates": {
+        "InternetGatewayBlockMode": "off"
+      },
+      "Tags": [
+        {
+          "Key": "Name",
+          "Value": "demo-a"
+        }
+      ]
+    },
+    "subnet-9746bea5e6f28da12": {
+      "SubnetId": "subnet-9746bea5e6f28da12",
+      "SubnetArn": "arn:aws:ec2:eu-central-1:123456789012:subnet/subnet-9746bea5e6f28da12",
+      "State": "available",
+      "OwnerId": "123456789012",
+      "VpcId": "vpc-eef01b4d9d3a03438",
+      "CidrBlock": "10.0.1.0/24",
+      "Ipv6CidrBlockAssociationSet": [],
+      "AvailableIpAddressCount": 251,
+      "AvailabilityZone": "eu-central-1a",
+      "AvailabilityZoneId": "euc1-az1",
+      "DefaultForAz": false,
+      "MapPublicIpOnLaunch": false,
+      "MapCustomerOwnedIpOnLaunch": false,
+      "AssignIpv6AddressOnCreation": false,
+      "EnableDns64": false,
+      "Ipv6Native": false,
+      "PrivateDnsNameOptionsOnLaunch": {
+        "HostnameType": "ip-name",
+        "EnableResourceNameDnsARecord": false,
+        "EnableResourceNameDnsAAAARecord": false
+      },
+      "BlockPublicAccessStates": {
+        "InternetGatewayBlockMode": "off"
+      },
+      "Tags": [
+        {
+          "Key": "Name",
+          "Value": "skeleton-public"
+        }
+      ]
+    },
+    "subnet-5cc2d6a2e82151c97": {
+      "SubnetId": "subnet-5cc2d6a2e82151c97",
+      "SubnetArn": "arn:aws:ec2:eu-central-1:123456789012:subnet/subnet-5cc2d6a2e82151c97",
+      "State": "available",
+      "OwnerId": "123456789012",
+      "VpcId": "vpc-eef01b4d9d3a03438",
+      "CidrBlock": "10.0.2.0/24",
+      "Ipv6CidrBlockAssociationSet": [],
+      "AvailableIpAddressCount": 251,
+      "AvailabilityZone": "eu-central-1a",
+      "AvailabilityZoneId": "euc1-az1",
+      "DefaultForAz": false,
+      "MapPublicIpOnLaunch": false,
+      "MapCustomerOwnedIpOnLaunch": false,
+      "AssignIpv6AddressOnCreation": false,
+      "EnableDns64": false,
+      "Ipv6Native": false,
+      "PrivateDnsNameOptionsOnLaunch": {
+        "HostnameType": "ip-name",
+        "EnableResourceNameDnsARecord": false,
+        "EnableResourceNameDnsAAAARecord": false
+      },
+      "BlockPublicAccessStates": {
+        "InternetGatewayBlockMode": "off"
+      },
+      "Tags": [
+        {
+          "Key": "Name",
+          "Value": "skeleton-private"
+        }
+      ]
+    }
+  },
+  "routeTables": {
+    "rtb-44f986f3c94fe0fc3": {
+      "OwnerId": "123456789012",
+      "RouteTableId": "rtb-44f986f3c94fe0fc3",
+      "VpcId": "vpc-405eec05deb3de988",
+      "Associations": [
+        {
+          "Main": true,
+          "RouteTableAssociationId": "rtbassoc-b4d789dc568118faf",
+          "RouteTableId": "rtb-44f986f3c94fe0fc3",
+          "AssociationState": {
+            "State": "associated"
+          }
+        }
+      ],
+      "PropagatingVgws": [],
+      "Routes": [
+        {
+          "DestinationCidrBlock": "172.31.0.0/16",
+          "GatewayId": "local",
+          "Origin": "CreateRouteTable",
+          "State": "active"
+        },
+        {
+          "DestinationCidrBlock": "0.0.0.0/0",
+          "GatewayId": "igw-c42e93ef094f83bf9",
+          "Origin": "CreateRoute",
+          "State": "active"
+        }
+      ],
+      "Tags": []
+    },
+    "rtb-725dc2054dc6613c4": {
+      "OwnerId": "123456789012",
+      "RouteTableId": "rtb-725dc2054dc6613c4",
+      "VpcId": "vpc-73727799e46a4f699",
+      "Associations": [
+        {
+          "Main": true,
+          "RouteTableAssociationId": "rtbassoc-bc0a61dbdb80e4a90",
+          "RouteTableId": "rtb-725dc2054dc6613c4",
+          "AssociationState": {
+            "State": "associated"
+          }
+        }
+      ],
+      "PropagatingVgws": [],
+      "Routes": [
+        {
+          "DestinationCidrBlock": "10.0.0.0/16",
+          "GatewayId": "local",
+          "Origin": "CreateRouteTable",
+          "State": "active"
+        }
+      ],
+      "Tags": []
+    },
+    "rtb-f3e5687efe64bd7fb": {
+      "OwnerId": "123456789012",
+      "RouteTableId": "rtb-f3e5687efe64bd7fb",
+      "VpcId": "vpc-eef01b4d9d3a03438",
+      "Associations": [
+        {
+          "Main": true,
+          "RouteTableAssociationId": "rtbassoc-0fbe15a59127f528a",
+          "RouteTableId": "rtb-f3e5687efe64bd7fb",
+          "AssociationState": {
+            "State": "associated"
+          }
+        }
+      ],
+      "PropagatingVgws": [],
+      "Routes": [
+        {
+          "DestinationCidrBlock": "10.0.0.0/16",
+          "GatewayId": "local",
+          "Origin": "CreateRouteTable",
+          "State": "active"
+        }
+      ],
+      "Tags": []
+    },
+    "rtb-5b4027db27385f327": {
+      "RouteTableId": "rtb-5b4027db27385f327",
+      "OwnerId": "123456789012",
+      "VpcId": "vpc-eef01b4d9d3a03438",
+      "Routes": [
+        {
+          "DestinationCidrBlock": "10.0.0.0/16",
+          "GatewayId": "local",
+          "Origin": "CreateRouteTable",
+          "State": "active"
+        },
+        {
+          "DestinationCidrBlock": "0.0.0.0/0",
+          "GatewayId": "igw-775719e33ade0943c",
+          "Origin": "CreateRoute",
+          "State": "active"
+        }
+      ],
+      "Associations": [
+        {
+          "Main": false,
+          "RouteTableAssociationId": "rtbassoc-b0154bc549c20ebf0",
+          "RouteTableId": "rtb-5b4027db27385f327",
+          "SubnetId": "subnet-9746bea5e6f28da12",
+          "AssociationState": {
+            "State": "associated"
+          }
+        }
+      ],
+      "PropagatingVgws": [],
+      "Tags": [
+        {
+          "Key": "Name",
+          "Value": "skeleton-public"
+        }
+      ]
+    },
+    "rtb-77df019457936ee61": {
+      "RouteTableId": "rtb-77df019457936ee61",
+      "OwnerId": "123456789012",
+      "VpcId": "vpc-eef01b4d9d3a03438",
+      "Routes": [
+        {
+          "DestinationCidrBlock": "10.0.0.0/16",
+          "GatewayId": "local",
+          "Origin": "CreateRouteTable",
+          "State": "active"
+        },
+        {
+          "DestinationCidrBlock": "0.0.0.0/0",
+          "NatGatewayId": "nat-6e905274412789a2a",
+          "Origin": "CreateRoute",
+          "State": "active"
+        }
+      ],
+      "Associations": [
+        {
+          "Main": false,
+          "RouteTableAssociationId": "rtbassoc-6a6a5b413653874cf",
+          "RouteTableId": "rtb-77df019457936ee61",
+          "SubnetId": "subnet-5cc2d6a2e82151c97",
+          "AssociationState": {
+            "State": "associated"
+          }
+        }
+      ],
+      "PropagatingVgws": [],
+      "Tags": [
+        {
+          "Key": "Name",
+          "Value": "skeleton-private"
+        }
+      ]
+    }
+  },
+  "networkAcls": {
+    "acl-4b392d2b3843459c4": {
+      "OwnerId": "123456789012",
+      "NetworkAclId": "acl-4b392d2b3843459c4",
+      "VpcId": "vpc-405eec05deb3de988",
+      "IsDefault": true,
+      "Entries": [
+        {
+          "CidrBlock": "0.0.0.0/0",
+          "Egress": true,
+          "Protocol": "-1",
+          "RuleAction": "allow",
+          "RuleNumber": 100
+        },
+        {
+          "CidrBlock": "0.0.0.0/0",
+          "Egress": true,
+          "Protocol": "-1",
+          "RuleAction": "deny",
+          "RuleNumber": 32767
+        },
+        {
+          "CidrBlock": "0.0.0.0/0",
+          "Egress": false,
+          "Protocol": "-1",
+          "RuleAction": "allow",
+          "RuleNumber": 100
+        },
+        {
+          "CidrBlock": "0.0.0.0/0",
+          "Egress": false,
+          "Protocol": "-1",
+          "RuleAction": "deny",
+          "RuleNumber": 32767
+        }
+      ],
+      "Associations": [
+        {
+          "NetworkAclAssociationId": "aclassoc-0f54c9fc67c4b3e51",
+          "NetworkAclId": "acl-4b392d2b3843459c4",
+          "SubnetId": "subnet-15bd591f076c9ad22"
+        },
+        {
+          "NetworkAclAssociationId": "aclassoc-7b6e4f3ad6b49e9d9",
+          "NetworkAclId": "acl-4b392d2b3843459c4",
+          "SubnetId": "subnet-8bba72bca24062f49"
+        },
+        {
+          "NetworkAclAssociationId": "aclassoc-d67935ad4188813f1",
+          "NetworkAclId": "acl-4b392d2b3843459c4",
+          "SubnetId": "subnet-5e8300c6ff31551a0"
+        }
+      ],
+      "Tags": []
+    },
+    "acl-c1576df334475a947": {
+      "OwnerId": "123456789012",
+      "NetworkAclId": "acl-c1576df334475a947",
+      "VpcId": "vpc-73727799e46a4f699",
+      "IsDefault": true,
+      "Entries": [
+        {
+          "CidrBlock": "0.0.0.0/0",
+          "Egress": true,
+          "Protocol": "-1",
+          "RuleAction": "allow",
+          "RuleNumber": 100
+        },
+        {
+          "CidrBlock": "0.0.0.0/0",
+          "Egress": true,
+          "Protocol": "-1",
+          "RuleAction": "deny",
+          "RuleNumber": 32767
+        },
+        {
+          "CidrBlock": "0.0.0.0/0",
+          "Egress": false,
+          "Protocol": "-1",
+          "RuleAction": "allow",
+          "RuleNumber": 100
+        },
+        {
+          "CidrBlock": "0.0.0.0/0",
+          "Egress": false,
+          "Protocol": "-1",
+          "RuleAction": "deny",
+          "RuleNumber": 32767
+        }
+      ],
+      "Associations": [
+        {
+          "NetworkAclAssociationId": "aclassoc-68641b3478667d3e8",
+          "NetworkAclId": "acl-c1576df334475a947",
+          "SubnetId": "subnet-8966c36c5846b2c6d"
+        }
+      ],
+      "Tags": []
+    },
+    "acl-6dc47a9d7dcec9a98": {
+      "OwnerId": "123456789012",
+      "NetworkAclId": "acl-6dc47a9d7dcec9a98",
+      "VpcId": "vpc-eef01b4d9d3a03438",
+      "IsDefault": true,
+      "Entries": [
+        {
+          "CidrBlock": "0.0.0.0/0",
+          "Egress": true,
+          "Protocol": "-1",
+          "RuleAction": "allow",
+          "RuleNumber": 100
+        },
+        {
+          "CidrBlock": "0.0.0.0/0",
+          "Egress": true,
+          "Protocol": "-1",
+          "RuleAction": "deny",
+          "RuleNumber": 32767
+        },
+        {
+          "CidrBlock": "0.0.0.0/0",
+          "Egress": false,
+          "Protocol": "-1",
+          "RuleAction": "allow",
+          "RuleNumber": 100
+        },
+        {
+          "CidrBlock": "0.0.0.0/0",
+          "Egress": false,
+          "Protocol": "-1",
+          "RuleAction": "deny",
+          "RuleNumber": 32767
+        }
+      ],
+      "Associations": [
+        {
+          "NetworkAclAssociationId": "aclassoc-42b3bff32922f97c3",
+          "NetworkAclId": "acl-6dc47a9d7dcec9a98",
+          "SubnetId": "subnet-9746bea5e6f28da12"
+        },
+        {
+          "NetworkAclAssociationId": "aclassoc-b41b0f72780a14cc3",
+          "NetworkAclId": "acl-6dc47a9d7dcec9a98",
+          "SubnetId": "subnet-5cc2d6a2e82151c97"
+        }
+      ],
+      "Tags": []
+    }
+  },
+  "securityGroups": {
+    "sg-a6b9539d7e077ee89": {
+      "OwnerId": "123456789012",
+      "GroupId": "sg-a6b9539d7e077ee89",
+      "GroupName": "default",
+      "Description": "default VPC security group",
+      "VpcId": "vpc-405eec05deb3de988",
+      "SecurityGroupArn": "arn:aws:ec2:eu-central-1:123456789012:security-group/sg-a6b9539d7e077ee89",
+      "Tags": []
+    },
+    "sg-c1d8b7389d27a0983": {
+      "OwnerId": "123456789012",
+      "GroupId": "sg-c1d8b7389d27a0983",
+      "GroupName": "default",
+      "Description": "default VPC security group",
+      "VpcId": "vpc-73727799e46a4f699",
+      "SecurityGroupArn": "arn:aws:ec2:eu-central-1:123456789012:security-group/sg-c1d8b7389d27a0983",
+      "Tags": []
+    },
+    "sg-f54d9c53896de0908": {
+      "OwnerId": "123456789012",
+      "GroupId": "sg-f54d9c53896de0908",
+      "GroupName": "default",
+      "Description": "default VPC security group",
+      "VpcId": "vpc-eef01b4d9d3a03438",
+      "SecurityGroupArn": "arn:aws:ec2:eu-central-1:123456789012:security-group/sg-f54d9c53896de0908",
+      "Tags": []
+    },
+    "sg-be2785f307c60963a": {
+      "OwnerId": "123456789012",
+      "GroupId": "sg-be2785f307c60963a",
+      "GroupName": "skeleton-fn",
+      "Description": "the function",
+      "VpcId": "vpc-eef01b4d9d3a03438",
+      "SecurityGroupArn": "arn:aws:ec2:eu-central-1:123456789012:security-group/sg-be2785f307c60963a",
+      "Tags": [
+        {
+          "Key": "Name",
+          "Value": "skeleton-fn"
+        }
+      ]
+    }
+  },
+  "securityGroupRules": {
+    "sgr-9ec0b1631c592ea66": {
+      "SecurityGroupRuleId": "sgr-9ec0b1631c592ea66",
+      "GroupId": "sg-a6b9539d7e077ee89",
+      "GroupOwnerId": "123456789012",
+      "IsEgress": false,
+      "IpProtocol": "-1",
+      "FromPort": -1,
+      "ToPort": -1,
+      "SecurityGroupRuleArn": "arn:aws:ec2:eu-central-1:123456789012:security-group-rule/sgr-9ec0b1631c592ea66",
+      "Tags": [],
+      "ReferencedGroupInfo": {
+        "GroupId": "sg-a6b9539d7e077ee89",
+        "UserId": "123456789012"
+      }
+    },
+    "sgr-8a0a35b7df73c8574": {
+      "SecurityGroupRuleId": "sgr-8a0a35b7df73c8574",
+      "GroupId": "sg-a6b9539d7e077ee89",
+      "GroupOwnerId": "123456789012",
+      "IsEgress": true,
+      "IpProtocol": "-1",
+      "FromPort": -1,
+      "ToPort": -1,
+      "SecurityGroupRuleArn": "arn:aws:ec2:eu-central-1:123456789012:security-group-rule/sgr-8a0a35b7df73c8574",
+      "Tags": [],
+      "CidrIpv4": "0.0.0.0/0"
+    },
+    "sgr-f6f1c691529149bb3": {
+      "SecurityGroupRuleId": "sgr-f6f1c691529149bb3",
+      "GroupId": "sg-c1d8b7389d27a0983",
+      "GroupOwnerId": "123456789012",
+      "IsEgress": false,
+      "IpProtocol": "-1",
+      "FromPort": -1,
+      "ToPort": -1,
+      "SecurityGroupRuleArn": "arn:aws:ec2:eu-central-1:123456789012:security-group-rule/sgr-f6f1c691529149bb3",
+      "Tags": [],
+      "ReferencedGroupInfo": {
+        "GroupId": "sg-c1d8b7389d27a0983",
+        "UserId": "123456789012"
+      }
+    },
+    "sgr-4a85c0132de2f0ee4": {
+      "SecurityGroupRuleId": "sgr-4a85c0132de2f0ee4",
+      "GroupId": "sg-c1d8b7389d27a0983",
+      "GroupOwnerId": "123456789012",
+      "IsEgress": true,
+      "IpProtocol": "-1",
+      "FromPort": -1,
+      "ToPort": -1,
+      "SecurityGroupRuleArn": "arn:aws:ec2:eu-central-1:123456789012:security-group-rule/sgr-4a85c0132de2f0ee4",
+      "Tags": [],
+      "CidrIpv4": "0.0.0.0/0"
+    },
+    "sgr-37702fd293f7d9c55": {
+      "SecurityGroupRuleId": "sgr-37702fd293f7d9c55",
+      "GroupId": "sg-f54d9c53896de0908",
+      "GroupOwnerId": "123456789012",
+      "IsEgress": false,
+      "IpProtocol": "-1",
+      "FromPort": -1,
+      "ToPort": -1,
+      "SecurityGroupRuleArn": "arn:aws:ec2:eu-central-1:123456789012:security-group-rule/sgr-37702fd293f7d9c55",
+      "Tags": [],
+      "ReferencedGroupInfo": {
+        "GroupId": "sg-f54d9c53896de0908",
+        "UserId": "123456789012"
+      }
+    },
+    "sgr-939751a72e98ed1c4": {
+      "SecurityGroupRuleId": "sgr-939751a72e98ed1c4",
+      "GroupId": "sg-f54d9c53896de0908",
+      "GroupOwnerId": "123456789012",
+      "IsEgress": true,
+      "IpProtocol": "-1",
+      "FromPort": -1,
+      "ToPort": -1,
+      "SecurityGroupRuleArn": "arn:aws:ec2:eu-central-1:123456789012:security-group-rule/sgr-939751a72e98ed1c4",
+      "Tags": [],
+      "CidrIpv4": "0.0.0.0/0"
+    },
+    "sgr-26e74bc5322034aae": {
+      "SecurityGroupRuleId": "sgr-26e74bc5322034aae",
+      "GroupId": "sg-be2785f307c60963a",
+      "GroupOwnerId": "123456789012",
+      "IsEgress": true,
+      "IpProtocol": "-1",
+      "FromPort": -1,
+      "ToPort": -1,
+      "SecurityGroupRuleArn": "arn:aws:ec2:eu-central-1:123456789012:security-group-rule/sgr-26e74bc5322034aae",
+      "Tags": [],
+      "CidrIpv4": "0.0.0.0/0"
+    }
+  },
+  "internetGateways": {
+    "igw-c42e93ef094f83bf9": {
+      "InternetGatewayId": "igw-c42e93ef094f83bf9",
+      "OwnerId": "123456789012",
+      "Attachments": [
+        {
+          "State": "available",
+          "VpcId": "vpc-405eec05deb3de988"
+        }
+      ],
+      "Tags": []
+    },
+    "igw-775719e33ade0943c": {
+      "InternetGatewayId": "igw-775719e33ade0943c",
+      "OwnerId": "123456789012",
+      "Attachments": [
+        {
+          "VpcId": "vpc-eef01b4d9d3a03438",
+          "State": "available"
+        }
+      ],
+      "Tags": [
+        {
+          "Key": "Name",
+          "Value": "skeleton"
+        }
+      ]
+    }
+  },
+  "networkInterfaces": {
+    "eni-2e433c188cbe11ec7": {
+      "NetworkInterfaceId": "eni-2e433c188cbe11ec7",
+      "SubnetId": "subnet-9746bea5e6f28da12",
+      "VpcId": "vpc-eef01b4d9d3a03438",
+      "AvailabilityZone": "eu-central-1a",
+      "AvailabilityZoneId": "euc1-az1",
+      "Description": "Interface for NAT Gateway nat-6e905274412789a2a",
+      "OwnerId": "123456789012",
+      "RequesterId": "amazon-aws",
+      "RequesterManaged": true,
+      "InterfaceType": "nat_gateway",
+      "Status": "in-use",
+      "MacAddress": "0a:08:cf:21:fd:4b",
+      "PrivateIpAddress": "10.0.1.4",
+      "PrivateDnsName": "ip-10-0-1-4.eu-central-1.compute.internal",
+      "PrivateIpAddresses": [
+        {
+          "Primary": true,
+          "PrivateIpAddress": "10.0.1.4",
+          "PrivateDnsName": "ip-10-0-1-4.eu-central-1.compute.internal",
+          "Association": {
+            "AllocationId": "eipalloc-ac77d712b9d2d9c73",
+            "AssociationId": "eipassoc-ce8a61267e2dd68ec",
+            "IpOwnerId": "amazon",
+            "PublicIp": "198.18.53.66",
+            "PublicDnsName": "ec2-198-18-53-66.eu-central-1.compute.amazonaws.com"
+          }
+        }
+      ],
+      "Ipv6Addresses": [],
+      "SourceDestCheck": false,
+      "Groups": [],
+      "Tags": [],
+      "Association": {
+        "AllocationId": "eipalloc-ac77d712b9d2d9c73",
+        "AssociationId": "eipassoc-ce8a61267e2dd68ec",
+        "IpOwnerId": "amazon",
+        "PublicIp": "198.18.53.66",
+        "PublicDnsName": "ec2-198-18-53-66.eu-central-1.compute.amazonaws.com"
+      }
+    },
+    "eni-be787d912a0ef374b": {
+      "NetworkInterfaceId": "eni-be787d912a0ef374b",
+      "SubnetId": "subnet-5cc2d6a2e82151c97",
+      "VpcId": "vpc-eef01b4d9d3a03438",
+      "AvailabilityZone": "eu-central-1a",
+      "AvailabilityZoneId": "euc1-az1",
+      "Description": "AWS Lambda VPC ENI-orders-fn-8dd3bb7c-834b-487b-8683-9d85e599b6e3",
+      "OwnerId": "123456789012",
+      "RequesterId": "amazon-aws",
+      "RequesterManaged": true,
+      "InterfaceType": "lambda",
+      "Status": "in-use",
+      "MacAddress": "0a:b2:bb:6e:26:1c",
+      "PrivateIpAddress": "10.0.2.4",
+      "PrivateDnsName": "ip-10-0-2-4.eu-central-1.compute.internal",
+      "PrivateIpAddresses": [
+        {
+          "Primary": true,
+          "PrivateIpAddress": "10.0.2.4",
+          "PrivateDnsName": "ip-10-0-2-4.eu-central-1.compute.internal"
+        }
+      ],
+      "Ipv6Addresses": [],
+      "SourceDestCheck": true,
+      "Groups": [
+        {
+          "GroupId": "sg-be2785f307c60963a",
+          "GroupName": "skeleton-fn"
+        }
+      ],
+      "Tags": []
+    }
+  },
+  "dhcpOptions": {
+    "dopt-d87683c0494ea5fda": {
+      "DhcpOptionsId": "dopt-d87683c0494ea5fda",
+      "OwnerId": "123456789012",
+      "DhcpConfigurations": [
+        {
+          "Key": "domain-name",
+          "Values": [
+            {
+              "Value": "eu-central-1.compute.internal"
+            }
+          ]
+        },
+        {
+          "Key": "domain-name-servers",
+          "Values": [
+            {
+              "Value": "AmazonProvidedDNS"
+            }
+          ]
+        }
+      ],
+      "Tags": []
+    }
+  },
+  "natGateways": {
+    "nat-539ffa8a0a487852c": {
+      "NatGatewayId": "nat-539ffa8a0a487852c",
+      "VpcId": "vpc-435800c2f931cab84",
+      "SubnetId": "subnet-641e4de61dab0f2e9",
+      "State": "deleted",
+      "ConnectivityType": "public",
+      "CreateTime": "2026-11-10T11:15:02.488Z",
+      "NatGatewayAddresses": [
+        {
+          "NetworkInterfaceId": "eni-b2725185621f666f8",
+          "PrivateIp": "10.0.1.4",
+          "IsPrimary": true,
+          "Status": "succeeded",
+          "AllocationId": "eipalloc-1ba9d204c392b7251",
+          "PublicIp": "198.18.37.74",
+          "AssociationId": "eipassoc-cd7d2907ccdf68fbb"
+        }
+      ],
+      "Tags": [
+        {
+          "Key": "Name",
+          "Value": "skeleton-nat"
+        }
+      ],
+      "DeleteTime": "2026-11-10T12:12:55.279Z"
+    },
+    "nat-79154eb6875f7316f": {
+      "NatGatewayId": "nat-79154eb6875f7316f",
+      "VpcId": "vpc-f0fa057b8dbb29eb3",
+      "SubnetId": "subnet-67cc8e6414e79b909",
+      "State": "deleted",
+      "ConnectivityType": "public",
+      "CreateTime": "2026-11-10T12:12:57.156Z",
+      "NatGatewayAddresses": [
+        {
+          "NetworkInterfaceId": "eni-6aac97e416030dd57",
+          "PrivateIp": "10.0.1.4",
+          "IsPrimary": true,
+          "Status": "succeeded",
+          "AllocationId": "eipalloc-5eac543ebb4bd1810",
+          "PublicIp": "198.19.110.104",
+          "AssociationId": "eipassoc-03660857ba3d2663d"
+        }
+      ],
+      "Tags": [
+        {
+          "Key": "Name",
+          "Value": "skeleton-nat"
+        }
+      ],
+      "DeleteTime": "2026-11-10T12:13:27.923Z"
+    },
+    "nat-15ee341b4656c64f5": {
+      "NatGatewayId": "nat-15ee341b4656c64f5",
+      "VpcId": "vpc-137a54409dabf366c",
+      "SubnetId": "subnet-92f80d6650210aa6e",
+      "State": "deleted",
+      "ConnectivityType": "public",
+      "CreateTime": "2026-11-10T12:13:34.721Z",
+      "NatGatewayAddresses": [
+        {
+          "NetworkInterfaceId": "eni-3bb9d35f004dbbfbe",
+          "PrivateIp": "10.0.1.4",
+          "IsPrimary": true,
+          "Status": "succeeded",
+          "AllocationId": "eipalloc-dcfe347181b0d3ddd",
+          "PublicIp": "198.19.46.165",
+          "AssociationId": "eipassoc-becd0c1e65f076e81"
+        }
+      ],
+      "Tags": [
+        {
+          "Key": "Name",
+          "Value": "skeleton-nat"
+        }
+      ],
+      "DeleteTime": "2026-11-10T12:13:40.974Z"
+    },
+    "nat-801570fb29555693b": {
+      "NatGatewayId": "nat-801570fb29555693b",
+      "VpcId": "vpc-aab870599bc237640",
+      "SubnetId": "subnet-510b5281d2011b968",
+      "State": "deleted",
+      "ConnectivityType": "public",
+      "CreateTime": "2026-11-10T12:13:42.406Z",
+      "NatGatewayAddresses": [
+        {
+          "NetworkInterfaceId": "eni-f394c8f741ff6a053",
+          "PrivateIp": "10.0.1.4",
+          "IsPrimary": true,
+          "Status": "succeeded",
+          "AllocationId": "eipalloc-081b08986fd0703fd",
+          "PublicIp": "198.19.38.41",
+          "AssociationId": "eipassoc-92b3ad6017efd174a"
+        }
+      ],
+      "Tags": [
+        {
+          "Key": "Name",
+          "Value": "skeleton-nat"
+        }
+      ],
+      "DeleteTime": "2026-11-10T12:13:45.976Z"
+    },
+    "nat-6e905274412789a2a": {
+      "NatGatewayId": "nat-6e905274412789a2a",
+      "VpcId": "vpc-eef01b4d9d3a03438",
+      "SubnetId": "subnet-9746bea5e6f28da12",
+      "State": "available",
+      "ConnectivityType": "public",
+      "CreateTime": "2026-11-10T12:13:52.275Z",
+      "NatGatewayAddresses": [
+        {
+          "NetworkInterfaceId": "eni-2e433c188cbe11ec7",
+          "PrivateIp": "10.0.1.4",
+          "IsPrimary": true,
+          "Status": "succeeded",
+          "AllocationId": "eipalloc-ac77d712b9d2d9c73",
+          "PublicIp": "198.18.53.66",
+          "AssociationId": "eipassoc-ce8a61267e2dd68ec"
+        }
+      ],
+      "Tags": [
+        {
+          "Key": "Name",
+          "Value": "skeleton-nat"
+        }
+      ]
+    }
+  },
+  "addresses": {
+    "eipalloc-ac77d712b9d2d9c73": {
+      "AllocationId": "eipalloc-ac77d712b9d2d9c73",
+      "PublicIp": "198.18.53.66",
+      "Domain": "vpc",
+      "PublicIpv4Pool": "amazon",
+      "NetworkBorderGroup": "eu-central-1",
+      "Tags": [
+        {
+          "Key": "Name",
+          "Value": "skeleton-eip"
+        }
+      ],
+      "AssociationId": "eipassoc-ce8a61267e2dd68ec",
+      "NetworkInterfaceId": "eni-2e433c188cbe11ec7",
+      "NetworkInterfaceOwnerId": "123456789012",
+      "PrivateIpAddress": "10.0.1.4"
+    }
+  }
+}

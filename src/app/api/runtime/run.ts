@@ -56,6 +56,13 @@ export interface ConnectionRecord {
   trace: Trace
 }
 
+export interface LogNetworkDecision {
+  // Whether CloudWatch Logs is reachable from the Lambda execution context
+  reachable: 'allow' | 'deny' | 'unknown'
+  reason: string
+  trace: Trace
+}
+
 export interface RunResult {
   exitCode: number | null
   timedOut: boolean
@@ -75,6 +82,8 @@ export interface RunResult {
   unmodelled: { host: string; port: number; at: number }[]
   assumptions: string[]
   identity?: string
+  // Network decision for CloudWatch Logs reachability (if logging was captured)
+  logNetworkDecision?: LogNetworkDecision
   text: string
 }
 
@@ -248,6 +257,7 @@ export async function runInContext(request: RunRequest): Promise<RunResult> {
   let log = ''
   let timedOut = false
   let virtualTimedOut = false
+  let logNetworkDecision: LogNetworkDecision | undefined
 
   try {
     const exitCode = await new Promise<number | null>((resolve, reject) => {
@@ -278,20 +288,28 @@ export async function runInContext(request: RunRequest): Promise<RunResult> {
       })
       channel.on('error', () => undefined)
 
-      const handle = (message: { op: string; host: string; port: number; scheme: string; at: number }) => {
+      const handle = (message: { op: string; host?: string; port?: number; scheme?: string; at: number }) => {
         virtualSeconds = Math.max(virtualSeconds, message.at)
         if (message.op === 'deadline') {
           virtualTimedOut = true
         } else if (message.op === 'unmodelled') {
-          unmodelled.push({ host: message.host, port: message.port, at: message.at })
+          unmodelled.push({ host: message.host!, port: message.port!, at: message.at })
+        } else if (message.op === 'log_write') {
+          // Simulate a logs.put_log_events call to CloudWatch Logs
+          const decision = decide(scope, source, 'logs.amazonaws.com', 443, 'https')
+          logNetworkDecision = {
+            reachable: decision.verdict,
+            reason: decision.message || 'CloudWatch Logs is reachable',
+            trace: decision.trace,
+          }
         } else if (message.op === 'connect') {
-          const decision = decide(scope, source, message.host, message.port, message.scheme)
+          const decision = decide(scope, source, message.host!, message.port!, message.scheme!)
           const last = connections.at(-1)
           if (last && last.host === message.host && last.port === message.port && last.verdict === decision.verdict && last.trace.cause === decision.trace.cause) {
             last.attempts++
             last.lastAt = message.at
           } else {
-            connections.push({ host: message.host, port: message.port, scheme: message.scheme, verdict: decision.verdict, attempts: 1, firstAt: message.at, lastAt: message.at, trace: decision.trace })
+            connections.push({ host: message.host!, port: message.port!, scheme: message.scheme!, verdict: decision.verdict, attempts: 1, firstAt: message.at, lastAt: message.at, trace: decision.trace })
           }
           channel.write(JSON.stringify({ verdict: decision.verdict, message: decision.message }) + '\n')
         }
@@ -307,7 +325,7 @@ export async function runInContext(request: RunRequest): Promise<RunResult> {
     }
     const result = {
       exitCode, timedOut, virtualTimedOut, stdout, stderr, log, output, virtualSeconds, realSeconds: (Date.now() - started) / 1000,
-      connections, unmodelled, assumptions, identity,
+      connections, unmodelled, assumptions, identity, logNetworkDecision,
     }
     return { ...result, text: report(result) }
   } finally {

@@ -66,6 +66,43 @@
         }
       },
       "attachedPolicies": []
+    },
+    "orders-fn-role": {
+      "roleName": "orders-fn-role",
+      "roleId": "AROAP99HDE77425KU4JSU",
+      "path": "/",
+      "arn": "arn:aws:iam::123456789012:role/orders-fn-role",
+      "createDate": 1794308875004,
+      "assumeRolePolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Principal": {
+              "Service": "lambda.amazonaws.com"
+            },
+            "Action": "sts:AssumeRole"
+          }
+        ]
+      },
+      "maxSessionDuration": 3600,
+      "inlinePolicies": {
+        "orders-fn-grant": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": [
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents"
+              ],
+              "Resource": "*"
+            }
+          ]
+        }
+      },
+      "attachedPolicies": []
     }
   }
 }

@@ -188,6 +188,7 @@ export async function invoke(ctx: RequestContext): Promise<Response> {
     // the log goes to CloudWatch Logs with the permissions of the execution role, as AWS does it
     const delivery = deliverLog(
       { account: ctx.account, region: ctx.region }, name, run.identity!, outcome.logStream, lines(outcome.log), outcome.started, outcome.durationMs,
+      run.logNetworkDecision,
     )
     remember(ctx, name, requestId, type, outcome, run, delivery)
     return outcome

@@ -1,5 +1,6 @@
 import { appendEvents, createGroup, createStream, loadLogs, logGroupArn, logStreamArn, saveLogs } from "../db/logs"
 import { accessDenial } from "../policy/authorizer"
+import type { LogNetworkDecision } from "../runtime/run"
 
 // Lambda writes the log of an invocation to CloudWatch Logs: log group /aws/lambda/<function>, one stream per execution
 // environment (here: one per invocation, every invocation is a cold start). AWS does it with the permissions of the
@@ -18,6 +19,8 @@ export interface LogDelivery {
   Status: 'written' | 'not-written'
   // Why not: the denial the role got, as the message of the error.
   Reason?: string
+  // Network trace for CloudWatch Logs reachability
+  NetworkDecision?: LogNetworkDecision
 }
 
 export const logGroupName = (functionName: string) => `/aws/lambda/${functionName}`
@@ -26,10 +29,23 @@ const timestampOf = (line: string, start: number, end: number) => (/^(END|REPORT
 
 export function deliverLog(
   scope: Scope, functionName: string, session: string, stream: string, lines: string[], start: number, durationMs: number,
+  networkDecision?: LogNetworkDecision,
 ): LogDelivery {
   const group = logGroupName(functionName)
   const state = loadLogs(scope)
-  const delivery = { Group: group, Stream: stream }
+  
+  // Check network reachability first
+  if (networkDecision && networkDecision.reachable !== 'allow') {
+    return { 
+      Group: group, 
+      Stream: stream, 
+      Status: 'not-written', 
+      Reason: `Network unreachable: ${networkDecision.reason}`,
+      NetworkDecision: networkDecision,
+    }
+  }
+  
+  // Then check permissions
   const wanted: [string, string][] = [
     ...(state.groups[group] ? [] : [['logs:CreateLogGroup', logGroupArn(scope, group)] as [string, string]]),
     ['logs:CreateLogStream', logStreamArn(scope, group, stream)],
@@ -38,7 +54,13 @@ export function deliverLog(
   for (const [action, resource] of wanted) {
     const denied = accessDenial(session, action, resource)
     if (denied) {
-      return { ...delivery, Status: 'not-written', Reason: denied.message }
+      return { 
+        Group: group, 
+        Stream: stream, 
+        Status: 'not-written', 
+        Reason: denied.message,
+        NetworkDecision: networkDecision,
+      }
     }
   }
   const g = state.groups[group] ?? createGroup(state, group, {}, start)
@@ -46,5 +68,10 @@ export function deliverLog(
   const end = start + Math.ceil(durationMs)
   appendEvents(scope, g, s, lines.map(message => ({ timestamp: timestampOf(message, start, end), message })), Date.now())
   saveLogs(scope, state)
-  return { ...delivery, Status: 'written' }
+  return { 
+    Group: group, 
+    Stream: stream, 
+    Status: 'written',
+    NetworkDecision: networkDecision,
+  }
 }

@@ -1,0 +1,444 @@
+{
+  "defaultDhcpOptionsId": "dopt-7394bbe1dd13fec10",
+  "vpcs": {
+    "vpc-8d5a90a3a9a57b677": {
+      "OwnerId": "123456789012",
+      "InstanceTenancy": "default",
+      "CidrBlockAssociationSet": [
+        {
+          "AssociationId": "vpc-cidr-assoc-cea310b4ee7cf2170",
+          "CidrBlock": "172.31.0.0/16",
+          "CidrBlockState": {
+            "State": "associated"
+          }
+        }
+      ],
+      "IsDefault": true,
+      "Tags": [],
+      "VpcId": "vpc-8d5a90a3a9a57b677",
+      "State": "available",
+      "CidrBlock": "172.31.0.0/16",
+      "DhcpOptionsId": "dopt-7394bbe1dd13fec10",
+      "BlockPublicAccessStates": {
+        "InternetGatewayBlockMode": "off"
+      }
+    }
+  },
+  "vpcAttributes": {
+    "vpc-8d5a90a3a9a57b677": {
+      "enableDnsSupport": true,
+      "enableDnsHostnames": true,
+      "enableNetworkAddressUsageMetrics": false
+    }
+  },
+  "subnets": {
+    "subnet-9010807db508ca38e": {
+      "SubnetId": "subnet-9010807db508ca38e",
+      "SubnetArn": "arn:aws:ec2:eu-west-1:123456789012:subnet/subnet-9010807db508ca38e",
+      "State": "available",
+      "OwnerId": "123456789012",
+      "VpcId": "vpc-8d5a90a3a9a57b677",
+      "CidrBlock": "172.31.0.0/20",
+      "Ipv6CidrBlockAssociationSet": [],
+      "AvailableIpAddressCount": 4091,
+      "AvailabilityZone": "eu-west-1a",
+      "AvailabilityZoneId": "euw1-az1",
+      "DefaultForAz": true,
+      "MapPublicIpOnLaunch": true,
+      "MapCustomerOwnedIpOnLaunch": false,
+      "AssignIpv6AddressOnCreation": false,
+      "EnableDns64": false,
+      "Ipv6Native": false,
+      "PrivateDnsNameOptionsOnLaunch": {
+        "HostnameType": "ip-name",
+        "EnableResourceNameDnsARecord": false,
+        "EnableResourceNameDnsAAAARecord": false
+      },
+      "BlockPublicAccessStates": {
+        "InternetGatewayBlockMode": "off"
+      },
+      "Tags": []
+    },
+    "subnet-6c7247fbc2d8fc2dc": {
+      "SubnetId": "subnet-6c7247fbc2d8fc2dc",
+      "SubnetArn": "arn:aws:ec2:eu-west-1:123456789012:subnet/subnet-6c7247fbc2d8fc2dc",
+      "State": "available",
+      "OwnerId": "123456789012",
+      "VpcId": "vpc-8d5a90a3a9a57b677",
+      "CidrBlock": "172.31.16.0/20",
+      "Ipv6CidrBlockAssociationSet": [],
+      "AvailableIpAddressCount": 4091,
+      "AvailabilityZone": "eu-west-1b",
+      "AvailabilityZoneId": "euw1-az2",
+      "DefaultForAz": true,
+      "MapPublicIpOnLaunch": true,
+      "MapCustomerOwnedIpOnLaunch": false,
+      "AssignIpv6AddressOnCreation": false,
+      "EnableDns64": false,
+      "Ipv6Native": false,
+      "PrivateDnsNameOptionsOnLaunch": {
+        "HostnameType": "ip-name",
+        "EnableResourceNameDnsARecord": false,
+        "EnableResourceNameDnsAAAARecord": false
+      },
+      "BlockPublicAccessStates": {
+        "InternetGatewayBlockMode": "off"
+      },
+      "Tags": []
+    },
+    "subnet-36c264af50a7c3034": {
+      "SubnetId": "subnet-36c264af50a7c3034",
+      "SubnetArn": "arn:aws:ec2:eu-west-1:123456789012:subnet/subnet-36c264af50a7c3034",
+      "State": "available",
+      "OwnerId": "123456789012",
+      "VpcId": "vpc-8d5a90a3a9a57b677",
+      "CidrBlock": "172.31.32.0/20",
+      "Ipv6CidrBlockAssociationSet": [],
+      "AvailableIpAddressCount": 4091,
+      "AvailabilityZone": "eu-west-1c",
+      "AvailabilityZoneId": "euw1-az3",
+      "DefaultForAz": true,
+      "MapPublicIpOnLaunch": true,
+      "MapCustomerOwnedIpOnLaunch": false,
+      "AssignIpv6AddressOnCreation": false,
+      "EnableDns64": false,
+      "Ipv6Native": false,
+      "PrivateDnsNameOptionsOnLaunch": {
+        "HostnameType": "ip-name",
+        "EnableResourceNameDnsARecord": false,
+        "EnableResourceNameDnsAAAARecord": false
+      },
+      "BlockPublicAccessStates": {
+        "InternetGatewayBlockMode": "off"
+      },
+      "Tags": []
+    }
+  },
+  "routeTables": {
+    "rtb-1244642f1acac5f9e": {
+      "OwnerId": "123456789012",
+      "RouteTableId": "rtb-1244642f1acac5f9e",
+      "VpcId": "vpc-8d5a90a3a9a57b677",
+      "Associations": [
+        {
+          "Main": true,
+          "RouteTableAssociationId": "rtbassoc-de1404cc61015e9e6",
+          "RouteTableId": "rtb-1244642f1acac5f9e",
+          "AssociationState": {
+            "State": "associated"
+          }
+        }
+      ],
+      "PropagatingVgws": [],
+      "Routes": [
+        {
+          "DestinationCidrBlock": "172.31.0.0/16",
+          "GatewayId": "local",
+          "Origin": "CreateRouteTable",
+          "State": "active"
+        },
+        {
+          "DestinationCidrBlock": "0.0.0.0/0",
+          "GatewayId": "igw-e8f25e4bdd8b6760b",
+          "Origin": "CreateRoute",
+          "State": "active"
+        }
+      ],
+      "Tags": []
+    }
+  },
+  "networkAcls": {
+    "acl-5f785699cbb862b36": {
+      "OwnerId": "123456789012",
+      "NetworkAclId": "acl-5f785699cbb862b36",
+      "VpcId": "vpc-8d5a90a3a9a57b677",
+      "IsDefault": true,
+      "Entries": [
+        {
+          "CidrBlock": "0.0.0.0/0",
+          "Egress": true,
+          "Protocol": "-1",
+          "RuleAction": "allow",
+          "RuleNumber": 100
+        },
+        {
+          "CidrBlock": "0.0.0.0/0",
+          "Egress": true,
+          "Protocol": "-1",
+          "RuleAction": "deny",
+          "RuleNumber": 32767
+        },
+        {
+          "CidrBlock": "0.0.0.0/0",
+          "Egress": false,
+          "Protocol": "-1",
+          "RuleAction": "allow",
+          "RuleNumber": 100
+        },
+        {
+          "CidrBlock": "0.0.0.0/0",
+          "Egress": false,
+          "Protocol": "-1",
+          "RuleAction": "deny",
+          "RuleNumber": 32767
+        }
+      ],
+      "Associations": [
+        {
+          "NetworkAclAssociationId": "aclassoc-fe949a1e4e520cc6d",
+          "NetworkAclId": "acl-5f785699cbb862b36",
+          "SubnetId": "subnet-9010807db508ca38e"
+        },
+        {
+          "NetworkAclAssociationId": "aclassoc-d792ec24fc5d04cad",
+          "NetworkAclId": "acl-5f785699cbb862b36",
+          "SubnetId": "subnet-6c7247fbc2d8fc2dc"
+        },
+        {
+          "NetworkAclAssociationId": "aclassoc-f4bd8d2f4d6b9b39d",
+          "NetworkAclId": "acl-5f785699cbb862b36",
+          "SubnetId": "subnet-36c264af50a7c3034"
+        }
+      ],
+      "Tags": []
+    }
+  },
+  "securityGroups": {
+    "sg-9a46914f5d9d08325": {
+      "OwnerId": "123456789012",
+      "GroupId": "sg-9a46914f5d9d08325",
+      "GroupName": "default",
+      "Description": "default VPC security group",
+      "VpcId": "vpc-8d5a90a3a9a57b677",
+      "SecurityGroupArn": "arn:aws:ec2:eu-west-1:123456789012:security-group/sg-9a46914f5d9d08325",
+      "Tags": []
+    }
+  },
+  "securityGroupRules": {
+    "sgr-7bce53318cbc69d6e": {
+      "SecurityGroupRuleId": "sgr-7bce53318cbc69d6e",
+      "GroupId": "sg-9a46914f5d9d08325",
+      "GroupOwnerId": "123456789012",
+      "IsEgress": false,
+      "IpProtocol": "-1",
+      "FromPort": -1,
+      "ToPort": -1,
+      "SecurityGroupRuleArn": "arn:aws:ec2:eu-west-1:123456789012:security-group-rule/sgr-7bce53318cbc69d6e",
+      "Tags": [],
+      "ReferencedGroupInfo": {
+        "GroupId": "sg-9a46914f5d9d08325",
+        "UserId": "123456789012"
+      }
+    },
+    "sgr-f58929f519f4dd254": {
+      "SecurityGroupRuleId": "sgr-f58929f519f4dd254",
+      "GroupId": "sg-9a46914f5d9d08325",
+      "GroupOwnerId": "123456789012",
+      "IsEgress": true,
+      "IpProtocol": "-1",
+      "FromPort": -1,
+      "ToPort": -1,
+      "SecurityGroupRuleArn": "arn:aws:ec2:eu-west-1:123456789012:security-group-rule/sgr-f58929f519f4dd254",
+      "Tags": [],
+      "CidrIpv4": "0.0.0.0/0"
+    }
+  },
+  "internetGateways": {
+    "igw-e8f25e4bdd8b6760b": {
+      "InternetGatewayId": "igw-e8f25e4bdd8b6760b",
+      "OwnerId": "123456789012",
+      "Attachments": [
+        {
+          "State": "available",
+          "VpcId": "vpc-8d5a90a3a9a57b677"
+        }
+      ],
+      "Tags": []
+    }
+  },
+  "networkInterfaces": {},
+  "dhcpOptions": {
+    "dopt-7394bbe1dd13fec10": {
+      "DhcpOptionsId": "dopt-7394bbe1dd13fec10",
+      "OwnerId": "123456789012",
+      "DhcpConfigurations": [
+        {
+          "Key": "domain-name",
+          "Values": [
+            {
+              "Value": "eu-west-1.compute.internal"
+            }
+          ]
+        },
+        {
+          "Key": "domain-name-servers",
+          "Values": [
+            {
+              "Value": "AmazonProvidedDNS"
+            }
+          ]
+        }
+      ],
+      "Tags": []
+    }
+  },
+  "natGateways": {
+    "nat-fc87711d49c8d223b": {
+      "NatGatewayId": "nat-fc87711d49c8d223b",
+      "VpcId": "vpc-6a822ec1190588d8d",
+      "SubnetId": "subnet-05745c3b219a52dc0",
+      "State": "deleted",
+      "ConnectivityType": "public",
+      "CreateTime": "2026-11-10T09:37:54.284Z",
+      "NatGatewayAddresses": [
+        {
+          "NetworkInterfaceId": "eni-ed7740a3a89816297",
+          "PrivateIp": "10.60.1.4",
+          "IsPrimary": true,
+          "Status": "succeeded",
+          "AllocationId": "eipalloc-aeff813e95600a753",
+          "PublicIp": "198.19.88.231",
+          "AssociationId": "eipassoc-5de413c35f98b7989"
+        }
+      ],
+      "Tags": [
+        {
+          "Key": "Name",
+          "Value": "verify"
+        }
+      ],
+      "DeleteTime": "2026-11-10T09:38:32.826Z"
+    },
+    "nat-1075fe16f4d916b7b": {
+      "NatGatewayId": "nat-1075fe16f4d916b7b",
+      "VpcId": "vpc-e4e95053fecfffb61",
+      "SubnetId": "subnet-57936713e6e835eb6",
+      "State": "deleted",
+      "ConnectivityType": "public",
+      "CreateTime": "2026-11-10T09:40:37.313Z",
+      "NatGatewayAddresses": [
+        {
+          "NetworkInterfaceId": "eni-02e2aa7a38c5f0ce7",
+          "PrivateIp": "10.60.1.4",
+          "IsPrimary": true,
+          "Status": "succeeded",
+          "AllocationId": "eipalloc-2a3254283a4d0ab34",
+          "PublicIp": "198.18.68.156",
+          "AssociationId": "eipassoc-dfed865c048b34eff"
+        }
+      ],
+      "Tags": [
+        {
+          "Key": "Name",
+          "Value": "verify"
+        }
+      ],
+      "DeleteTime": "2026-11-10T09:40:57.429Z"
+    },
+    "nat-acb20ec5f6f78d725": {
+      "NatGatewayId": "nat-acb20ec5f6f78d725",
+      "VpcId": "vpc-f63f726b3f1bfe681",
+      "SubnetId": "subnet-acf3d10ec642eb870",
+      "State": "deleted",
+      "ConnectivityType": "public",
+      "CreateTime": "2026-11-10T09:43:05.827Z",
+      "NatGatewayAddresses": [
+        {
+          "NetworkInterfaceId": "eni-1f5df774673adb4fc",
+          "PrivateIp": "10.60.1.4",
+          "IsPrimary": true,
+          "Status": "succeeded",
+          "AllocationId": "eipalloc-7903ad5f3fe43e87a",
+          "PublicIp": "198.19.229.184",
+          "AssociationId": "eipassoc-a08940f85577270af"
+        }
+      ],
+      "Tags": [
+        {
+          "Key": "Name",
+          "Value": "verify"
+        }
+      ],
+      "DeleteTime": "2026-11-10T09:43:26.044Z"
+    },
+    "nat-d928d8898ab3ced2b": {
+      "NatGatewayId": "nat-d928d8898ab3ced2b",
+      "VpcId": "vpc-3cfee6b141a772a5a",
+      "SubnetId": "subnet-5405192c557579190",
+      "State": "deleted",
+      "ConnectivityType": "public",
+      "CreateTime": "2026-11-10T09:44:25.002Z",
+      "NatGatewayAddresses": [
+        {
+          "NetworkInterfaceId": "eni-2b07793a3467f0484",
+          "PrivateIp": "10.88.3.4",
+          "IsPrimary": true,
+          "Status": "succeeded",
+          "AllocationId": "eipalloc-b4e0b3b8a7348a2d6",
+          "PublicIp": "198.19.59.187",
+          "AssociationId": "eipassoc-8257aeb4cd6e6bc4e"
+        }
+      ],
+      "Tags": [
+        {
+          "Key": "Name",
+          "Value": "check"
+        }
+      ],
+      "DeleteTime": "2026-11-10T09:44:25.096Z"
+    },
+    "nat-c5aced69c4961591c": {
+      "NatGatewayId": "nat-c5aced69c4961591c",
+      "VpcId": "vpc-0fc17e736586303ee",
+      "SubnetId": "subnet-1dffcbc317991aad9",
+      "State": "deleted",
+      "ConnectivityType": "public",
+      "CreateTime": "2026-11-10T09:46:04.638Z",
+      "NatGatewayAddresses": [
+        {
+          "NetworkInterfaceId": "eni-1e10458f55f5e9348",
+          "PrivateIp": "10.89.3.4",
+          "IsPrimary": true,
+          "Status": "succeeded",
+          "AllocationId": "eipalloc-8bf87dc4657926a2a",
+          "PublicIp": "198.19.223.60",
+          "AssociationId": "eipassoc-b954be17ba75ade21"
+        }
+      ],
+      "Tags": [
+        {
+          "Key": "Name",
+          "Value": "cli"
+        }
+      ],
+      "DeleteTime": "2026-11-10T09:46:16.652Z"
+    },
+    "nat-4ba13783cf6581430": {
+      "NatGatewayId": "nat-4ba13783cf6581430",
+      "VpcId": "vpc-5aaeb470c8cbbbe9b",
+      "SubnetId": "subnet-c1cae3d5bbd2a5a54",
+      "State": "deleted",
+      "ConnectivityType": "public",
+      "CreateTime": "2026-11-10T10:01:30.926Z",
+      "NatGatewayAddresses": [
+        {
+          "NetworkInterfaceId": "eni-e2b57fcd02087a243",
+          "PrivateIp": "10.88.3.4",
+          "IsPrimary": true,
+          "Status": "succeeded",
+          "AllocationId": "eipalloc-ff8fb9ac9fd01b140",
+          "PublicIp": "198.19.4.84",
+          "AssociationId": "eipassoc-b9f2646f87299b26e"
+        }
+      ],
+      "Tags": [
+        {
+          "Key": "Name",
+          "Value": "check"
+        }
+      ],
+      "DeleteTime": "2026-11-10T10:01:31.012Z"
+    }
+  },
+  "addresses": {}
+}

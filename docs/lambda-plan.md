@@ -2,6 +2,8 @@
 
 Status: **built (steps 1 to 4)**; the policy engine or VPC endpoints are the decision that follows (see "Order of work"). This plan was written before the work and is kept for the reasoning; what exists is described in [walking-skeleton.md](./walking-skeleton.md) ("Step 4 as built") and the Lambda reference [lambda.md](../src/app/api/lambda/lambda.md). Parts of the steps below that are still open: updates and versions of functions, the run token and request context on requests, IMDS and container credentials, the EC2 instance context.
 
+**For users:** See [lambda-user-guide.md](./lambda-user-guide.md) for guidance on writing Lambda code for the simulator, including known limitations (e.g., socket-level DNS resolution) and the environment variables available. See [logging-architecture-decision.md](./logging-architecture-decision.md) for technical details on how logging and the network model work together.
+
 This is the first concrete use of the design in [architecture.md](./architecture.md#execution-contexts-and-the-emulated-network-design-not-started): run code *as if* it were somewhere and let the emulated network and IAM decide what happens.
 
 ## Why Lambda first
