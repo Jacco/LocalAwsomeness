@@ -4,8 +4,13 @@ import { SignatureV4 } from '@smithy/signature-v4'
 import { Sha256 } from '@aws-crypto/sha256-js'
 import { randomUUID } from 'crypto'
 import { findCredential } from './app/api/db/credentials'
+import { VHOST_BUCKET_HEADER } from './app/api/s3/protocol'
 
 function authError(req: NextRequest, service: string, code: string, message: string): Response {
+  if (service === 's3') {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<Error><Code>${code}</Code><Message>${message}</Message><RequestId>${randomUUID()}</RequestId></Error>`
+    return new Response(xml, { status: 403, headers: { 'Content-Type': 'application/xml' } })
+  }
   if (service === 'ec2') {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<Response><Errors><Error><Code>${code}</Code><Message>${message}</Message></Error></Errors><RequestID>${randomUUID()}</RequestID></Response>`
     return new Response(xml, { status: 403, headers: { 'Content-Type': 'text/xml;charset=UTF-8' } })
@@ -34,6 +39,7 @@ export async function proxy(req: NextRequest, event: NextFetchEvent) {
   const requestHeaders = new Headers(req.headers)
   requestHeaders.delete('x-aws-principal')
   requestHeaders.delete('x-aws-userid')
+  requestHeaders.delete(VHOST_BUCKET_HEADER)
   const keyid = req.headers.get('authorization')?.split(' ').at(1)?.split('=').at(-1)?.split('/').at(0)
   const service = req.headers.get('authorization')?.split(' ').at(1)?.split('=').at(-1)?.split('/').at(3)!
   const region = req.headers.get('authorization')?.split(' ').at(1)?.split('=').at(-1)?.split('/').at(2)!
@@ -63,6 +69,8 @@ export async function proxy(req: NextRequest, event: NextFetchEvent) {
     region: region,
     sha256: Sha256,
     applyChecksum: false, // TODO if the header is there x-amz-content-sha256
+    // S3 signs the path as sent; every other service URI-encodes it once more.
+    uriEscapePath: service !== 's3',
   })
   // Re-sign exactly the headers the client signed (SignedHeaders=a;b;c).
   const signedHeaders = req.headers.get('authorization')?.match(/SignedHeaders=([^,\s]+)/)?.[1]?.split(';') ?? []
@@ -103,7 +111,13 @@ export async function proxy(req: NextRequest, event: NextFetchEvent) {
     })
   }
   if (service) {
-    const destination = req.nextUrl.protocol + req.nextUrl.host + '/api/' + service + req.nextUrl.pathname + req.nextUrl.search
+    // S3 virtual-hosted style (<bucket>.localhost:3000/<key>) becomes path style (/<bucket>/<key>).
+    const bucket = service === 's3' ? req.headers.get('host')?.match(/^(.+)\.localhost(:\d+)?$/)?.[1] : undefined
+    if (bucket) {
+      requestHeaders.set(VHOST_BUCKET_HEADER, bucket)
+    }
+    const path = bucket ? '/' + encodeURIComponent(bucket) + (req.nextUrl.pathname === '/' ? '' : req.nextUrl.pathname) : req.nextUrl.pathname
+    const destination = req.nextUrl.protocol + req.nextUrl.host + '/api/' + service + path + req.nextUrl.search
     const newurl = new URL(destination)
     return NextResponse.rewrite(newurl, {
         request: {
