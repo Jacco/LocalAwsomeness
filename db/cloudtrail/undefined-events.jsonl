@@ -1,0 +1,5 @@
+{"timestamp":"2026-11-11T10:45:17.970Z","principal":null,"service":"s3","action":"GetObject","resource":"*","authorizationDecision":"allow","parameters":{"Bucket":"api","Key":"s3"}}
+{"timestamp":"2026-11-11T10:49:47.858Z","principal":null,"service":"s3","action":"GetObject","resource":"*","authorizationDecision":"allow","parameters":{"Bucket":"api","Key":"s3"}}
+{"timestamp":"2026-11-11T10:52:44.946Z","principal":null,"service":"s3","action":"GetObject","resource":"*","authorizationDecision":"allow","parameters":{"Bucket":"api","Key":"s3"}}
+{"timestamp":"2026-11-11T16:31:31.562Z","principal":null,"service":"s3","action":"ListAllMyBuckets","resource":"*","authorizationDecision":"allow","parameters":{}}
+{"timestamp":"2026-11-11T16:35:45.292Z","principal":null,"service":"s3","action":"ListAllMyBuckets","resource":"*","authorizationDecision":"allow","region":"eu-central-1","parameters":{}}

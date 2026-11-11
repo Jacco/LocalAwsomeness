@@ -88,8 +88,10 @@ export interface S3BucketMetadata {
  * AWS S3 bucket names: 3-63 chars, lowercase, numbers, hyphens
  * For now, we just map them; could apply transformations if needed
  */
+// Valid bucket names are [a-z0-9.-] (checked when a bucket is created), so this only guards against odd input: two valid
+// names never share a directory, which a global bucket namespace relies on.
 function sanitizeBucketName(name: string): string {
-  return name.toLowerCase().replace(/[^a-z0-9-]/g, '-')
+  return name.toLowerCase().replace(/[^a-z0-9.-]/g, '-').replace(/^\.+/, '-')
 }
 
 /**
@@ -278,7 +280,23 @@ export class S3FileStorage {
     if (!fs.existsSync(metadataFile)) {
       return null
     }
-    return JSON.parse(fs.readFileSync(metadataFile, 'utf-8'))
+    const metadata: S3BucketMetadata = JSON.parse(fs.readFileSync(metadataFile, 'utf-8'))
+    return metadata.BucketName === bucketName ? metadata : null
+  }
+
+  /**
+   * The account that owns a bucket. Bucket names are global: one account at most has a bucket of a given name.
+   */
+  findBucketOwner(bucketName: string): string | undefined {
+    const accountsDir = path.join(DATA_DIR, 'accounts')
+    if (!fs.existsSync(accountsDir)) {
+      return undefined
+    }
+    return fs.readdirSync(accountsDir, { withFileTypes: true })
+      .filter(entry => entry.isDirectory())
+      .map(entry => entry.name)
+      .sort()
+      .find(account => this.getBucketMetadata(account, bucketName) !== null)
   }
 
   /**
@@ -300,9 +318,9 @@ export class S3FileStorage {
       }
       
       if (entry.isDirectory()) {
-        const metadata = this.getBucketMetadata(account, entry.name)
-        if (metadata) {
-          buckets.push(metadata)
+        const metadataFile = path.join(s3Dir, entry.name, 'bucket.json')
+        if (fs.existsSync(metadataFile)) {
+          buckets.push(JSON.parse(fs.readFileSync(metadataFile, 'utf-8')))
         }
       }
     }

@@ -1,5 +1,6 @@
 import { authorize } from "./authorization"
 import { AwsError, getRequestInfo } from "./common"
+import type { ResourcePolicy } from "./policy/authorizer"
 
 export interface RequestContext<P = any> {
   principal: string
@@ -18,6 +19,9 @@ export interface Operation<P = any> {
   action?: string
   // Resource ARNs the operation touches; '*' when omitted.
   resources?: (ctx: RequestContext<P>) => string[]
+  // The resource-based policy of the resource and its owner, for resources that have one (an S3 bucket). Absent: only the
+  // identity-based policies of the caller decide, and the resource is taken to be in the caller's account.
+  resourcePolicy?: (ctx: RequestContext<P>) => ResourcePolicy | undefined
 }
 
 // Turns a raw HTTP request into (action, params) and results/errors into protocol-shaped responses.
@@ -60,6 +64,7 @@ export function defineService<P>(definition: ServiceDefinition<P>) {
         principal: ctx.principal,
         action: operation.action ?? `${iamPrefix}:${action}`,
         resources: operation.resources?.(ctx) ?? ['*'],
+        resourcePolicy: operation.resourcePolicy?.(ctx),
         context: ctx
       })
       return protocol.success(action, await operation.handler(ctx))

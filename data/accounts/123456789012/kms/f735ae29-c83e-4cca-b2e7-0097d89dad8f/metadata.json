@@ -1,0 +1,9 @@
+{
+  "keyId": "f735ae29-c83e-4cca-b2e7-0097d89dad8f",
+  "arn": "arn:aws:kms:us-east-1:123456789012:key/f735ae29-c83e-4cca-b2e7-0097d89dad8f",
+  "state": "Enabled",
+  "creationDate": "2026-11-11T10:28:05.636Z",
+  "description": "Test key created by test_kms_http.py",
+  "primaryKeyVersion": "v1",
+  "keyRotationEnabled": false
+}

@@ -12,7 +12,7 @@ export const VHOST_BUCKET_HEADER = 'x-jpk-s3-bucket'
 
 // Query parameters that don't select a different operation. Anything else is an unsupported subresource.
 const LIST_PARAMS = ['list-type', 'prefix', 'delimiter', 'max-keys', 'continuation-token', 'start-after', 'encoding-type', 'fetch-owner']
-const IGNORED_PARAMS = ['x-id']
+const IGNORED_PARAMS = ['x-id', 'region']
 
 const STATUS: Record<string, number> = {
   AccessDenied: 403,
@@ -136,6 +136,16 @@ function listParams(url: URL) {
 
 export class S3Protocol implements ProtocolAdapter<S3Params> {
   async decode(request: Request): Promise<{ action: string; params: S3Params }> {
+    const decoded = await this.decodeOperation(request)
+    // ExpectedBucketOwner: the request fails with 403 when another account owns the bucket (s3/service.ts).
+    const expectedOwner = request.headers.get('x-amz-expected-bucket-owner')
+    if (expectedOwner !== null && decoded.params.Bucket !== undefined) {
+      decoded.params.ExpectedBucketOwner = expectedOwner
+    }
+    return decoded
+  }
+
+  private async decodeOperation(request: Request): Promise<{ action: string; params: S3Params }> {
     const url = new URL(request.url)
     const method = request.method
     let pathname = url.pathname

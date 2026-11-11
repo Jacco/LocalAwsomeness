@@ -22,5 +22,16 @@
       "Version": 3,
       "Tier": "Standard"
     }
+  },
+  "parameters > /app/db-host": {
+    "DataType": "text",
+    "LastModifiedDate": 1794260113.386,
+    "Name": "/app/db-host",
+    "Selector": "string",
+    "SourceResult": "string",
+    "Type": "string",
+    "Value": "db.prod.eu-central-1.internal",
+    "Version": 3,
+    "Tier": "Standard"
   }
 }

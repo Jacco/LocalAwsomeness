@@ -1,0 +1,104 @@
+{
+  "_description": "Example S3 state showing how objects are stored in the simulator",
+  "_account": "123456789012",
+  "_timestamp": "2024-11-11T10:15:00.000Z",
+  "s3": {
+    "my-documents": {
+      "BucketName": "my-documents",
+      "CreationDate": "2024-11-11T10:00:00.000Z",
+      "Region": "us-east-1",
+      "Tags": [],
+      "Arn": "arn:aws:s3:::my-documents",
+      "Objects": {
+        "README.md": {
+          "Key": "README.md",
+          "Size": 1024,
+          "LastModified": "2024-11-11T10:05:30.000Z",
+          "ETag": "\"a1b2c3d4e5f6\"",
+          "StorageClass": "STANDARD",
+          "ContentType": "text/markdown",
+          "Body": "# Project Documentation\n\nThis is the main README file...",
+          "Arn": "arn:aws:s3:::my-documents/README.md"
+        },
+        "logs/2024-11-11.log": {
+          "Key": "logs/2024-11-11.log",
+          "Size": 4096,
+          "LastModified": "2024-11-11T10:10:15.000Z",
+          "ETag": "\"b2c3d4e5f6a7\"",
+          "StorageClass": "STANDARD",
+          "ContentType": "text/plain",
+          "Body": "[2024-11-11 10:00:00] Application started\n[2024-11-11 10:05:30] Processing request...",
+          "Arn": "arn:aws:s3:::my-documents/logs/2024-11-11.log"
+        },
+        "logs/2024-11-10.log": {
+          "Key": "logs/2024-11-10.log",
+          "Size": 2048,
+          "LastModified": "2024-11-10T23:59:45.000Z",
+          "ETag": "\"c3d4e5f6a7b8\"",
+          "StorageClass": "STANDARD",
+          "ContentType": "text/plain",
+          "Body": "[2024-11-10 23:50:00] Job completed\n[2024-11-10 23:55:00] Cleanup finished",
+          "Arn": "arn:aws:s3:::my-documents/logs/2024-11-10.log"
+        },
+        "data/users.csv": {
+          "Key": "data/users.csv",
+          "Size": 512,
+          "LastModified": "2024-11-11T09:30:00.000Z",
+          "ETag": "\"d4e5f6a7b8c9\"",
+          "StorageClass": "STANDARD",
+          "ContentType": "text/csv",
+          "Body": "id,name,email\n1,Alice,alice@example.com\n2,Bob,bob@example.com",
+          "Arn": "arn:aws:s3:::my-documents/data/users.csv"
+        }
+      },
+      "BucketPolicy": {
+        "Version": "2012-10-17",
+        "Statement": [
+          {
+            "Effect": "Allow",
+            "Principal": {
+              "AWS": "arn:aws:iam::123456789012:user/lambda-executor"
+            },
+            "Action": [
+              "s3:GetObject",
+              "s3:ListBucket"
+            ],
+            "Resource": [
+              "arn:aws:s3:::my-documents",
+              "arn:aws:s3:::my-documents/*"
+            ]
+          }
+        ]
+      }
+    },
+    "application-backups": {
+      "BucketName": "application-backups",
+      "CreationDate": "2024-11-01T12:00:00.000Z",
+      "Region": "us-east-1",
+      "Tags": [],
+      "Arn": "arn:aws:s3:::application-backups",
+      "Objects": {
+        "backup-2024-11-11.tar.gz": {
+          "Key": "backup-2024-11-11.tar.gz",
+          "Size": 1048576,
+          "LastModified": "2024-11-11T00:00:00.000Z",
+          "ETag": "\"e5f6a7b8c9d0\"",
+          "StorageClass": "STANDARD",
+          "ContentType": "application/gzip",
+          "Body": "<binary data - 1MB gzip archive>",
+          "Arn": "arn:aws:s3:::application-backups/backup-2024-11-11.tar.gz"
+        },
+        "backup-2024-11-10.tar.gz": {
+          "Key": "backup-2024-11-10.tar.gz",
+          "Size": 1024000,
+          "LastModified": "2024-11-10T00:00:00.000Z",
+          "ETag": "\"f6a7b8c9d0e1\"",
+          "StorageClass": "STANDARD",
+          "ContentType": "application/gzip",
+          "Body": "<binary data - ~1MB gzip archive>",
+          "Arn": "arn:aws:s3:::application-backups/backup-2024-11-10.tar.gz"
+        }
+      }
+    }
+  }
+}

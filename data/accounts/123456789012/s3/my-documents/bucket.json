@@ -1,0 +1,26 @@
+{
+  "BucketName": "my-documents",
+  "CreationDate": "2024-11-11T10:00:00.000Z",
+  "Region": "us-east-1",
+  "Arn": "arn:aws:s3:::my-documents",
+  "Tags": [],
+  "Policy": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Effect": "Allow",
+        "Principal": {
+          "AWS": "arn:aws:iam::123456789012:role/lambda-executor"
+        },
+        "Action": [
+          "s3:GetObject",
+          "s3:ListBucket"
+        ],
+        "Resource": [
+          "arn:aws:s3:::my-documents",
+          "arn:aws:s3:::my-documents/*"
+        ]
+      }
+    ]
+  }
+}

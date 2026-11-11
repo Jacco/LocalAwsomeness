@@ -1,0 +1,79 @@
+{
+    "logGroups": {
+        "/aws/lambda/my-function": {
+            "logGroupName": "/aws/lambda/my-function",
+            "creationTime": 1704038400000,
+            "retentionInDays": 7,
+            "metricFilterCount": 0,
+            "storedBytes": 1048576,
+            "arn": "arn:aws:logs:eu-central-1:390209512651:log-group:/aws/lambda/my-function",
+            "logEntries": [
+                {"timestamp": 1704038400000, "message": "START RequestId: req-001 Version: $LATEST"},
+                {"timestamp": 1704038401000, "message": "Processing event: {\"action\": \"create\", \"id\": \"item-123\"}"},
+                {"timestamp": 1704038402000, "message": "Database query executed successfully"},
+                {"timestamp": 1704038403000, "message": "Response sent: {\"status\": \"success\", \"data\": {...}}"},
+                {"timestamp": 1704038404000, "message": "END RequestId: req-001"},
+                {"timestamp": 1704038405000, "message": "REPORT RequestId: req-001 Duration: 1234.56 ms"},
+                {"timestamp": 1704038406000, "message": "START RequestId: req-002 Version: $LATEST"},
+                {"timestamp": 1704038407000, "message": "Processing event: {\"action\": \"update\", \"id\": \"item-124\"}"},
+                {"timestamp": 1704038408000, "message": "Cache hit for key: cache-item-124"},
+                {"timestamp": 1704038409000, "message": "Update completed in 234ms"},
+                {"timestamp": 1704038410000, "message": "Response sent: {\"status\": \"success\", \"data\": {...}}"},
+                {"timestamp": 1704038411000, "message": "END RequestId: req-002"},
+                {"timestamp": 1704038412000, "message": "REPORT RequestId: req-002 Duration: 567.89 ms"},
+                {"timestamp": 1704038413000, "message": "START RequestId: req-003 Version: $LATEST"},
+                {"timestamp": 1704038414000, "message": "Processing event: {\"action\": \"delete\", \"id\": \"item-125\"}"},
+                {"timestamp": 1704038415000, "message": "Item deleted from database"},
+                {"timestamp": 1704038416000, "message": "Cache invalidated for key: cache-item-125"},
+                {"timestamp": 1704038417000, "message": "END RequestId: req-003"},
+                {"timestamp": 1704038418000, "message": "REPORT RequestId: req-003 Duration: 345.67 ms"}
+            ]
+        },
+        "/aws/ecs/my-service": {
+            "logGroupName": "/aws/ecs/my-service",
+            "creationTime": 1705243200000,
+            "retentionInDays": 30,
+            "metricFilterCount": 2,
+            "storedBytes": 5242880,
+            "arn": "arn:aws:logs:eu-central-1:390209512651:log-group:/aws/ecs/my-service",
+            "logEntries": [
+                {"timestamp": 1705243200000, "message": "Service started on port 8080"},
+                {"timestamp": 1705243201000, "message": "Connected to database: postgres://db.example.com:5432"},
+                {"timestamp": 1705243202000, "message": "Cache connection established"},
+                {"timestamp": 1705243203000, "message": "Health check passed"},
+                {"timestamp": 1705243204000, "message": "Listening for requests..."},
+                {"timestamp": 1705243205000, "message": "GET /api/users - 200 OK - 45ms"},
+                {"timestamp": 1705243206000, "message": "POST /api/users - 201 Created - 234ms"},
+                {"timestamp": 1705243207000, "message": "GET /api/users/1 - 200 OK - 23ms"},
+                {"timestamp": 1705243208000, "message": "PUT /api/users/1 - 200 OK - 156ms"},
+                {"timestamp": 1705243209000, "message": "DELETE /api/users/1 - 204 No Content - 89ms"}
+            ]
+        }
+    },
+    "alarms": {
+        "high-cpu-usage": {
+            "AlarmName": "high-cpu-usage",
+            "AlarmDescription": "Alert when CPU usage exceeds 80%",
+            "MetricName": "CPUUtilization",
+            "Namespace": "AWS/EC2",
+            "Statistic": "Average",
+            "Period": 300,
+            "EvaluationPeriods": 2,
+            "Threshold": 80.0,
+            "ComparisonOperator": "GreaterThanThreshold",
+            "AlarmActions": []
+        },
+        "low-disk-space": {
+            "AlarmName": "low-disk-space",
+            "AlarmDescription": "Alert when disk space is below 10%",
+            "MetricName": "DiskSpaceUtilization",
+            "Namespace": "Custom",
+            "Statistic": "Average",
+            "Period": 300,
+            "EvaluationPeriods": 1,
+            "Threshold": 10.0,
+            "ComparisonOperator": "LessThanThreshold",
+            "AlarmActions": []
+        }
+    }
+}

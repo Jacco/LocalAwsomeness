@@ -2,11 +2,15 @@ import { AwsError } from '../common'
 import { s3Storage, type S3BucketMetadata, type S3ObjectMetadata } from './storage'
 import { checkKmsPermission, generateKmsAccessDeniedError } from '../kms/validator'
 import { logCloudTrailEvent } from '../cloudtrail/cloudtrail'
+import { validateBucketPolicy } from './policy'
 
 // S3 request types
 export interface Req<P = any> {
   params: P
+  // The account that owns the bucket of the request (or the caller's, when there is no bucket or it does not exist yet).
   account: string
+  // The account of the caller, when it is not the owner (a cross-account request).
+  callerAccount?: string
   region: string
   principal?: string
 }
@@ -18,20 +22,35 @@ export interface S3State {
   s3?: Record<string, any>
 }
 
+// Only the account that owns a bucket manages its policy: another account gets 405 even when the policy lets it (AWS:
+// "If you have the correct permissions, but you're not using an identity that belongs to the bucket owner's account,
+// Amazon S3 returns a 405 Method Not Allowed error").
+function assertBucketOwner({ account, callerAccount }: Req) {
+  if (callerAccount !== undefined && callerAccount !== account) {
+    throw new AwsError('MethodNotAllowed', 'The specified method is not allowed against this resource.', 405)
+  }
+}
+
 // S3 Operations (file-based)
 
-export const createBucketOp: Op = ({ params, account, region }) => {
+export const createBucketOp: Op = ({ params, account, callerAccount, region }) => {
   const bucketName = params.Bucket
   
   if (!bucketName) {
     throw new AwsError('MissingParameter', 'The Bucket parameter is required', 400)
   }
 
-  if (s3Storage.bucketExists(account, bucketName)) {
-    throw new AwsError('BucketAlreadyOwnedByYou', 'The bucket you tried to create already exists')
+  // A new bucket belongs to the caller; `account` is the owner of an existing bucket of this name, if there is one.
+  const creator = callerAccount ?? account
+  const owner = s3Storage.findBucketOwner(bucketName)
+  if (owner === creator) {
+    throw new AwsError('BucketAlreadyOwnedByYou', 'Your previous request to create the named bucket succeeded and you already own it.', 409)
+  }
+  if (owner !== undefined) {
+    throw new AwsError('BucketAlreadyExists', 'The requested bucket name is not available. The bucket namespace is shared by all users of the system. Please select a different name and try again.', 409)
   }
 
-  s3Storage.createBucket(account, bucketName, region)
+  s3Storage.createBucket(creator, bucketName, region)
   return { Location: `/${bucketName}` }
 }
 
@@ -84,7 +103,8 @@ export const headBucketOp: Op = ({ params, account }) => {
   return { BucketRegion: s3Storage.getBucketMetadata(account, bucketName)?.Region }
 }
 
-export const putBucketPolicyOp: Op = ({ params, account }) => {
+export const putBucketPolicyOp: Op = (req) => {
+  const { params, account } = req
   const bucketName = params.Bucket
   
   if (!bucketName) {
@@ -94,6 +114,7 @@ export const putBucketPolicyOp: Op = ({ params, account }) => {
   if (!s3Storage.bucketExists(account, bucketName)) {
     throw new AwsError('NoSuchBucket', `The specified bucket does not exist: ${bucketName}`)
   }
+  assertBucketOwner(req)
 
   if (!params.Policy) {
     throw new AwsError('MissingParameter', 'The Policy parameter is required', 400)
@@ -105,14 +126,16 @@ export const putBucketPolicyOp: Op = ({ params, account }) => {
       ? JSON.parse(params.Policy) 
       : params.Policy
   } catch {
-    throw new AwsError('InvalidArgument', 'Invalid policy document: must be valid JSON', 400)
+    throw new AwsError('MalformedPolicy', 'Policies must be valid JSON and the first byte must be \'{\'', 400)
   }
+  validateBucketPolicy(bucketName, policyDocument)
 
   s3Storage.putBucketPolicy(account, bucketName, policyDocument)
   return {}
 }
 
-export const getBucketPolicyOp: Op = ({ params, account }) => {
+export const getBucketPolicyOp: Op = (req) => {
+  const { params, account } = req
   const bucketName = params.Bucket
   
   if (!bucketName) {
@@ -122,6 +145,7 @@ export const getBucketPolicyOp: Op = ({ params, account }) => {
   if (!s3Storage.bucketExists(account, bucketName)) {
     throw new AwsError('NoSuchBucket', `The specified bucket does not exist: ${bucketName}`)
   }
+  assertBucketOwner(req)
 
   const policy = s3Storage.getBucketPolicy(account, bucketName)
   if (!policy) {
@@ -131,7 +155,8 @@ export const getBucketPolicyOp: Op = ({ params, account }) => {
   return { Policy: JSON.stringify(policy) }
 }
 
-export const deleteBucketPolicyOp: Op = ({ params, account }) => {
+export const deleteBucketPolicyOp: Op = (req) => {
+  const { params, account } = req
   const bucketName = params.Bucket
   
   if (!bucketName) {
@@ -141,6 +166,7 @@ export const deleteBucketPolicyOp: Op = ({ params, account }) => {
   if (!s3Storage.bucketExists(account, bucketName)) {
     throw new AwsError('NoSuchBucket', `The specified bucket does not exist: ${bucketName}`)
   }
+  assertBucketOwner(req)
 
   s3Storage.deleteBucketPolicy(account, bucketName)
   return {}

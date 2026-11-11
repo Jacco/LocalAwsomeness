@@ -40,6 +40,17 @@ describe('API Common Utilities', () => {
 
       expect(info.region).toBe('eu-central-1')
     })
+
+    it('should read region from the URL when the authorization header is unavailable', () => {
+      const request = new Request('http://localhost/api/s3/?region=eu-central-1', {
+        headers: {
+          'x-aws-principal': 'arn:aws:iam::123456789012:user/testuser',
+          'x-aws-userid': 'AIDAQ4EXAMPLEID:session',
+        },
+      })
+
+      expect(getRequestInfo(request).region).toBe('eu-central-1')
+    })
   })
 
   describe('ok', () => {

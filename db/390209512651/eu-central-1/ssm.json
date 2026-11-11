@@ -22,5 +22,11 @@
       "Version": 3,
       "Tier": "Standard"
     }
+  },
+  "/persist/test-value": {
+    "Name": "/persist/test-value",
+    "Value": "persisted-successfully",
+    "Type": "String",
+    "Tier": "Standard"
   }
 }

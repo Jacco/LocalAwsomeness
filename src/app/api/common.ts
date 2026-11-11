@@ -9,7 +9,8 @@ interface RequestInfo {
 
 export function getRequestInfo(request: Request): RequestInfo {
   const principal = request.headers.get('x-aws-principal')
-  const region = request.headers.get('authorization')?.split(' ').at(1)?.split('=').at(-1)?.split('/').at(2)!
+  const region = request.headers.get('authorization')?.split(' ').at(1)?.split('=').at(-1)?.split('/').at(2)
+    ?? new URL(request.url).searchParams.get('region')!
   return {
     principalAccount: principal?.split(':').at(4)!,
     region,

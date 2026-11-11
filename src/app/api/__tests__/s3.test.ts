@@ -66,6 +66,7 @@ describe('S3 protocol', () => {
   describe('decode (path style)', () => {
     it.each([
       ['GET', '/', 'ListBuckets', {}],
+      ['GET', '/?region=eu-central-1', 'ListBuckets', {}],
       ['PUT', '/my-bucket', 'CreateBucket', { Bucket: 'my-bucket' }],
       ['DELETE', '/my-bucket', 'DeleteBucket', { Bucket: 'my-bucket' }],
       ['HEAD', '/my-bucket', 'HeadBucket', { Bucket: 'my-bucket' }],
@@ -75,6 +76,7 @@ describe('S3 protocol', () => {
       ['HEAD', '/my-bucket/path/to/key', 'HeadObject', { Bucket: 'my-bucket', Key: 'path/to/key' }],
       ['DELETE', '/my-bucket/path/to/key', 'DeleteObject', { Bucket: 'my-bucket', Key: 'path/to/key' }],
       ['GET', '/my-bucket/file%20with%20spaces%2B.txt?x-id=GetObject', 'GetObject', { Bucket: 'my-bucket', Key: 'file with spaces+.txt' }],
+      ['GET', '/my-bucket?list-type=2&region=eu-central-1', 'ListObjectsV2', { Bucket: 'my-bucket', Prefix: '', MaxKeys: undefined }],
     ])('%s %s is %s', async (method, url, action, params) => {
       const result = await decode(url, { method })
       expect(result.action).toBe(action)
@@ -271,11 +273,22 @@ describe('S3 operations', () => {
       expect(errorOf(() => op('createBucketOp', { Bucket: bucket })).type).toBe('BucketAlreadyOwnedByYou')
     })
 
-    it('belong to one account', () => {
+    it('have names that are unique across all accounts', () => {
       const bucket = bucketWith({ k: 'v' })
       expect(op('listBucketsOp', {}, { account: otherAccount }).Buckets.map((b: Named) => b.Name)).not.toContain(bucket)
-      expect(errorOf(() => op('getObjectOp', { Bucket: bucket, Key: 'k' }, { account: otherAccount })).type).toBe('NoSuchBucket')
-      expect(errorOf(() => op('headBucketOp', { Bucket: bucket }, { account: otherAccount })).type).toBe('NotFound')
+      expect(errorOf(() => op('createBucketOp', { Bucket: bucket }, { account: otherAccount }))).toMatchObject({ type: 'BucketAlreadyExists', status: 409 })
+      expect(errorOf(() => op('createBucketOp', { Bucket: bucket }))).toMatchObject({ type: 'BucketAlreadyOwnedByYou', status: 409 })
+      expect(s3Storage.findBucketOwner(bucket)).toBe(account)
+      expect(s3Storage.findBucketOwner('no-such-bucket')).toBeUndefined()
+    })
+
+    it('with names that differ only in dots and dashes are different buckets', () => {
+      const dashed = `dots-${Date.now()}`
+      const dotted = dashed.replace('-', '.')
+      op('createBucketOp', { Bucket: dashed })
+      expect(s3Storage.findBucketOwner(dotted)).toBeUndefined()
+      op('createBucketOp', { Bucket: dotted }, { account: otherAccount })
+      expect([s3Storage.findBucketOwner(dashed), s3Storage.findBucketOwner(dotted)]).toEqual([account, otherAccount])
     })
 
     it('can only be deleted when empty, which they are again once every object is deleted', () => {
@@ -297,23 +310,90 @@ describe('S3 operations', () => {
   })
 
   describe('bucket policies', () => {
-    const policy = { Version: '2012-10-17', Statement: [{ Effect: 'Allow', Principal: '*', Action: 's3:GetObject', Resource: 'arn:aws:s3:::x/*' }] }
+    const statement = (bucket: string, extra: Record<string, unknown> = {}) =>
+      ({ Effect: 'Allow', Principal: '*', Action: 's3:GetObject', Resource: `arn:aws:s3:::${bucket}/*`, ...extra })
+    const policyOf = (...statements: Record<string, unknown>[]) => JSON.stringify({ Version: '2012-10-17', Statement: statements })
 
     it('are put, read back and deleted', () => {
       const bucket = bucketWith()
+      const policy = policyOf(statement(bucket))
       expect(errorOf(() => op('getBucketPolicyOp', { Bucket: bucket })).type).toBe('NoSuchBucketPolicy')
-      expect(op('putBucketPolicyOp', { Bucket: bucket, Policy: JSON.stringify(policy) })).toEqual({})
-      expect(JSON.parse(op('getBucketPolicyOp', { Bucket: bucket }).Policy)).toEqual(policy)
+      expect(op('putBucketPolicyOp', { Bucket: bucket, Policy: policy })).toEqual({})
+      expect(JSON.parse(op('getBucketPolicyOp', { Bucket: bucket }).Policy)).toEqual(JSON.parse(policy))
       op('deleteBucketPolicyOp', { Bucket: bucket })
       expect(errorOf(() => op('getBucketPolicyOp', { Bucket: bucket })).type).toBe('NoSuchBucketPolicy')
     })
 
-    it('must be JSON and need a bucket that exists', () => {
-      const bucket = bucketWith()
-      expect(errorOf(() => op('putBucketPolicyOp', { Bucket: bucket, Policy: '{nope' })).type).toBe('InvalidArgument')
-      expect(errorOf(() => op('putBucketPolicyOp', { Bucket: bucket })).type).toBe('MissingParameter')
+    it('need a bucket that exists', () => {
+      expect(errorOf(() => op('putBucketPolicyOp', { Bucket: bucketWith() })).type).toBe('MissingParameter')
       expect(errorOf(() => op('putBucketPolicyOp', { Bucket: 'no-such-bucket', Policy: '{}' })).type).toBe('NoSuchBucket')
+      expect(errorOf(() => op('getBucketPolicyOp', { Bucket: 'no-such-bucket' })).type).toBe('NoSuchBucket')
       expect(errorOf(() => op('deleteBucketPolicyOp', { Bucket: 'no-such-bucket' })).type).toBe('NoSuchBucket')
+    })
+
+    it('are managed by the owning account only: another account gets 405', () => {
+      const bucket = bucketWith()
+      op('putBucketPolicyOp', { Bucket: bucket, Policy: policyOf(statement(bucket)) })
+      const fromOther = { callerAccount: otherAccount }
+      expect(errorOf(() => ops.getBucketPolicyOp({ params: { Bucket: bucket }, account, region, ...fromOther }))).toMatchObject({ type: 'MethodNotAllowed', status: 405 })
+      expect(errorOf(() => ops.putBucketPolicyOp({ params: { Bucket: bucket, Policy: policyOf(statement(bucket)) }, account, region, ...fromOther })).status).toBe(405)
+      expect(errorOf(() => ops.deleteBucketPolicyOp({ params: { Bucket: bucket }, account, region, ...fromOther })).status).toBe(405)
+    })
+
+    describe('are checked when they are put', () => {
+      let bucket: string
+      beforeAll(() => {
+        bucket = bucketWith()
+        iam.createRole(otherAccount, { roleName: 'partner', assumeRolePolicyDocument: { Version: '2012-10-17', Statement: [] } })
+      })
+      const put = (policy: string) => op('putBucketPolicyOp', { Bucket: bucket, Policy: policy })
+      const rejection = (policy: string) => errorOf(() => put(policy))
+
+      it('accept the principals that exist, in every form', () => {
+        for (const principal of [
+          '*', { AWS: '*' }, { AWS: otherAccount }, { AWS: `arn:aws:iam::${otherAccount}:root` },
+          { AWS: [`arn:aws:iam::${otherAccount}:role/partner`, `arn:aws:sts::${otherAccount}:assumed-role/partner/s`] },
+          { Service: 'logging.s3.amazonaws.com' },
+        ]) {
+          expect(put(policyOf(statement(bucket, { Principal: principal })))).toEqual({})
+        }
+        expect(put(policyOf(statement(bucket, { Action: ['s3:Get*', 's3:ListBucket', '*'], Resource: [`arn:aws:s3:::${bucket}`, `arn:aws:s3:::${bucket}/a/*`] })))).toEqual({})
+      })
+
+      it.each([
+        ['not JSON', '{nope', "Policies must be valid JSON and the first byte must be '{'"],
+        ['not an object', '[]', "Policies must be valid JSON and the first byte must be '{'"],
+        ['no statements', JSON.stringify({ Version: '2012-10-17', Statement: [] }), 'Missing required field Statement'],
+        ['a bad version', JSON.stringify({ Version: '2020-01-01', Statement: [{}] }), 'The policy must contain a valid version string'],
+      ])('refuse %s', (_, policy, message) => {
+        expect(rejection(policy)).toEqual({ type: 'MalformedPolicy', status: 400, message })
+      })
+
+      it('refuse statements without what they need, or with a bad effect', () => {
+        const without = (field: string) => { const s: Record<string, unknown> = statement(bucket); delete s[field]; return policyOf(s) }
+        expect(rejection(without('Effect')).message).toBe('Missing required field Effect')
+        expect(rejection(without('Principal')).message).toBe('Missing required field Principal')
+        expect(rejection(without('Action')).message).toBe('Missing required field Action')
+        expect(rejection(without('Resource')).message).toBe('Missing required field Resource')
+        expect(rejection(policyOf(statement(bucket, { Effect: 'Maybe' }))).message).toBe('Invalid effect: Maybe')
+      })
+
+      it('refuse resources outside the bucket and actions of other services', () => {
+        for (const resource of ['*', 'arn:aws:s3:::other/*', `arn:aws:s3:::${bucket}x/*`, `arn:aws:s3:::${bucket.slice(0, -1)}*`]) {
+          expect(rejection(policyOf(statement(bucket, { Resource: resource })))).toMatchObject({ type: 'MalformedPolicy', message: 'Policy has invalid resource' })
+        }
+        expect(rejection(policyOf(statement(bucket, { Action: 'ec2:DescribeVpcs' }))).message).toBe('Policy has invalid action')
+      })
+
+      it('refuse principals that do not exist or are malformed', () => {
+        for (const principal of [
+          { AWS: `arn:aws:iam::${otherAccount}:role/nobody` }, { AWS: `arn:aws:iam::${otherAccount}:user/alice` }, { AWS: '12345' },
+          { AWS: 'arn:aws:iam::nope:root' }, {}, 'someone', { Weird: 'x' },
+        ]) {
+          expect(rejection(policyOf(statement(bucket, { Principal: principal })))).toMatchObject({ type: 'MalformedPolicy', message: 'Invalid principal in policy' })
+        }
+        expect(rejection(policyOf(statement(bucket, { Principal: { CanonicalUser: 'abc' } })))).toMatchObject({ type: 'NotImplemented', status: 501 })
+      })
     })
   })
 
@@ -599,6 +679,175 @@ describe('S3 service (HTTP through the registry)', () => {
       expect(denied[0].resource).toBe(`arn:aws:s3:::${bucket}/public/c.txt`)
       expect(denied[0].parameters).toEqual({ Bucket: bucket, Key: 'public/c.txt', ContentType: expect.any(String) })
       expect(readCloudTrailEvents(account, { principal: reader, action: 'ListBucket', authorizationDecision: 'allow' }).length).toBe(2)
+    })
+  })
+
+  describe('across accounts', () => {
+    // Account A (`account`) owns the buckets; account B (`otherAccount`) calls them.
+    const session = (acct: string, role: string) => `arn:aws:sts::${acct}:assumed-role/${role}/session`
+    const roleArn = (acct: string, role: string) => `arn:aws:iam::${acct}:role/${role}`
+    const CONSUMER = session(otherAccount, 'consumer')     // B, its own policies allow all of S3
+    const STRANGER = session(otherAccount, 'stranger')     // B, its own policies allow all of S3
+    const NO_GRANTS = session(otherAccount, 'no-grants')   // B, no identity-based policy at all
+    const B_ADMIN = session(otherAccount, 'admin')         // B, not in IAM state: not restricted by identity-based policies
+    const INSIDER = session(account, 'insider')            // A, no identity-based policy at all
+    const everything = { Version: '2012-10-17', Statement: [{ Effect: 'Allow', Action: 's3:*', Resource: '*' }] }
+    const trust = { Version: '2012-10-17', Statement: [] }
+
+    beforeAll(() => {
+      for (const [acct, name, policy] of [
+        [otherAccount, 'consumer', everything], [otherAccount, 'stranger', everything], [otherAccount, 'no-grants', undefined],
+        [otherAccount, 'denies-get', { Version: '2012-10-17', Statement: [...everything.Statement, { Effect: 'Deny', Action: 's3:GetObject', Resource: '*' }] }],
+        [account, 'insider', undefined],
+      ] as const) {
+        iam.createRole(acct, { roleName: name, assumeRolePolicyDocument: trust })
+        if (policy) iam.putRolePolicy(acct, name, 'p', policy)
+      }
+    })
+
+    const policyOf = (...statements: Record<string, unknown>[]) => JSON.stringify({ Version: '2012-10-17', Statement: statements })
+    const grant = (bucket: string, principal: unknown, actions: string[], extra: Record<string, unknown> = {}) =>
+      ({ Effect: 'Allow', Principal: principal, Action: actions, Resource: [`arn:aws:s3:::${bucket}`, `arn:aws:s3:::${bucket}/*`], ...extra })
+
+    // A bucket of account A with one object and the given bucket policy.
+    async function sharedBucket(...statements: Array<(bucket: string) => Record<string, unknown>[]>) {
+      const bucket = uniqueBucket()
+      expect((await call('PUT', `/${bucket}`)).status).toBe(200)
+      await call('PUT', `/${bucket}/doc.txt`, { body: 'from A' })
+      const policy = statements.flatMap(f => f(bucket))
+      if (policy.length) {
+        expect((await call('PUT', `/${bucket}?policy`, { body: policyOf(...policy) })).status).toBe(204)
+      }
+      return bucket
+    }
+    const reason = (text: string) => text.match(/because [^<]+|with an explicit deny in an? [^<]+/)?.[0]
+
+    it('deny another account without a bucket policy, whatever its own policies allow', async () => {
+      const bucket = await sharedBucket()
+      for (const principal of [CONSUMER, B_ADMIN]) {
+        const answer = await call('GET', `/${bucket}/doc.txt`, { principal })
+        expect(answer).toMatchObject({ status: 403, code: 'AccessDenied' })
+        expect(reason(answer.text)).toBe('because no resource-based policy allows the s3:GetObject action')
+        expect((await call('PUT', `/${bucket}/x`, { principal, body: 'x' })).status).toBe(403)
+        expect((await call('GET', `/${bucket}?list-type=2`, { principal })).status).toBe(403)
+        expect((await call('HEAD', `/${bucket}`, { principal })).status).toBe(403)
+      }
+    })
+
+    it('let an account the bucket policy names in, for what its own policies also allow', async () => {
+      const bucket = await sharedBucket(b => [grant(b, { AWS: otherAccount }, ['s3:GetObject', 's3:PutObject', 's3:ListBucket'])])
+
+      expect((await call('GET', `/${bucket}/doc.txt`, { principal: CONSUMER })).text).toBe('from A')
+      expect((await call('GET', `/${bucket}/doc.txt`, { principal: B_ADMIN })).text).toBe('from A')
+      expect((await call('PUT', `/${bucket}/from-b.txt`, { principal: CONSUMER, body: 'from B' })).status).toBe(200)
+      expect((await call('GET', `/${bucket}?list-type=2`, { principal: CONSUMER })).text).toContain('<Key>from-b.txt</Key>')
+
+      // the object is in the bucket of A, for A to read
+      expect(s3Storage.getObject(account, bucket, 'from-b.txt')?.content.toString()).toBe('from B')
+      expect(s3Storage.getObject(otherAccount, bucket, 'from-b.txt')).toBeNull()
+      expect((await call('GET', `/${bucket}/from-b.txt`)).text).toBe('from B')
+
+      const noIdentity = await call('GET', `/${bucket}/doc.txt`, { principal: NO_GRANTS })
+      expect([noIdentity.status, reason(noIdentity.text)]).toEqual([403, 'because no identity-based policy allows the s3:GetObject action'])
+      const notGranted = await call('DELETE', `/${bucket}/doc.txt`, { principal: CONSUMER })
+      expect([notGranted.status, reason(notGranted.text)]).toEqual([403, 'because no resource-based policy allows the s3:DeleteObject action'])
+    })
+
+    it('let only the role a bucket policy names in, as the role ARN or as one session', async () => {
+      const bucket = await sharedBucket(b => [grant(b, { AWS: roleArn(otherAccount, 'consumer') }, ['s3:GetObject'])])
+      expect((await call('GET', `/${bucket}/doc.txt`, { principal: CONSUMER })).status).toBe(200)
+      expect((await call('GET', `/${bucket}/doc.txt`, { principal: STRANGER })).status).toBe(403)
+
+      const one = await sharedBucket(b => [grant(b, { AWS: session(otherAccount, 'stranger') }, ['s3:GetObject'])])
+      expect((await call('GET', `/${one}/doc.txt`, { principal: STRANGER })).status).toBe(200)
+      expect((await call('GET', `/${one}/doc.txt`, { principal: session(otherAccount, 'stranger').replace(/session$/, 'other') })).status).toBe(403)
+    })
+
+    it('let everyone in with Principal "*"', async () => {
+      const bucket = await sharedBucket(b => [grant(b, '*', ['s3:GetObject'])])
+      for (const principal of [CONSUMER, STRANGER, B_ADMIN, INSIDER]) {
+        expect((await call('GET', `/${bucket}/doc.txt`, { principal })).status).toBe(200)
+      }
+      // ... but someone whose own policies say nothing from another account still needs them
+      expect((await call('GET', `/${bucket}/doc.txt`, { principal: NO_GRANTS })).status).toBe(403)
+    })
+
+    it('let an explicit deny win, in the bucket policy (also for the owning account) and in identity-based policies', async () => {
+      const bucket = await sharedBucket(b => [
+        grant(b, '*', ['s3:GetObject']),
+        { Effect: 'Deny', Principal: { AWS: account }, Action: 's3:GetObject', Resource: `arn:aws:s3:::${b}/secret/*` },
+      ])
+      await call('PUT', `/${bucket}/secret/x`, { body: 'x' })
+      const denied = await call('GET', `/${bucket}/secret/x`)
+      expect([denied.status, reason(denied.text)]).toEqual([403, 'with an explicit deny in a resource-based policy'])
+      expect((await call('GET', `/${bucket}/doc.txt`)).status).toBe(200)
+      expect((await call('GET', `/${bucket}/secret/x`, { principal: CONSUMER })).status).toBe(200)
+
+      const own = await call('GET', `/${bucket}/doc.txt`, { principal: session(otherAccount, 'denies-get') })
+      expect([own.status, reason(own.text)]).toEqual([403, 'with an explicit deny in an identity-based policy'])
+    })
+
+    it('within the owning account, grant with a bucket policy that names the role, not with one that names the account', async () => {
+      expect((await call('GET', `/${await sharedBucket()}/doc.txt`, { principal: INSIDER })).status).toBe(403)
+      const named = await sharedBucket(b => [grant(b, { AWS: roleArn(account, 'insider') }, ['s3:GetObject'])])
+      expect((await call('GET', `/${named}/doc.txt`, { principal: INSIDER })).status).toBe(200)
+      const delegated = await sharedBucket(b => [grant(b, { AWS: `arn:aws:iam::${account}:root` }, ['s3:GetObject'])])
+      const answer = await call('GET', `/${delegated}/doc.txt`, { principal: INSIDER })
+      expect([answer.status, reason(answer.text)]).toEqual([403, 'because no identity-based policy allows the s3:GetObject action'])
+    })
+
+    it('keep the bucket out of the bucket list of another account and its policy with the owner (405)', async () => {
+      const bucket = await sharedBucket(b => [grant(b, { AWS: otherAccount }, ['s3:GetObject', 's3:GetBucketPolicy', 's3:PutBucketPolicy'])])
+      expect((await call('GET', '/', { principal: CONSUMER })).text).not.toContain(`<Name>${bucket}</Name>`)
+      expect((await call('GET', '/')).text).toContain(`<Name>${bucket}</Name>`)
+      expect(await call('GET', `/${bucket}?policy`, { principal: CONSUMER })).toMatchObject({ status: 405, code: 'MethodNotAllowed' })
+      expect(await call('PUT', `/${bucket}?policy`, { principal: CONSUMER, body: policyOf(grant(bucket, '*', ['s3:*'])) })).toMatchObject({ status: 405 })
+      expect(await call('DELETE', `/${bucket}?policy`, { principal: CONSUMER })).toMatchObject({ status: 403, code: 'AccessDenied' })
+    })
+
+    it('refuse a bucket name another account has taken', async () => {
+      const bucket = await sharedBucket()
+      expect(await call('PUT', `/${bucket}`, { principal: CONSUMER })).toMatchObject({ status: 409, code: 'BucketAlreadyExists' })
+      expect(await call('PUT', `/${bucket}`)).toMatchObject({ status: 409, code: 'BucketAlreadyOwnedByYou' })
+    })
+
+    it('check ExpectedBucketOwner', async () => {
+      const bucket = await sharedBucket(b => [grant(b, { AWS: otherAccount }, ['s3:GetObject'])])
+      const expecting = (owner: string) => ({ principal: CONSUMER, extra: { 'x-amz-expected-bucket-owner': owner } })
+      expect((await call('GET', `/${bucket}/doc.txt`, expecting(account))).status).toBe(200)
+      expect(await call('GET', `/${bucket}/doc.txt`, expecting(otherAccount))).toMatchObject({ status: 403, code: 'AccessDenied' })
+    })
+
+    it('refuse to guess about a bucket policy with a Condition or NotPrincipal', async () => {
+      const conditional = await sharedBucket(b => [grant(b, { AWS: otherAccount }, ['s3:GetObject'], { Condition: { Bool: { 'aws:SecureTransport': 'true' } } })])
+      expect(await call('GET', `/${conditional}/doc.txt`, { principal: CONSUMER })).toMatchObject({ status: 501, code: 'PolicyNotModelled' })
+      const negated = await sharedBucket(b => [{ Effect: 'Deny', NotPrincipal: { AWS: account }, Action: 's3:*', Resource: `arn:aws:s3:::${b}/*` }])
+      expect(await call('GET', `/${negated}/doc.txt`, { principal: CONSUMER })).toMatchObject({ status: 501, code: 'PolicyNotModelled' })
+    })
+
+    it('record the request in the trails of both accounts', async () => {
+      const bucket = await sharedBucket(b => [grant(b, { AWS: otherAccount }, ['s3:GetObject'])])
+      await call('GET', `/${bucket}/doc.txt`, { principal: STRANGER })
+      await call('DELETE', `/${bucket}/doc.txt`, { principal: STRANGER })
+      for (const acct of [account, otherAccount]) {
+        const events = readCloudTrailEvents(acct, { principal: STRANGER }).filter((e: { resource: string }) => e.resource.startsWith(`arn:aws:s3:::${bucket}/`))
+        expect(events.map((e: { action: string; authorizationDecision: string }) => `${e.action}:${e.authorizationDecision}`)).toEqual(['GetObject:allow', 'DeleteObject:deny'])
+      }
+    })
+
+    it('use the KMS key of the owner for default encryption, and match key policy principals by account', async () => {
+      const keyId = createKey(account, 'shared bucket key', {
+        Version: '2012-10-17',
+        Statement: [{ Effect: 'Allow', Principal: { AWS: roleArn(otherAccount, 'consumer') }, Action: ['kms:GenerateDataKey', 'kms:Decrypt'], Resource: '*' }],
+      }).keyMetadata.keyId
+      const bucket = await sharedBucket(b => [grant(b, '*', ['s3:GetObject', 's3:PutObject'])])
+      s3Storage.setBucketEncryption(account, bucket, keyId)
+
+      const put = await call('PUT', `/${bucket}/enc.txt`, { principal: CONSUMER, body: 'sealed' })
+      expect([put.status, put.headers.get('x-amz-server-side-encryption-aws-kms-key-id')]).toEqual([200, keyId])
+      expect((await call('GET', `/${bucket}/enc.txt`, { principal: CONSUMER })).text).toBe('sealed')
+      // a role called "consumer" in the owning account is another role
+      expect((await call('GET', `/${bucket}/enc.txt`, { principal: session(account, 'consumer') })).status).toBe(403)
     })
   })
 })

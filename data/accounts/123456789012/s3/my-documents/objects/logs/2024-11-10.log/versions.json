@@ -1,0 +1,12 @@
+[
+  {
+    "versionId": "v1",
+    "isLatest": false,
+    "LastModified": "2024-11-10T09:15:00.000Z"
+  },
+  {
+    "versionId": "v2",
+    "isLatest": true,
+    "LastModified": "2024-11-10T14:05:00.000Z"
+  }
+]

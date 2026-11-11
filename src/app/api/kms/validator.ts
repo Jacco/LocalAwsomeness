@@ -9,6 +9,7 @@
  */
 
 import { getKeyPolicy, describeKey } from './storage'
+import { namesPrincipal } from '../policy/principal'
 
 export interface KmsPermissionCheck {
   allowed: boolean
@@ -134,17 +135,9 @@ export function checkKmsPermission(
             : [statement.Principal.AWS]
           : []
 
-        // Check if our principal matches any AWS principal
-        principalMatches = awsPrincipals.some((p: string) => {
-          if (p === '*') return true
-          if (p === principal) return true
-          // Match by name part for IAM principals
-          if (p.includes('/')) {
-            const pName = p.split('/').pop()
-            return pName === principalName
-          }
-          return false
-        })
+        // Check if our principal matches any AWS principal: the same ARN, or the role of an assumed-role session — in the
+        // same account (a role of the same name in another account is someone else)
+        principalMatches = awsPrincipals.some((p: string) => p === '*' || namesPrincipal(p, principal))
 
         // Check Service principals
         if (!principalMatches && principalService) {

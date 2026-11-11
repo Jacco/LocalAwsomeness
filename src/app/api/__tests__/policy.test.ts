@@ -6,7 +6,9 @@ const root = mkdtempSync(join(tmpdir(), 'jpk-policy-'))
 process.env.JPK_DB_ROOT = root
 
 /* eslint-disable @typescript-eslint/no-require-imports */
-const { evaluateIdentityPolicies, wildcardMatch, PolicyNotModelled } = require('@/app/api/policy/engine')
+const { evaluateIdentityPolicies, evaluateResourcePolicy, wildcardMatch, PolicyNotModelled } = require('@/app/api/policy/engine')
+const { matchPrincipal, namesPrincipal, accountOf } = require('@/app/api/policy/principal')
+const { accessDenial } = require('@/app/api/policy/authorizer')
 const { subjectOf } = require('@/app/api/policy/identity')
 const iam = require('@/app/api/db/iam')
 const { sts } = require('@/app/api/sts/service')
@@ -79,6 +81,103 @@ describe('policy evaluation', () => {
     // a condition on a statement that does not apply to the request does not matter
     expect(evaluateIdentityPolicies(conditional, 's3:GetObject', '*').decision).toBe('implicit-deny')
     expect(() => evaluateIdentityPolicies([policy(allow('s3:*', 'arn:aws:s3:::home/${aws:username}/*'))], 's3:GetObject', 'x')).toThrow(/policy variable/)
+  })
+})
+
+describe('principals in resource-based policies', () => {
+  const other = '222222222222'
+  const otherSession = `arn:aws:sts::${other}:assumed-role/${ROLE}/session`
+
+  it('know the account of a principal', () => {
+    expect(accountOf(SESSION)).toBe(account)
+    expect(accountOf(`arn:aws:iam::${other}:root`)).toBe(other)
+    expect(accountOf('lambda.amazonaws.com')).toBeUndefined()
+  })
+
+  it('name a session by its ARN or by its role, in the same account only', () => {
+    expect(namesPrincipal(SESSION, SESSION)).toBe(true)
+    expect(namesPrincipal(`arn:aws:iam::${account}:role/${ROLE}`, SESSION)).toBe(true)
+    expect(namesPrincipal(`arn:aws:iam::${account}:role/some/path/${ROLE}`, SESSION)).toBe(true)
+    expect(namesPrincipal(`arn:aws:iam::${account}:role/${ROLE}`, otherSession)).toBe(false)
+    expect(namesPrincipal(`arn:aws:iam::${account}:role/writer`, SESSION)).toBe(false)
+    expect(namesPrincipal(`arn:aws:sts::${account}:assumed-role/${ROLE}/other`, SESSION)).toBe(false)
+  })
+
+  it('tell how a Principal element names the principal', () => {
+    expect(matchPrincipal('*', SESSION)).toBe('everyone')
+    expect(matchPrincipal({ AWS: ['x', '*'] }, SESSION)).toBe('everyone')
+    expect(matchPrincipal({ AWS: `arn:aws:iam::${account}:role/${ROLE}` }, SESSION)).toBe('principal')
+    expect(matchPrincipal({ AWS: account }, SESSION)).toBe('account')
+    expect(matchPrincipal({ AWS: `arn:aws:iam::${account}:root` }, SESSION)).toBe('account')
+    expect(matchPrincipal({ AWS: other }, SESSION)).toBeUndefined()
+    expect(matchPrincipal({ Service: 'lambda.amazonaws.com' }, SESSION)).toBeUndefined()
+    expect(matchPrincipal(undefined, SESSION)).toBeUndefined()
+  })
+})
+
+describe('resource-based policy evaluation', () => {
+  const bucketPolicy = (...statements: Record<string, unknown>[]) => policy(...statements)
+  const grant = (principal: unknown, action = 's3:GetObject', extra: Record<string, unknown> = {}) => ({ Effect: 'Allow', Principal: principal, Action: action, Resource: 'arn:aws:s3:::b/*', ...extra })
+
+  it('needs a statement that names the principal, the action and the resource', () => {
+    expect(evaluateResourcePolicy(bucketPolicy(grant({ AWS: account })), SESSION, 's3:GetObject', 'arn:aws:s3:::b/k').decision).toBe('allow')
+    expect(evaluateResourcePolicy(bucketPolicy(grant({ AWS: '222222222222' })), SESSION, 's3:GetObject', 'arn:aws:s3:::b/k').decision).toBe('implicit-deny')
+    expect(evaluateResourcePolicy(bucketPolicy(grant('*')), SESSION, 's3:PutObject', 'arn:aws:s3:::b/k').decision).toBe('implicit-deny')
+    expect(evaluateResourcePolicy(bucketPolicy(grant('*')), SESSION, 's3:GetObject', 'arn:aws:s3:::c/k').decision).toBe('implicit-deny')
+    const result = evaluateResourcePolicy(bucketPolicy(grant({ AWS: '222222222222' })), SESSION, 's3:GetObject', 'arn:aws:s3:::b/k')
+    expect(result.statements[0].why).toBe(`Principal {"AWS":"222222222222"} does not name ${SESSION}`)
+  })
+
+  it('lets a deny win and prefers an allow that names the principal over one that names its account', () => {
+    const both = bucketPolicy(grant({ AWS: account }), grant({ AWS: `arn:aws:iam::${account}:role/${ROLE}` }))
+    expect(evaluateResourcePolicy(both, SESSION, 's3:GetObject', 'arn:aws:s3:::b/k').decidedBy.principal).toBe('principal')
+    const denied = bucketPolicy(grant('*'), { ...grant({ AWS: account }), Effect: 'Deny' })
+    expect(evaluateResourcePolicy(denied, SESSION, 's3:GetObject', 'arn:aws:s3:::b/k').decision).toBe('explicit-deny')
+  })
+
+  it('refuses to guess about a Condition or NotPrincipal', () => {
+    expect(() => evaluateResourcePolicy(bucketPolicy(grant('*', 's3:GetObject', { Condition: { Bool: { 'aws:SecureTransport': 'true' } } })), SESSION, 's3:GetObject', 'arn:aws:s3:::b/k')).toThrow(PolicyNotModelled)
+    expect(() => evaluateResourcePolicy(bucketPolicy({ Effect: 'Deny', NotPrincipal: { AWS: account }, Action: '*', Resource: '*' }), SESSION, 's3:GetObject', 'x')).toThrow(/NotPrincipal/)
+    // a condition on a statement for someone else does not matter
+    expect(evaluateResourcePolicy(bucketPolicy(grant({ AWS: '222222222222' }, 's3:GetObject', { Condition: {} })), SESSION, 's3:GetObject', 'arn:aws:s3:::b/k').decision).toBe('implicit-deny')
+  })
+})
+
+describe('identity-based and resource-based policies together', () => {
+  const OTHER = '222222222222'
+  const resource = 'arn:aws:s3:::b/k'
+  const owned = (acct: string, ...statements: Record<string, unknown>[]) =>
+    ({ account: acct, source: 'bucket policy of b', document: statements.length ? { Version: '2012-10-17', Statement: statements } : undefined })
+  const grant = (principal: unknown) => ({ Effect: 'Allow', Principal: principal, Action: 's3:GetObject', Resource: 'arn:aws:s3:::b/*' })
+  const decision = (principal: string, resourcePolicy?: unknown) => {
+    const denied = accessDenial(principal, 's3:GetObject', resource, resourcePolicy)
+    return denied ? `${denied.type}: ${denied.message.replace(/^.* on resource: \S+ /, '')}` : 'allowed'
+  }
+  // SESSION has no identity-based policy; an unknown session is not restricted by identity-based policies
+  const FREE = `arn:aws:sts::${account}:assumed-role/admin/session`
+
+  it('in the owning account, need an allow in either, where naming only the account delegates to identity policies', () => {
+    expect(decision(SESSION, owned(account))).toBe('AccessDenied: because no identity-based policy allows the s3:GetObject action')
+    expect(decision(SESSION, owned(account, grant({ AWS: `arn:aws:iam::${account}:role/${ROLE}` })))).toBe('allowed')
+    expect(decision(SESSION, owned(account, grant('*')))).toBe('allowed')
+    expect(decision(SESSION, owned(account, grant({ AWS: account })))).toBe('AccessDenied: because no identity-based policy allows the s3:GetObject action')
+    expect(decision(FREE, owned(account))).toBe('allowed')
+  })
+
+  it('from another account, need an allow in both', () => {
+    expect(decision(FREE, owned(OTHER))).toBe('AccessDenied: because no resource-based policy allows the s3:GetObject action')
+    expect(decision(FREE, owned(OTHER, grant({ AWS: account })))).toBe('allowed')
+    expect(decision(SESSION, owned(OTHER, grant({ AWS: account })))).toBe('AccessDenied: because no identity-based policy allows the s3:GetObject action')
+    expect(decision(SESSION, owned(OTHER, grant('*')))).toBe('AccessDenied: because no identity-based policy allows the s3:GetObject action')
+  })
+
+  it('let an explicit deny in the resource-based policy win, also for an identity that is not restricted', () => {
+    expect(decision(FREE, owned(account, { ...grant('*'), Effect: 'Deny' }))).toBe('AccessDenied: with an explicit deny in a resource-based policy')
+  })
+
+  it('leave requests without a resource-based policy to the identity-based policies, as before', () => {
+    expect(decision(FREE)).toBe('allowed')
+    expect(decision(SESSION)).toBe('AccessDenied: because no identity-based policy allows the s3:GetObject action')
   })
 })
 

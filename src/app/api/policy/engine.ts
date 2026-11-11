@@ -1,7 +1,9 @@
 import type { PolicyDocument } from "../db/reference"
+import { matchPrincipal, type PrincipalMatch } from "./principal"
 
-// Identity-based policy evaluation, the part of the IAM evaluation logic that decides what a role may do in its own
-// account: an explicit deny wins, otherwise an allow is needed, otherwise the request is denied implicitly. Pure functions;
+// Policy evaluation, the parts of the IAM evaluation logic the simulator models: identity-based policies (what a role may do)
+// and resource-based policies (who may use a resource). In each, an explicit deny wins, otherwise an allow is needed,
+// otherwise the request is denied implicitly. How the two combine is in authorizer.ts. Pure functions;
 // src/app/api/policy/policy.md says what is not evaluated yet.
 
 export interface IdentityPolicy {
@@ -74,15 +76,57 @@ export function evaluateIdentityPolicies(policies: IdentityPolicy[], action: str
       const effect = statement.Effect === 'Deny' ? 'Deny' : 'Allow'
       const { applies, why } = matches(statement, action, resource)
       if (applies && statement.Condition !== undefined) {
-        throw new PolicyNotModelled(`${statement.Sid ? `statement "${statement.Sid}"` : `a ${effect} statement`} of ${policy.source} has a Condition (${Object.keys(statement.Condition).join(', ')}), which is not evaluated yet`)
+        throw conditionNotModelled(statement, effect, policy.source)
       }
       results.push({ source: policy.source, sid: statement.Sid, effect, applies, why })
     }
   }
+  return decide(action, resource, results)
+}
+
+function conditionNotModelled(statement: { Sid?: string; Condition?: object }, effect: string, source: string) {
+  return new PolicyNotModelled(`${statement.Sid ? `statement "${statement.Sid}"` : `a ${effect} statement`} of ${source} has a Condition (${Object.keys(statement.Condition ?? {}).join(', ')}), which is not evaluated yet`)
+}
+
+function decide<R extends StatementResult>(action: string, resource: string, results: R[], preferred?: (r: R) => boolean) {
   const denied = results.find(r => r.applies && r.effect === 'Deny')
   if (denied) {
-    return { action, resource, decision: 'explicit-deny', decidedBy: denied, statements: results }
+    return { action, resource, decision: 'explicit-deny' as const, decidedBy: denied, statements: results }
   }
-  const allowed = results.find(r => r.applies && r.effect === 'Allow')
-  return { action, resource, decision: allowed ? 'allow' : 'implicit-deny', decidedBy: allowed, statements: results }
+  const allows = results.filter(r => r.applies && r.effect === 'Allow')
+  const allowed = allows.find(r => preferred?.(r)) ?? allows[0]
+  return { action, resource, decision: allowed ? 'allow' as const : 'implicit-deny' as const, decidedBy: allowed, statements: results }
+}
+
+// A resource-based policy (a bucket policy): the statements also have to name the principal of the request.
+export interface ResourceStatementResult extends StatementResult {
+  principal?: PrincipalMatch
+}
+
+export interface ResourceEvaluation extends Evaluation {
+  decidedBy?: ResourceStatementResult
+  statements: ResourceStatementResult[]
+}
+
+export function evaluateResourcePolicy(policy: IdentityPolicy, principal: string, action: string, resource: string): ResourceEvaluation {
+  const results: ResourceStatementResult[] = []
+  for (const statement of statementsOf(policy.document)) {
+    const effect = statement.Effect === 'Deny' ? 'Deny' : 'Allow'
+    if ('NotPrincipal' in statement) {
+      throw new PolicyNotModelled(`${statement.Sid ? `statement "${statement.Sid}"` : `a ${effect} statement`} of ${policy.source} uses NotPrincipal, which is not evaluated yet`)
+    }
+    const named = matchPrincipal(statement.Principal, principal)
+    if (!named) {
+      results.push({ source: policy.source, sid: statement.Sid, effect, applies: false, why: `Principal ${JSON.stringify(statement.Principal)} does not name ${principal}` })
+      continue
+    }
+    const { applies, why } = matches(statement, action, resource)
+    if (applies && statement.Condition !== undefined) {
+      throw conditionNotModelled(statement, effect, policy.source)
+    }
+    results.push({ source: policy.source, sid: statement.Sid, effect, applies, why, principal: named })
+  }
+  // An allow that names the principal itself (or everyone) decides over one that names its account: only the first grants
+  // access on its own within the account (see authorizer.ts).
+  return decide(action, resource, results, r => r.principal !== 'account')
 }
