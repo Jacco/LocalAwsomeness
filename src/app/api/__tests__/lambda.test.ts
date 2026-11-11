@@ -769,5 +769,53 @@ describe('Invoke', () => {
         await remove('auth-allowed')
       })
     })
+
+    describe('and CloudTrail logging', () => {
+      it('logs all API calls (authorized and denied) to cloudtrail data directory', async () => {
+        const { clearCloudTrailEvents, readCloudTrailEvents } = require('@/app/api/cloudtrail/cloudtrail')
+        
+        clearCloudTrailEvents(account)
+        
+        // Create a function - this should generate CloudTrail events
+        await fn('ct-test', source('def handler(event, context):\n    return "hi"'))
+        
+        // Get the function - another event
+        const gotten = await send(functionRoute.GET, 'GET', `/2015-03-31/functions/ct-test`)
+        
+        // Delete it - final event
+        await remove('ct-test')
+        
+        // Read CloudTrail events
+        const events = readCloudTrailEvents(account)
+        
+        // Should have logged at least: CreateFunction, GetFunction, DeleteFunction
+        expect(events.length).toBeGreaterThanOrEqual(3)
+        
+        // Check structure of events
+        events.forEach(event => {
+          expect(event).toHaveProperty('timestamp')
+          expect(event).toHaveProperty('principal')
+          expect(event).toHaveProperty('service')
+          expect(event).toHaveProperty('action')
+          expect(event).toHaveProperty('resource')
+          expect(event).toHaveProperty('authorizationDecision')
+          expect(event).toHaveProperty('account', account)
+          expect(event).toHaveProperty('region', region)
+        })
+        
+        // Verify all were authorized (since admin user)
+        const deniedEvents = events.filter(e => e.authorizationDecision === 'deny')
+        expect(deniedEvents.length).toBe(0)
+        
+        // Find the CreateFunction event
+        const createEvent = events.find(e => e.action === 'CreateFunction')
+        expect(createEvent).toBeDefined()
+        expect(createEvent?.authorizationDecision).toBe('allow')
+        expect(createEvent?.principal).toContain('admin')
+        
+        // Cleanup
+        clearCloudTrailEvents(account)
+      })
+    })
   })
 })
