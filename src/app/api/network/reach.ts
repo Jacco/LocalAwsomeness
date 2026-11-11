@@ -59,6 +59,7 @@ const HINTS: Record<Cause, (d: Destination) => string> = {
   'nat-gateway-unavailable': () => 'wait for the NAT gateway to become available, or replace it',
   'nat-gateway-private': () => 'a private NAT gateway cannot reach the internet: use a public NAT gateway',
   'nat-without-internet-route': () => 'the subnet of the NAT gateway needs a route to an internet gateway',
+  'policy-deny': () => 'update the VPC endpoint resource-based policy to allow access from your principal',
   'not-modelled': () => 'this part of the path is not modelled yet',
 }
 

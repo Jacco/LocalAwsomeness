@@ -43,6 +43,20 @@ export interface RunRequest {
   simulatorUrl?: string
 }
 
+// Network context passed from netshim to runner for authorization and policy enforcement decisions.
+// Extensible for future attributes like request headers, source IP, timestamp, etc.
+export interface NetworkContext {
+  // Service name in AWS format: com.amazonaws.region.service
+  serviceName: string
+  // VPC ID where the connection originates (if in VPC)
+  vpcId: string
+  // Subnet ID where the connection originates (if in VPC)
+  subnetId: string
+  // Principal ARN making the connection (Lambda execution role)
+  principalArn?: string
+  // Can be extended with: sourceIp, timestamp, requestId, headers, etc.
+}
+
 // Consecutive identical connections (a client retrying) are one record.
 export interface ConnectionRecord {
   host: string
@@ -146,6 +160,79 @@ function resolveVpcEndpoint(
     }
   }
   return null
+}
+
+// Evaluate VPC endpoint resource-based policy to determine if a principal can access the endpoint.
+// If no policy is present, allow all principals (default open access).
+function evaluateVpcEndpointPolicy(
+  endpoint: any,
+  context: NetworkContext
+): { allowed: boolean; reason: string; detail: string } {
+  // If no policy is defined, allow access (backward compatible)
+  if (!endpoint.PolicyDocument) {
+    return { allowed: true, reason: 'No policy attached to VPC endpoint', detail: 'VPC endpoint has no policy; access is allowed by default.' }
+  }
+
+  const policy = endpoint.PolicyDocument
+  const principal = context.principalArn || '*'
+  const serviceName = context.serviceName
+
+  // Get statements from policy
+  const statements = (policy.Statement || []) as Record<string, any>[]
+  
+  // Check for explicit deny
+  for (const statement of statements) {
+    if (statement.Effect === 'Deny' && statementAppliesToPrincipal(statement, principal)) {
+      return {
+        allowed: false,
+        reason: `VPC endpoint policy explicitly denies access to principal ${principal}`,
+        detail: `Statement '${statement.Sid || '(unnamed)'}' denies access.`
+      }
+    }
+  }
+
+  // Check for allow
+  for (const statement of statements) {
+    if (statement.Effect === 'Allow' && statementAppliesToPrincipal(statement, principal)) {
+      return {
+        allowed: true,
+        reason: `VPC endpoint policy allows access to principal ${principal}`,
+        detail: `Statement '${statement.Sid || '(unnamed)'}' grants access.`
+      }
+    }
+  }
+
+  // No matching allow statement
+  return {
+    allowed: false,
+    reason: `VPC endpoint policy does not allow access to principal ${principal}`,
+    detail: `No Allow statement in the policy matches the principal. Implicit deny.`
+  }
+}
+
+// Check if a policy statement applies to a principal (supports wildcards and ARN format).
+function statementAppliesToPrincipal(statement: Record<string, any>, principal: string): boolean {
+  const principals = statement.Principal || []
+  const principalList = Array.isArray(principals) ? principals : (typeof principals === 'object' ? [principals] : [principals])
+  
+  for (const p of principalList) {
+    // Handle "*" wildcard
+    if (p === '*') return true
+    // Handle principal as string (ARN)
+    if (typeof p === 'string') {
+      if (p === principal) return true
+      // Support wildcards in principal ARN (e.g., arn:aws:iam::111111111111:role/*)
+      if (wildcardMatchArn(p, principal)) return true
+    }
+  }
+  return false
+}
+
+// Match ARNs with wildcard support.
+function wildcardMatchArn(pattern: string, text: string): boolean {
+  const escape = (s: string) => s.replace(/[.+^${}()|[\]\\]/g, '\\$&')
+  const regex = new RegExp(`^${escape(pattern).replace(/\*/g, '.*').replace(/\?/g, '.')}$`, 'i')
+  return regex.test(text)
 }
 
 // Code that is not in a VPC runs in the AWS-managed network: public addresses are reachable directly, the private
@@ -313,7 +400,7 @@ export async function runInContext(request: RunRequest): Promise<RunResult> {
       })
       channel.on('error', () => undefined)
 
-      const handle = (message: { op: string; host?: string; port?: number; scheme?: string; vpcEndpointRequest?: { serviceName: string; vpcId: string; subnetId: string }; at: number }) => {
+      const handle = (message: { op: string; host?: string; port?: number; scheme?: string; networkContext?: NetworkContext; at: number }) => {
         virtualSeconds = Math.max(virtualSeconds, message.at)
         if (message.op === 'deadline') {
           virtualTimedOut = true
@@ -330,19 +417,42 @@ export async function runInContext(request: RunRequest): Promise<RunResult> {
         } else if (message.op === 'connect') {
           let decision = decide(scope, source, message.host!, message.port!, message.scheme!)
           
-          // For VPC-attached Lambdas, check VPC endpoint availability
-          if (message.vpcEndpointRequest && source) {
+          // For VPC-attached Lambdas, check VPC endpoint availability and policy
+          if (message.networkContext && source) {
             const subnet = loadState(scope).subnets[source.subnetId]
             if (subnet) {
-              const vpceInfo = resolveVpcEndpoint(loadState(scope), message.vpcEndpointRequest.serviceName, subnet.VpcId)
+              const vpceInfo = resolveVpcEndpoint(loadState(scope), message.networkContext.serviceName, subnet.VpcId)
               if (vpceInfo) {
-                // VPC endpoint exists and is available; modify decision to show endpoint routing
-                const endpointId = vpceInfo.id
-                decision = { ...decision, verdict: 'allow', message: `routed via VPC endpoint ${endpointId}` }
+                // VPC endpoint exists and is available; check resource-based policy
+                const policyDecision = evaluateVpcEndpointPolicy(vpceInfo.endpoint, message.networkContext)
+                if (policyDecision.allowed) {
+                  // Principal is allowed by policy; modify decision to show endpoint routing
+                  const endpointId = vpceInfo.id
+                  decision = { ...decision, verdict: 'allow', message: `routed via VPC endpoint ${endpointId}` }
+                } else {
+                  // Principal denied by VPC endpoint policy
+                  const summary = policyDecision.reason
+                  const step: Step = { phase: 'delivery', decision: 'deny', summary, detail: [policyDecision.detail], evidence: [], cause: 'policy-deny' }
+                  decision = {
+                    verdict: 'deny',
+                    message: `policy-deny: ${summary}`,
+                    trace: {
+                      from: 'the function (in VPC)',
+                      to: `${message.host}:${message.port}`,
+                      intent: `${message.scheme?.toUpperCase() || 'tcp'} to ${message.host}:${message.port}`,
+                      problems: [{ phase: 'delivery', cause: 'policy-deny', summary }],
+                      outcome: 'failed',
+                      observed: 'connect-timeout',
+                      steps: [step],
+                      failedAt: 'delivery',
+                      cause: 'policy-deny',
+                    }
+                  }
+                }
               } else {
                 // Lambda is in VPC but no endpoint exists for this service
                 // Deny unless we implement NAT gateways/internet gateways (which we haven't)
-                const summary = `Lambda is in VPC but no VPC endpoint exists for ${message.vpcEndpointRequest.serviceName} and NAT gateway is not available`
+                const summary = `Lambda is in VPC but no VPC endpoint exists for ${message.networkContext.serviceName} and NAT gateway is not available`
                 const step: Step = { phase: 'delivery', decision: 'deny', summary, detail: ['To reach AWS services from a VPC-attached Lambda, either create a VPC endpoint for the service or attach a NAT gateway (not yet modelled).'], evidence: [], cause: 'no-route' }
                 decision = {
                   verdict: 'deny',

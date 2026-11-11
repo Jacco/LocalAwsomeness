@@ -27,6 +27,7 @@ export type Cause =
   | 'nat-gateway-unavailable'
   | 'nat-gateway-private'
   | 'nat-without-internet-route'
+  | 'policy-deny'
   | 'not-modelled'
 
 // A resource or rule that decided, as the console shows it: its id, its Name tag when there is one.

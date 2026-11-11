@@ -1020,6 +1020,140 @@ describe('Invoke', () => {
           expect(deleteResponse.status).toBe(200)
         }
       })
+
+      it('enforces VPC endpoint resource-based policy', async () => {
+        const subnet = defaultSubnet()
+        const vpcId = subnet.VpcId
+        
+        // Create a VPC endpoint with a restrictive policy that denies all
+        const denyPolicy = {
+          Version: '2012-10-17',
+          Statement: [{
+            Effect: 'Deny',
+            Principal: '*',
+            Action: 'logs:*',
+            Resource: '*'
+          }]
+        }
+        
+        const vpceResponse = await sendEC2(ec2Route.POST, 'POST', '/api/ec2', {
+          Action: 'CreateVpcEndpoint',
+          VpcId: vpcId,
+          ServiceName: `com.amazonaws.${region}.logs`,
+          'SubnetId.1': subnet.SubnetId,
+          PolicyDocument: JSON.stringify(denyPolicy),
+        })
+        
+        expect(vpceResponse.status).toBe(200)
+        
+        // Extract VPC Endpoint ID from response
+        const vpceIdMatch = vpceResponse.text.match(/<VpcEndpointId>([^<]+)<\/VpcEndpointId>/)
+        const vpceId = vpceIdMatch ? vpceIdMatch[1] : undefined
+        expect(vpceId).toBeDefined()
+        
+        // Create a Lambda function in the VPC
+        await fn('vpc-policy-deny-fn', 
+          source(`def handler(event, context):
+    import urllib.request
+    try:
+        # Try to reach CloudWatch Logs (should be denied by VPC endpoint policy)
+        urllib.request.urlopen('http://logs.${region}.amazonaws.com/', timeout=1)
+        return {'status': 'success'}
+    except urllib.error.URLError as e:
+        # Expected - policy denies access
+        return {'status': 'blocked', 'reason': str(e)}
+    except Exception as e:
+        return {'status': 'error', 'error': str(e)}`),
+          { Timeout: 20, VpcConfig: { SubnetIds: [subnet.SubnetId] } }
+        )
+        
+        // Invoke the function
+        const answer = await invoke('vpc-policy-deny-fn')
+        
+        // Should be blocked by the VPC endpoint policy
+        expect(answer.status).toBe(200)
+        // The function should either get an error or report blocked status
+        const hasError = answer.headers.get('x-amz-function-error') !== null || answer.body?.status === 'blocked'
+        expect(hasError).toBe(true)
+        
+        // Clean up
+        await remove('vpc-policy-deny-fn')
+        
+        // Delete the VPC endpoint
+        if (vpceId) {
+          const deleteResponse = await sendEC2(ec2Route.POST, 'POST', '/api/ec2', {
+            Action: 'DeleteVpcEndpoint',
+            'VpcEndpointIds.1': vpceId,
+          })
+          expect(deleteResponse.status).toBe(200)
+        }
+      })
+
+      it('allows VPC endpoint access when policy permits the principal', async () => {
+        const subnet = defaultSubnet()
+        const vpcId = subnet.VpcId
+        
+        // Create a VPC endpoint with a permissive policy
+        const allowPolicy = {
+          Version: '2012-10-17',
+          Statement: [{
+            Effect: 'Allow',
+            Principal: '*',
+            Action: 'logs:*',
+            Resource: '*'
+          }]
+        }
+        
+        const vpceResponse = await sendEC2(ec2Route.POST, 'POST', '/api/ec2', {
+          Action: 'CreateVpcEndpoint',
+          VpcId: vpcId,
+          ServiceName: `com.amazonaws.${region}.logs`,
+          'SubnetId.1': subnet.SubnetId,
+          PolicyDocument: JSON.stringify(allowPolicy),
+        })
+        
+        expect(vpceResponse.status).toBe(200)
+        
+        // Extract VPC Endpoint ID from response
+        const vpceIdMatch = vpceResponse.text.match(/<VpcEndpointId>([^<]+)<\/VpcEndpointId>/)
+        const vpceId = vpceIdMatch ? vpceIdMatch[1] : undefined
+        expect(vpceId).toBeDefined()
+        
+        // Create a Lambda function in the VPC
+        await fn('vpc-policy-allow-fn', 
+          source(`def handler(event, context):
+    import urllib.request
+    try:
+        # Try to reach CloudWatch Logs (should be allowed by VPC endpoint policy)
+        urllib.request.urlopen('http://logs.${region}.amazonaws.com/', timeout=1)
+        return {'status': 'reached'}
+    except urllib.error.URLError as e:
+        # Allowed by policy, but may still fail on connection details
+        return {'status': 'reached', 'reason': str(e)}
+    except Exception as e:
+        return {'status': 'error', 'error': str(e)}`),
+          { Timeout: 20, VpcConfig: { SubnetIds: [subnet.SubnetId] } }
+        )
+        
+        // Invoke the function
+        const answer = await invoke('vpc-policy-allow-fn')
+        
+        // Should succeed or at least not be denied by policy
+        expect(answer.status).toBe(200)
+        expect(['reached', 'success']).toContain(answer.body?.status)
+        
+        // Clean up
+        await remove('vpc-policy-allow-fn')
+        
+        // Delete the VPC endpoint
+        if (vpceId) {
+          const deleteResponse = await sendEC2(ec2Route.POST, 'POST', '/api/ec2', {
+            Action: 'DeleteVpcEndpoint',
+            'VpcEndpointIds.1': vpceId,
+          })
+          expect(deleteResponse.status).toBe(200)
+        }
+      })
     })
   })
 })

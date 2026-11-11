@@ -90,6 +90,7 @@ async function execute(ctx: RequestContext, name: string, record: FunctionRecord
         JPK_REQUEST_ID: requestId,
         JPK_TIMEOUT_MS: String(timeoutSeconds * 1000),
         JPK_FUNCTION_ARN: c.FunctionArn,
+        JPK_EXECUTION_ROLE_ARN: c.Role,
       },
       resultFile: 'outcome.json',
       virtualDeadlineSeconds: timeoutSeconds,

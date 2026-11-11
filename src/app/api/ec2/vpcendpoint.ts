@@ -19,6 +19,8 @@ export interface VpcEndpoint {
     PrivateDnsNameState?: string
   }
   PrivateDnsEnabled?: boolean
+  // Resource-based policy controlling who can use this endpoint (optional, defaults to allow all)
+  PolicyDocument?: Record<string, any>
 }
 
 export const SUPPORTED_SERVICES = [
@@ -88,6 +90,18 @@ export const createVpcEndpointOp: Op = (state, { scope, params }) => {
   const vpcEndpointId = newId('vpce')
   const tags = tagsFromSpecifications(params.TagSpecifications, 'vpc-endpoint')
   
+  // Parse policy document if provided
+  let policyDocument: Record<string, any> | undefined
+  if (params.PolicyDocument) {
+    try {
+      policyDocument = typeof params.PolicyDocument === 'string' 
+        ? JSON.parse(params.PolicyDocument) 
+        : params.PolicyDocument
+    } catch (e) {
+      invalidValue('Invalid PolicyDocument: must be valid JSON')
+    }
+  }
+
   const vpcEndpoint: VpcEndpoint = {
     VpcEndpointId: vpcEndpointId,
     ServiceName: params.ServiceName,
@@ -99,6 +113,7 @@ export const createVpcEndpointOp: Op = (state, { scope, params }) => {
     CreationTimestamp: new Date().toISOString(),
     Tags: tags,
     PrivateDnsEnabled: params.PrivateDnsEnabled !== false,
+    PolicyDocument: policyDocument,
   }
 
   if (!state.vpcEndpoints) {
@@ -192,6 +207,21 @@ export const modifyVpcEndpointOp: Op = (state, { params }) => {
 
   if (params.SecurityGroupIds) {
     vpce.SecurityGroupIds = params.SecurityGroupIds
+  }
+
+  // Handle policy document updates
+  if (params.PolicyDocument !== undefined) {
+    let policyDocument: Record<string, any> | undefined = undefined
+    if (params.PolicyDocument) {
+      try {
+        policyDocument = typeof params.PolicyDocument === 'string' 
+          ? JSON.parse(params.PolicyDocument) 
+          : params.PolicyDocument
+      } catch {
+        invalidValue('Invalid PolicyDocument: must be valid JSON')
+      }
+    }
+    vpce.PolicyDocument = policyDocument
   }
 
   return { Return: true }

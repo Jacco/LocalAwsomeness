@@ -46,6 +46,7 @@ _channel = None
 _log_messages = []
 _vpc_id = os.environ.get('JPK_VPC_ID')
 _subnet_id = os.environ.get('JPK_SUBNET_ID')
+_execution_role_arn = os.environ.get('JPK_EXECUTION_ROLE_ARN')
 
 
 def _advance(seconds):
@@ -109,7 +110,7 @@ def _connect(self):
         'port': self.port,
         'scheme': 'https' if 'HTTPS' in type(self).__name__ else 'http',
     }
-    # Include VPC endpoint context if Lambda runs in a VPC
+    # Include network context if Lambda runs in a VPC
     if _vpc_id and _subnet_id:
         # Determine service name from host
         service_name = None
@@ -131,11 +132,13 @@ def _connect(self):
                 service_name = f"com.amazonaws.{region}.dynamodb"
         
         if service_name:
-            message['vpcEndpointRequest'] = {
+            message['networkContext'] = {
                 'serviceName': service_name,
                 'vpcId': _vpc_id,
                 'subnetId': _subnet_id,
             }
+            if _execution_role_arn:
+                message['networkContext']['principalArn'] = _execution_role_arn
     
     try:
         answer = _ask(message)
