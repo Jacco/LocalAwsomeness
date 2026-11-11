@@ -33,6 +33,7 @@ export const KINDS = {
   address: { prefix: 'eipalloc', code: 'InvalidAllocationID', noun: 'allocation ID' },
   dhcpOptions: { prefix: 'dopt', code: 'InvalidDhcpOptionID', noun: 'dhcpOptions ID' },
   networkInterface: { prefix: 'eni', code: 'InvalidNetworkInterfaceID', noun: 'networkInterface ID' },
+  vpcEndpoint: { prefix: 'vpce', code: 'InvalidVpcEndpointId', noun: 'VPC endpoint ID' },
 } satisfies Record<string, Kind>
 
 export function invalidValue(message: string): never {

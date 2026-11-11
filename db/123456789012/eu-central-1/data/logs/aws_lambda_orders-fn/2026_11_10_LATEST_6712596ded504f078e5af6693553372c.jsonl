@@ -1,5 +1,0 @@
-{"timestamp":1794319960769,"message":"START RequestId: d90d7f5d-aafe-4848-abab-0419083e1300 Version: $LATEST","ingestionTime":1794319961208}
-{"timestamp":1794319960769,"message":"calling as arn:aws:sts::123456789012:assumed-role/orders-fn-role/orders-fn","ingestionTime":1794319961208}
-{"timestamp":1794319960769,"message":"ec2: UnauthorizedOperation: You are not authorized to perform this operation. User: arn:aws:sts::123456789012:assumed-role/orders-fn-role/orders-fn is not authorized to perform: ec2:DescribeVpcs on resource: * because no identity-based policy allows the ec2:DescribeVpcs action","ingestionTime":1794319961208}
-{"timestamp":1794319961061,"message":"END RequestId: d90d7f5d-aafe-4848-abab-0419083e1300","ingestionTime":1794319961208}
-{"timestamp":1794319961061,"message":"REPORT RequestId: d90d7f5d-aafe-4848-abab-0419083e1300\tDuration: 291.07 ms\tBilled Duration: 292 ms\tMemory Size: 128 MB\t","ingestionTime":1794319961208}

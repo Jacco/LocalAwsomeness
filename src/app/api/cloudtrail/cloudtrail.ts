@@ -86,7 +86,7 @@ export function readCloudTrailEvents(
 
     if (!filters) return events
 
-    return events.filter(event => {
+    return events.filter((event: CloudTrailEvent) => {
       if (filters.principal && !event.principal.includes(filters.principal)) return false
       if (filters.service && event.service !== filters.service) return false
       if (filters.action && event.action !== filters.action) return false

@@ -27,6 +27,7 @@ export interface Ec2State {
   defaultDhcpOptionsId: string
   vpcs: Record<string, Resource>
   vpcAttributes: Record<string, VpcAttributes>
+  vpcEndpoints: Record<string, Resource>
   subnets: Record<string, Resource>
   routeTables: Record<string, Resource>
   networkAcls: Record<string, Resource>
@@ -73,6 +74,7 @@ export function loadState(scope: Scope): Ec2State {
     existing.networkInterfaces ??= {}
     existing.natGateways ??= {}
     existing.addresses ??= {}
+    existing.vpcEndpoints ??= {}
     return existing
   }
   const state = emptyState(scope)
@@ -98,6 +100,7 @@ function emptyState({ account, region }: Scope): Ec2State {
     defaultDhcpOptionsId: dhcpOptionsId,
     vpcs: {},
     vpcAttributes: {},
+    vpcEndpoints: {},
     subnets: {},
     routeTables: {},
     networkAcls: {},

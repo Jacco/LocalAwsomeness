@@ -100,9 +100,38 @@ function decodeScalar(shape: Shape, raw: string): unknown {
 
 export function decodeInput(action: string, form: URLSearchParams): Record<string, any> {
   const operation = ec2Model().operations[action]
+  
+  // If operation is not in the model, decode from form directly (for newer operations)
   if (!operation?.input) {
-    return {}
+    const result: Record<string, any> = {}
+    const processed = new Set<string>()
+    
+    form.forEach((value, key) => {
+      if (key === 'Action' || key === 'Version' || processed.has(key)) return
+      
+      // Handle list parameters: VpcEndpointIds.1, VpcEndpointIds.2, etc.
+      const listMatch = key.match(/^(.+)\.(\d+)$/)
+      if (listMatch) {
+        const paramName = listMatch[1]
+        if (!result[paramName]) {
+          result[paramName] = []
+        }
+        result[paramName].push(value)
+        processed.add(key)
+        // Also process any other indices for this list parameter
+        let index = 2
+        while (form.has(`${paramName}.${index}`)) {
+          result[paramName].push(form.get(`${paramName}.${index}`)!)
+          processed.add(`${paramName}.${index}`)
+          index++
+        }
+      } else {
+        result[key] = value
+      }
+    })
+    return result
   }
+  
   const params = new Map<string, string>()
   form.forEach((value, key) => params.set(key, value))
   const keys = [...params.keys()]
@@ -194,11 +223,38 @@ export function encodeOutput(action: string, result: unknown, requestId: string)
   const outputShape = ec2Model().operations[action]?.output
   if (outputShape) {
     encodeMembers(ec2Model().shapes[outputShape], (result ?? {}) as Record<string, unknown>, out)
+  } else if (result && typeof result === 'object') {
+    // Fallback for operations not in model: encode result as XML elements
+    encodeUnknownMembers(result as Record<string, unknown>, out)
   } else {
     out.push('<return>true</return>')
   }
   out.push(`</${action}Response>`)
   return out.join('')
+}
+
+// Encode members for operations not in the EC2 model
+function encodeUnknownMembers(obj: Record<string, unknown>, out: string[]): void {
+  for (const [key, value] of Object.entries(obj)) {
+    if (value === undefined || value === null) continue
+    if (typeof value === 'object' && !Array.isArray(value)) {
+      out.push(`<${key}>`)
+      encodeUnknownMembers(value as Record<string, unknown>, out)
+      out.push(`</${key}>`)
+    } else if (Array.isArray(value)) {
+      for (const item of value) {
+        if (typeof item === 'object') {
+          out.push(`<${key.replace(/s$/, '')}>`)
+          encodeUnknownMembers(item as Record<string, unknown>, out)
+          out.push(`</${key.replace(/s$/, '')}>`)
+        } else {
+          out.push(`<${key.replace(/s$/, '')}>${escapeXml(String(item))}</${key.replace(/s$/, '')}>`)
+        }
+      }
+    } else {
+      out.push(`<${key}>${escapeXml(String(value))}</${key}>`)
+    }
+  }
 }
 
 export function encodeError(code: string, message: string, requestId: string): string {

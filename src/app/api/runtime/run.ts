@@ -131,6 +131,23 @@ interface Decision {
 
 const PRIVATE_RANGES = ['10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '169.254.0.0/16'].map(c => parseCidr(c)!)
 
+// Resolves a VPC endpoint for the given service and VPC, if it exists.
+function resolveVpcEndpoint(
+  state: ReturnType<typeof loadState>,
+  serviceName: string,
+  vpcId: string
+): { id: string; endpoint: any } | null {
+  if (!state.vpcEndpoints) {
+    return null
+  }
+  for (const [id, endpoint] of Object.entries(state.vpcEndpoints)) {
+    if (endpoint.ServiceName === serviceName && endpoint.VpcId === vpcId && endpoint.State === 'available') {
+      return { id, endpoint }
+    }
+  }
+  return null
+}
+
 // Code that is not in a VPC runs in the AWS-managed network: public addresses are reachable directly, the private
 // addresses of customer VPCs are not (there is no route to them).
 function decideUnattached(host: string, port: number, scheme: string): Decision {
@@ -224,6 +241,14 @@ export async function runInContext(request: RunRequest): Promise<RunResult> {
     JPK_SIM_HOST: simulator.hostname,
     JPK_SIM_PORT: simulator.port || (simulator.protocol === 'https:' ? '443' : '80'),
   }
+  // If Lambda runs in a VPC, pass VPC context for VPC endpoint resolution
+  if (source) {
+    const subnet = loadState(scope).subnets[source.subnetId]
+    if (subnet) {
+      env.JPK_VPC_ID = subnet.VpcId
+      env.JPK_SUBNET_ID = subnet.SubnetId
+    }
+  }
   if (request.virtualDeadlineSeconds !== undefined) {
     env.JPK_DEADLINE = String(request.virtualDeadlineSeconds)
   }
@@ -288,7 +313,7 @@ export async function runInContext(request: RunRequest): Promise<RunResult> {
       })
       channel.on('error', () => undefined)
 
-      const handle = (message: { op: string; host?: string; port?: number; scheme?: string; at: number }) => {
+      const handle = (message: { op: string; host?: string; port?: number; scheme?: string; vpcEndpointRequest?: { serviceName: string; vpcId: string; subnetId: string }; at: number }) => {
         virtualSeconds = Math.max(virtualSeconds, message.at)
         if (message.op === 'deadline') {
           virtualTimedOut = true
@@ -303,7 +328,41 @@ export async function runInContext(request: RunRequest): Promise<RunResult> {
             trace: decision.trace,
           }
         } else if (message.op === 'connect') {
-          const decision = decide(scope, source, message.host!, message.port!, message.scheme!)
+          let decision = decide(scope, source, message.host!, message.port!, message.scheme!)
+          
+          // For VPC-attached Lambdas, check VPC endpoint availability
+          if (message.vpcEndpointRequest && source) {
+            const subnet = loadState(scope).subnets[source.subnetId]
+            if (subnet) {
+              const vpceInfo = resolveVpcEndpoint(loadState(scope), message.vpcEndpointRequest.serviceName, subnet.VpcId)
+              if (vpceInfo) {
+                // VPC endpoint exists and is available; modify decision to show endpoint routing
+                const endpointId = vpceInfo.id
+                decision = { ...decision, verdict: 'allow', message: `routed via VPC endpoint ${endpointId}` }
+              } else {
+                // Lambda is in VPC but no endpoint exists for this service
+                // Deny unless we implement NAT gateways/internet gateways (which we haven't)
+                const summary = `Lambda is in VPC but no VPC endpoint exists for ${message.vpcEndpointRequest.serviceName} and NAT gateway is not available`
+                const step: Step = { phase: 'delivery', decision: 'deny', summary, detail: ['To reach AWS services from a VPC-attached Lambda, either create a VPC endpoint for the service or attach a NAT gateway (not yet modelled).'], evidence: [], cause: 'no-route' }
+                decision = {
+                  verdict: 'deny',
+                  message: `no-route: ${summary}`,
+                  trace: {
+                    from: 'the function (in VPC)',
+                    to: `${message.host}:${message.port}`,
+                    intent: `${message.scheme?.toUpperCase() || 'tcp'} to ${message.host}:${message.port}`,
+                    problems: [{ phase: 'delivery', cause: 'no-route', summary }],
+                    outcome: 'failed',
+                    observed: 'connect-timeout',
+                    steps: [step],
+                    failedAt: 'delivery',
+                    cause: 'no-route',
+                  }
+                }
+              }
+            }
+          }
+          
           const last = connections.at(-1)
           if (last && last.host === message.host && last.port === message.port && last.verdict === decision.verdict && last.trace.cause === decision.trace.cause) {
             last.attempts++

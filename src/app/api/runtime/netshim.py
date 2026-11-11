@@ -44,6 +44,8 @@ _deadline = float(os.environ['JPK_DEADLINE']) if 'JPK_DEADLINE' in os.environ el
 _delivering = False
 _channel = None
 _log_messages = []
+_vpc_id = os.environ.get('JPK_VPC_ID')
+_subnet_id = os.environ.get('JPK_SUBNET_ID')
 
 
 def _advance(seconds):
@@ -78,18 +80,72 @@ def _send(message):
 
 
 def _ask(message):
-    _send(message)
-    return json.loads(_open_channel().readline())
+    try:
+        _send(message)
+        line = _open_channel().readline()
+        if not line:
+            # EOF reached - runner crashed or closed connection
+            sys.stderr.write(f"netshim: EOF from runner while asking about {message.get('op', '?')}\n")
+            sys.stderr.flush()
+            sys.exit(1)
+        return json.loads(line)
+    except json.JSONDecodeError as e:
+        sys.stderr.write(f"netshim: malformed response from runner: {e}\n")
+        sys.stderr.flush()
+        sys.exit(1)
+    except Exception as e:
+        sys.stderr.write(f"netshim: error communicating with runner: {type(e).__name__}: {e}\n")
+        sys.stderr.flush()
+        sys.exit(1)
 
 
 def _connect(self):
     """Replaces HTTPConnection.connect and HTTPSConnection.connect."""
     global _delivering
     timeout = self.timeout if isinstance(self.timeout, (int, float)) and self.timeout > 0 else None
-    answer = _ask({
-        'op': 'connect', 'host': self.host, 'port': self.port,
+    message = {
+        'op': 'connect',
+        'host': self.host,
+        'port': self.port,
         'scheme': 'https' if 'HTTPS' in type(self).__name__ else 'http',
-    })
+    }
+    # Include VPC endpoint context if Lambda runs in a VPC
+    if _vpc_id and _subnet_id:
+        # Determine service name from host
+        service_name = None
+        if 'logs.' in self.host and 'amazonaws.com' in self.host:
+            # Extract region from host like "logs.us-east-1.amazonaws.com"
+            parts = self.host.split('.')
+            if len(parts) >= 3:
+                region = parts[1]
+                service_name = f"com.amazonaws.{region}.logs"
+        elif 's3' in self.host and 'amazonaws.com' in self.host:
+            parts = self.host.split('.')
+            if len(parts) >= 3:
+                region = parts[1] if 's3.' in self.host else 'us-east-1'
+                service_name = f"com.amazonaws.{region}.s3"
+        elif 'dynamodb' in self.host and 'amazonaws.com' in self.host:
+            parts = self.host.split('.')
+            if len(parts) >= 3:
+                region = parts[1]
+                service_name = f"com.amazonaws.{region}.dynamodb"
+        
+        if service_name:
+            message['vpcEndpointRequest'] = {
+                'serviceName': service_name,
+                'vpcId': _vpc_id,
+                'subnetId': _subnet_id,
+            }
+    
+    try:
+        answer = _ask(message)
+    except SystemExit:
+        raise
+    except Exception as e:
+        sys.stderr.write(f"netshim: error asking runner about connect to {self.host}:{self.port}: {type(e).__name__}: {e}\n")
+        sys.stderr.flush()
+        raise OSError(errno.ENETUNREACH, f"internal error: {e}")
+    
     if answer['verdict'] == 'allow':
         _delivering = True
         try:
@@ -103,8 +159,10 @@ def _connect(self):
     message = f"simulated: {answer['message']}"
     if answer['verdict'] == 'unknown':
         raise OSError(errno.ENETUNREACH, message)
-    # a dropped packet gets no answer: the code waits for its connect timeout
-    _advance(timeout or DEFAULT_CONNECT_TIMEOUT)
+    # a dropped packet (verdict='deny') gets no answer: the code waits for its connect timeout
+    # Use the caller's timeout if specified, otherwise use a short simulated timeout (not the default 60s)
+    effective_timeout = timeout if timeout and timeout > 0 else 1.0
+    _advance(effective_timeout)
     if _urllib3_connection is not None and isinstance(self, _urllib3_connection.HTTPConnection):
         raise _urllib3_connection.ConnectTimeoutError(self, message)
     raise socket.timeout(message)

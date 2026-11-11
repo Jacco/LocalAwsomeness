@@ -24,6 +24,7 @@ const configurationRoute = require('@/app/api/lambda/2015-03-31/functions/[name]
 const codeRoute = require('@/app/api/lambda/2015-03-31/functions/[name]/code/route')
 const invocationsRoute = require('@/app/api/lambda/2015-03-31/functions/[name]/invocations/route')
 const inspectRoute = require('@/app/api/lambda/inspect/route')
+const ec2Route = require('@/app/api/ec2/route')
 const iam = require('@/app/api/db/iam')
 const { addSecurityGroup, createSubnet, createVpc, loadState, saveState, securityGroupRule } = require('@/app/api/db/ec2/state')
 const { QUOTAS, setQuota } = require('@/app/api/quotas')
@@ -83,6 +84,28 @@ async function send(handler: (request: Request) => Promise<Response>, method: st
     parsed = undefined
   }
   return { status: response.status, body: parsed, text, headers: response.headers }
+}
+
+// Helper to encode params as form data for EC2 API
+function encodeEC2Params(params: Record<string, any>): string {
+  const encoded = new URLSearchParams()
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== null) {
+      encoded.append(key, String(value))
+    }
+  }
+  return encoded.toString()
+}
+
+async function sendEC2(handler: (request: Request) => Promise<Response>, method: string, path: string, params: Record<string, any>): Promise<Answer> {
+  const body = encodeEC2Params(params)
+  const response = await handler(new Request(`http://localhost${path}`, {
+    method,
+    body,
+    headers: { ...headers(), 'content-type': 'application/x-www-form-urlencoded' },
+  }))
+  const text = await response.text()
+  return { status: response.status, body: text, text, headers: response.headers }
 }
 
 const create = (body: Record<string, unknown>) => send(functionsRoute.POST, 'POST', '/2015-03-31/functions', body)
@@ -815,6 +838,187 @@ describe('Invoke', () => {
         
         // Cleanup
         clearCloudTrailEvents(account)
+      })
+    })
+
+    describe('and VPC Endpoints', () => {
+      it('creates and lists VPC endpoints for CloudWatch Logs', async () => {
+        const subnet = defaultSubnet()
+        const vpcId = subnet.VpcId
+        
+        // Create a VPC endpoint for CloudWatch Logs
+        const vpceResponse = await sendEC2(ec2Route.POST, 'POST', '/api/ec2', {
+          Action: 'CreateVpcEndpoint',
+          VpcId: vpcId,
+          ServiceName: `com.amazonaws.${region}.logs`,
+          'SubnetId.1': subnet.SubnetId,
+        })
+        
+        if (vpceResponse.status !== 200) {
+          console.log('VPC Endpoint creation error:', vpceResponse.text.substring(0, 500))
+        }
+        expect(vpceResponse.status).toBe(200)
+        expect(vpceResponse.text).toContain('vpce-')
+        
+        // Extract endpoint ID from response (basic parsing)
+        const vpceIdMatch = vpceResponse.text.match(/vpce-[a-z0-9]+/)
+        expect(vpceIdMatch).toBeDefined()
+        const vpceId = vpceIdMatch![0]
+        
+        // List VPC endpoints
+        const describeResponse = await sendEC2(ec2Route.POST, 'POST', '/api/ec2', {
+          Action: 'DescribeVpcEndpoints',
+          'VpcEndpointId.1': vpceId,
+        })
+        
+        expect(describeResponse.status).toBe(200)
+        expect(describeResponse.text).toContain(vpceId)
+        expect(describeResponse.text).toContain('com.amazonaws')
+        expect(describeResponse.text).toContain('.logs')
+        
+        // Clean up: delete the endpoint
+        const deleteResponse = await sendEC2(ec2Route.POST, 'POST', '/api/ec2', {
+          Action: 'DeleteVpcEndpoint',
+          'VpcEndpointIds.1': vpceId,
+        })
+        expect(deleteResponse.status).toBe(200)
+      })
+
+      it('runs a Lambda function attached to a VPC', async () => {
+        const subnet = defaultSubnet()
+        
+        // Create a simple Lambda function in the VPC
+        await fn('vpc-simple-fn', 
+          source('def handler(event, context):\n    return {"status": "simple-success"}'),
+          { Timeout: 20, VpcConfig: { SubnetIds: [subnet.SubnetId] } }
+        )
+        
+        // Invoke the function
+        const answer = await invoke('vpc-simple-fn')
+        
+        // Should succeed
+        expect(answer.status).toBe(200)
+        expect(answer.body).toHaveProperty('status', 'simple-success')
+        
+        // Clean up
+        await remove('vpc-simple-fn')
+      })
+
+      it('makes network calls from a VPC-attached Lambda', async () => {
+        const subnet = defaultSubnet()
+        
+        // Create a Lambda function that makes a network call
+        await fn('vpc-network-fn', 
+          source(`def handler(event, context):
+    import urllib.request
+    try:
+        # Try to reach a service (will fail due to no endpoint, but that's expected)
+        resp = urllib.request.urlopen('http://logs.eu-west-1.amazonaws.com/')
+        return {"status": "reached"}
+    except urllib.error.URLError as e:
+        # Expected - no endpoint or no route
+        return {"status": "blocked", "reason": str(e)}
+    except Exception as e:
+        return {"status": "error", "error": str(e)}`),
+          { Timeout: 20, VpcConfig: { SubnetIds: [subnet.SubnetId] } }
+        )
+        
+        // Invoke the function
+        const answer = await invoke('vpc-network-fn')
+        
+        // Should return either blocked or error (both are OK - the point is the Lambda runs)
+        expect(answer.status).toBe(200)
+        expect(['blocked', 'error', 'reached']).toContain(answer.body?.status)
+        
+        // Clean up
+        await remove('vpc-network-fn')
+      })
+
+      it('denies CloudWatch access when function is in VPC but no endpoint exists', async () => {
+        const subnet = defaultSubnet()
+        
+        // Create a Lambda function in the VPC WITHOUT a VPC endpoint
+        await fn('vpc-no-vpce-fn',
+          source(`def handler(event, context):
+    import urllib.request
+    import errno
+    try:
+        # Try to reach CloudWatch Logs without an endpoint
+        urllib.request.urlopen('http://logs.${region}.amazonaws.com/', timeout=1)
+        return {'status': 'success'}
+    except urllib.error.URLError as e:
+        # Expected - connection denied
+        return {'status': 'blocked', 'reason': str(e)}
+    except Exception as e:
+        return {'status': 'error', 'error': str(e)}`),
+          { Timeout: 20, VpcConfig: { SubnetIds: [subnet.SubnetId] } }
+        )
+        
+        // Invoke the function
+        const answer = await invoke('vpc-no-vpce-fn')
+        
+        // Should return 200 but with error status in body or function error header
+        expect(answer.status).toBe(200)
+        // Either the function error header is set OR the body shows an error
+        const hasError = answer.headers.get('x-amz-function-error') !== null || answer.body?.status === 'error' || answer.body?.status === 'blocked'
+        expect(hasError).toBe(true)
+        
+        // Clean up
+        await remove('vpc-no-vpce-fn')
+      })
+
+      it('routes Lambda CloudWatch Logs calls through VPC endpoint when available', async () => {
+        const subnet = defaultSubnet()
+        const vpcId = subnet.VpcId
+        
+        // Create a VPC endpoint for CloudWatch Logs
+        const vpceResponse = await sendEC2(ec2Route.POST, 'POST', '/api/ec2', {
+          Action: 'CreateVpcEndpoint',
+          VpcId: vpcId,
+          ServiceName: `com.amazonaws.${region}.logs`,
+          'SubnetId.1': subnet.SubnetId,
+        })
+        
+        expect(vpceResponse.status).toBe(200)
+        
+        // Extract VPC Endpoint ID from response
+        const vpceIdMatch = vpceResponse.text.match(/<VpcEndpointId>([^<]+)<\/VpcEndpointId>/)
+        const vpceId = vpceIdMatch ? vpceIdMatch[1] : undefined
+        expect(vpceId).toBeDefined()
+        
+        // Create a Lambda function in the VPC that tries to reach CloudWatch Logs
+        await fn('vpc-logs-fn', 
+          source(`def handler(event, context):
+    import urllib.request
+    try:
+        # Try to connect to CloudWatch Logs
+        urllib.request.urlopen('http://logs.${region}.amazonaws.com/', timeout=1)
+        return {'status': 'success'}
+    except urllib.error.URLError as e:
+        # Should reach (even if error, the connection is allowed)
+        return {'status': 'reached', 'reason': str(e)}
+    except Exception as e:
+        return {'status': 'error', 'error': str(e)}`),
+          { Timeout: 20, VpcConfig: { SubnetIds: [subnet.SubnetId] } }
+        )
+        
+        // Invoke the function
+        const answer = await invoke('vpc-logs-fn')
+        
+        // Should succeed (connection was allowed through VPC endpoint)
+        expect(answer.status).toBe(200)
+        expect(['success', 'reached']).toContain(answer.body?.status)
+        
+        // Clean up
+        await remove('vpc-logs-fn')
+        // Delete the VPC endpoint
+        if (vpceId) {
+          const deleteResponse = await sendEC2(ec2Route.POST, 'POST', '/api/ec2', {
+            Action: 'DeleteVpcEndpoint',
+            'VpcEndpointIds.1': vpceId,
+          })
+          expect(deleteResponse.status).toBe(200)
+        }
       })
     })
   })

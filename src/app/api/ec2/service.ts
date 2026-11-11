@@ -35,6 +35,9 @@ import {
   associateVpcCidrBlockOp, createDefaultVpcOp, createVpcOp, deleteVpcOp, describeVpcAttributeOp, describeVpcsOp,
   disassociateVpcCidrBlockOp, modifyVpcAttributeOp,
 } from "./vpc"
+import {
+  createVpcEndpointOp, deleteVpcEndpointOp, describeVpcEndpointsOp, modifyVpcEndpointOp,
+} from "./vpcendpoint"
 
 // Runs an operation against the caller's state for the request region. DryRun operations do all validation
 // and then fail with DryRunOperation instead of persisting.
@@ -132,5 +135,10 @@ export const ec2 = defineService({
     DescribeInternetGateways: read(describeInternetGatewaysOp),
     DescribeDhcpOptions: read(describeDhcpOptionsOp),
     DescribeNetworkInterfaces: read(describeNetworkInterfacesOp),
+
+    CreateVpcEndpoint: write(createVpcEndpointOp),
+    DeleteVpcEndpoint: write(deleteVpcEndpointOp),
+    DescribeVpcEndpoints: read(describeVpcEndpointsOp),
+    ModifyVpcEndpoint: write(modifyVpcEndpointOp),
   },
 })
