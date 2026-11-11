@@ -718,5 +718,56 @@ describe('Invoke', () => {
       expect(record.Connections).toEqual([expect.objectContaining({ host: STS, verdict: 'deny', cause: 'no-public-ip' })])
       await remove('sdk')
     })
+
+    describe('and cross-service authorization', () => {
+      const rolePolicy = (...actions: string[]) =>
+        iam.putRolePolicy(account, 'fn-role', 'cross-service', { Version: '2012-10-17', Statement: [{ Effect: 'Allow', Action: actions, Resource: '*' }] })
+      const noPolicy = () => {
+        try {
+          iam.deleteRolePolicy(account, 'fn-role', 'cross-service')
+        } catch {
+          // there was none
+        }
+      }
+      afterEach(noPolicy)
+
+      it('denies Lambda STS calls when the execution role lacks sts:GetCallerIdentity permission', async () => {
+        const python = (() => { try { execFileSync('python3', ['-c', 'import boto3'], { stdio: 'ignore' }); return true } catch { return false } })()
+        if (!python) {
+          return
+        }
+        // Create a Lambda function that calls STS GetCallerIdentity
+        await fn('auth-test', source('def handler(event, context):\n    import boto3\n    try:\n        arn = boto3.client("sts").get_caller_identity()["Arn"]\n        return {"status": "success", "arn": arn}\n    except Exception as e:\n        return {"status": "error", "error": str(e)}'))
+
+        // Invoke WITHOUT permissions: should fail with AccessDenied
+        const answer = await invoke('auth-test')
+        expect(answer.headers.get('x-amz-function-error')).toBe('Unhandled')
+        expect(answer.body.errorMessage).toContain('AccessDenied') ||
+        expect(answer.body.errorMessage).toContain('is not authorized to perform')
+
+        await remove('auth-test')
+      })
+
+      it('allows Lambda STS calls when the execution role has sts:GetCallerIdentity permission', async () => {
+        const python = (() => { try { execFileSync('python3', ['-c', 'import boto3'], { stdio: 'ignore' }); return true } catch { return false } })()
+        if (!python) {
+          return
+        }
+        // Grant permission
+        rolePolicy('sts:GetCallerIdentity')
+
+        // Create a Lambda function that calls STS GetCallerIdentity
+        await fn('auth-allowed', source('def handler(event, context):\n    import boto3\n    arn = boto3.client("sts").get_caller_identity()["Arn"]\n    return {"status": "success", "arn": arn}'))
+
+        // Invoke WITH permissions: should succeed
+        const answer = await invoke('auth-allowed')
+        expect(answer.status).toBe(200)
+        expect(answer.headers.get('x-amz-function-error')).toBeNull()
+        expect(answer.body.status).toBe('success')
+        expect(answer.body.arn).toContain('assumed-role/fn-role/auth-allowed')
+
+        await remove('auth-allowed')
+      })
+    })
   })
 })
