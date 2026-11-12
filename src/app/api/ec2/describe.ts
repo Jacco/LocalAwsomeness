@@ -1,5 +1,5 @@
 import { AwsError } from "../common"
-import type { Resource, Tag } from "../db/ec2/state"
+import type { Resource, Tag } from "../data/ec2/state"
 
 export interface Filter {
   Name: string

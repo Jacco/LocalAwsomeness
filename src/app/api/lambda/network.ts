@@ -1,7 +1,7 @@
-import { createInterface } from "../db/ec2/interfaces"
-import { loadState, saveState, type Ec2State, type Resource } from "../db/ec2/state"
+import { createInterface } from "../data/ec2/interfaces"
+import { loadState, saveState, type Ec2State, type Resource } from "../data/ec2/state"
 import { AwsError } from "../common"
-import type { LambdaState } from "../db/lambda"
+import type { LambdaState } from "../data/lambda"
 
 // The network interfaces of VPC-attached functions. They are shared: one interface per combination of subnet and set of
 // security groups, used by every function with that combination (docs/lambda-plan.md, "Interfaces are shared between

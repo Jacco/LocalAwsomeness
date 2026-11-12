@@ -1,5 +1,5 @@
 import { AwsError } from "../common"
-import { newId } from "../db/ec2/ids"
+import { newId } from "../data/ec2/ids"
 import { describe } from "./describe"
 import { KINDS, find, invalidValue, missing, tagsFromSpecifications, type Op } from "./request"
 

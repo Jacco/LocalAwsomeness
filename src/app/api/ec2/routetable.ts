@@ -1,6 +1,6 @@
 import { AwsError } from "../common"
-import { newId, newResourceId } from "../db/ec2/ids"
-import type { Ec2State, Resource } from "../db/ec2/state"
+import { newId, newResourceId } from "../data/ec2/ids"
+import type { Ec2State, Resource } from "../data/ec2/state"
 import { natGatewayIsLive } from "./natgateway"
 import { KINDS, find, invalidValue, tagsFromSpecifications, type Op } from "./request"
 

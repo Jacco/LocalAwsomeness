@@ -9,8 +9,8 @@ process.env.JPK_DB_ROOT = root
 const { servicequotas } = require('@/app/api/servicequotas/service')
 const { ec2 } = require('@/app/api/ec2/service')
 const { QUOTAS, quota, setApprovalPolicy, setQuota, decideRequest } = require('@/app/api/quotas')
-const { provisionAccount } = require('@/app/api/db/ec2/state')
-const { quotaDefinitions } = require('@/app/api/db/reference')
+const { provisionAccount } = require('@/app/api/data/ec2/state')
+const { quotaDefinitions } = require('@/app/api/data/reference')
 
 const ACCOUNTS = ['111111111111', '222222222222', '333333333333', '444444444444', '555555555555']
 

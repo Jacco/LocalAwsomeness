@@ -1,4 +1,4 @@
-import { appendEvents, createGroup, createStream, loadLogs, logGroupArn, logStreamArn, saveLogs } from "../db/logs"
+import { appendEvents, createGroup, createStream, loadLogs, logGroupArn, logStreamArn, saveLogs } from "../data/logs"
 import { accessDenial } from "../policy/authorizer"
 import type { LogNetworkDecision } from "../runtime/run"
 

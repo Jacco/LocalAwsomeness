@@ -7,9 +7,9 @@ process.env.JPK_DB_ROOT = root
 
 /* eslint-disable @typescript-eslint/no-require-imports */
 const { logs } = require('@/app/api/logs/service')
-const iam = require('@/app/api/db/iam')
+const iam = require('@/app/api/data/iam')
 const { QUOTAS, setQuota } = require('@/app/api/quotas')
-const { loadLogs, readEvents } = require('@/app/api/db/logs')
+const { loadLogs, readEvents } = require('@/app/api/data/logs')
 
 const account = '111111111111'
 const region = 'eu-west-1'
@@ -282,7 +282,7 @@ describe('state and data', () => {
 })
 
 describe('names of files', () => {
-  const { readableName, uniqueName, safeFileName } = require('@/app/api/db/store')
+  const { readableName, uniqueName, safeFileName } = require('@/app/api/data/store')
 
   it('are readable versions of the names they come from', () => {
     expect(readableName('/aws/lambda/orders-fn')).toBe('aws_lambda_orders-fn')

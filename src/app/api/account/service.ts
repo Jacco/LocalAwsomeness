@@ -1,9 +1,9 @@
-import { PARTITION } from "../db/common"
+import { PARTITION } from "../data/common"
 import {
   deleteAlternateContact, enableRegion, disableRegion, getAlternateContact, getContactInformation,
   getRegion, listRegions, putAccountName, putAlternateContact, putContactInformation
-} from "../db/account"
-import { getAccount } from "../db/organizations"
+} from "../data/account"
+import { getAccount } from "../data/organizations"
 import { RestJsonProtocol } from "../protocols"
 import { defineService, type Handler, type Operation, type RequestContext } from "../registry"
 

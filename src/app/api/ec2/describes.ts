@@ -1,6 +1,6 @@
 import { AwsError } from "../common"
-import { availableAddressCount } from "../db/ec2/interfaces"
-import type { Resource } from "../db/ec2/state"
+import { availableAddressCount } from "../data/ec2/interfaces"
+import type { Resource } from "../data/ec2/state"
 import { effectiveRouteState } from "../network/routes"
 import { describe } from "./describe"
 import { KINDS, type Op } from "./request"

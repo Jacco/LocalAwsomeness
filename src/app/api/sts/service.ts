@@ -1,6 +1,6 @@
 import { AwsError } from "../common"
-import { pseudoId, issueSession } from "../db/credentials"
-import * as iam from "../db/iam"
+import { pseudoId, issueSession } from "../data/credentials"
+import * as iam from "../data/iam"
 import { QueryProtocol } from "../protocols"
 import { QueryHandler, STS_NS } from "../query"
 import { defineService } from "../registry"

@@ -1,5 +1,5 @@
 import { AwsError } from "../common"
-import { PARTITION } from "../db/common"
+import { PARTITION } from '../data/common'
 import { JsonProtocol } from "../protocols"
 import { defineService, type RequestContext } from "../registry"
 import {

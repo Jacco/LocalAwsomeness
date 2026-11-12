@@ -1,5 +1,5 @@
-import type { Ec2State } from '@/app/api/db/ec2/state'
-import { addNetworkAcl, addSecurityGroup, createSubnet, createVpc, securityGroupRule } from '@/app/api/db/ec2/state'
+import type { Ec2State } from '@/app/api/data/ec2/state'
+import { addNetworkAcl, addSecurityGroup, createSubnet, createVpc, securityGroupRule } from '@/app/api/data/ec2/state'
 import { effectiveRouteState, lookupRoute, routeTableFor } from '@/app/api/network/routes'
 import { reachPublicService, servicePublicAddress, type Source } from '@/app/api/network/reach'
 import { renderTrace, type Trace } from '@/app/api/network/trace'

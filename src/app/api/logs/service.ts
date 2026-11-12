@@ -1,6 +1,6 @@
 import { JsonProtocol } from "../protocols"
 import { defineService, type RequestContext } from "../registry"
-import { logGroupArn, logStreamArn } from "../db/logs"
+import { logGroupArn, logStreamArn } from '../data/logs'
 import {
   createLogGroup, createLogStream, deleteLogGroup, deleteLogStream, deleteRetentionPolicy, describeLogGroups, describeLogStreams,
   filterLogEvents, getLogEvents, listTagsForResource, putLogEvents, putRetentionPolicy, tagResource, untagResource,

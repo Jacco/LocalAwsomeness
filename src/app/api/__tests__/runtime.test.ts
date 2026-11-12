@@ -9,15 +9,15 @@ const root = mkdtempSync(join(tmpdir(), 'jpk-runtime-'))
 process.env.JPK_DB_ROOT = root
 
 // Sessions are issued into the shared credentials store, which does not follow JPK_DB_ROOT: keep the tests out of db/.
-jest.mock('@/app/api/db/credentials', () => ({
+jest.mock('@/app/api/data/credentials', () => ({
   issueSession: jest.fn((_account: string, _arn: string, userId: string) =>
     ({ keyId: 'ASIATESTKEY', secret: 'test-secret', sessionToken: 'test-token', expiration: Date.now() + 3600_000, userId })),
 }))
 
 /* eslint-disable @typescript-eslint/no-require-imports */
 const { BadRunRequest, runInContext } = require('@/app/api/runtime/run')
-const { loadState } = require('@/app/api/db/ec2/state')
-const iam = require('@/app/api/db/iam')
+const { loadState } = require('@/app/api/data/ec2/state')
+const iam = require('@/app/api/data/iam')
 
 const account = '111111111111'
 const region = 'eu-west-1'

@@ -1,7 +1,7 @@
 import { AwsError } from "../common"
-import { listRegions } from "../db/account"
-import { availabilityZones } from "../db/ec2/regions"
-import { defaultVpc } from "../db/ec2/state"
+import { listRegions } from "../data/account"
+import { availabilityZones } from "../data/ec2/regions"
+import { defaultVpc } from "../data/ec2/state"
 import { describe } from "./describe"
 import { KINDS, invalidValue, type Op } from "./request"
 

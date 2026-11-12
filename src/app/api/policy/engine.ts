@@ -1,4 +1,4 @@
-import type { PolicyDocument } from "../db/reference"
+import type { PolicyDocument } from "../data/reference"
 import { matchPrincipal, type PrincipalMatch } from "./principal"
 
 // Policy evaluation, the parts of the IAM evaluation logic the simulator models: identity-based policies (what a role may do)

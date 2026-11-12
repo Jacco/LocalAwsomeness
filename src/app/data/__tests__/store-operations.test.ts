@@ -10,7 +10,7 @@ import {
   getAlternateContact,
   deleteAlternateContact,
   putAccountName,
-} from '@/app/api/db/account'
+} from '"@/app/data/account'
 
 jest.mock('fs')
 

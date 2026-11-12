@@ -1,5 +1,5 @@
 import { defineService, type RequestContext } from "../registry"
-import { functionArn, parseReference } from "../db/lambda"
+import { functionArn, parseReference } from "../data/lambda"
 import { createFunction, deleteFunction, getFunction, getFunctionCodeSigningConfig, getFunctionConcurrency, getFunctionConfiguration, getFunctionRecursionConfig, listFunctions, listTags, listVersionsByFunction, updateFunctionCode } from "./functions"
 import { invoke } from "./invoke"
 import { LambdaProtocol } from "./protocol"

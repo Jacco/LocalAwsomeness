@@ -1,5 +1,5 @@
-import { findRole } from "../db/iam"
-import { findManagedPolicy } from "../db/reference"
+import { findRole } from "../data/iam"
+import { findManagedPolicy } from "../data/reference"
 import type { IdentityPolicy } from "./engine"
 
 // Who a request is made as, and which identity-based policies apply to it.

@@ -1,8 +1,8 @@
 import { isIPv6 } from "net"
 import { AwsError } from "../common"
-import { canonical, formatCidr, parseCidr } from "../db/ec2/cidr"
-import { newId } from "../db/ec2/ids"
-import { addNetworkAcl, type Resource } from "../db/ec2/state"
+import { canonical, formatCidr, parseCidr } from "../data/ec2/cidr"
+import { newId } from "../data/ec2/ids"
+import { addNetworkAcl, type Resource } from "../data/ec2/state"
 import { QUOTAS, quota } from "../quotas"
 import { KINDS, find, invalidValue, tagsFromSpecifications, type Op } from "./request"
 

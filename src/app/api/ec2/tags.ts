@@ -1,6 +1,6 @@
 import { AwsError } from "../common"
-import { resourceTypeOfId } from "../db/ec2/ids"
-import { COLLECTIONS, type Ec2State, type Resource, type Tag } from "../db/ec2/state"
+import { resourceTypeOfId } from "../data/ec2/ids"
+import { COLLECTIONS, type Ec2State, type Resource, type Tag } from "../data/ec2/state"
 import { QUOTAS, hardLimit } from "../quotas"
 import { describe } from "./describe"
 import { KINDS, validateTags, type Op } from "./request"

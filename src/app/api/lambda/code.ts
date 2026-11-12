@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from "fs"
 import { dirname, join, resolve } from "path"
 import { AwsError } from "../common"
-import * as store from "../db/store"
+import * as store from "../data/store"
 import { QUOTAS, hardLimit } from "../quotas"
 import { invalidParameter } from "./errors"
 import { readZip, ZipError, type ZipEntry } from "./zip"

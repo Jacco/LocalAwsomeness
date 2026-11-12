@@ -1,7 +1,7 @@
 import { defineService, type RequestContext } from "../registry"
 import { JsonProtocol } from "../protocols"
-import { PARTITION } from "../db/common"
-import { getParameter, getServiceSetting, putParameter, setServiceSetting } from "../db/ssm"
+import { PARTITION } from '../data/common'
+import { getParameter, getServiceSetting, putParameter, setServiceSetting } from '../data/ssm'
 
 const parameterArn = ({ account, region, params }: RequestContext) =>
   [`arn:${PARTITION}:ssm:${region}:${account}:parameter/${String(params.Name).replace(/^\//, '')}`]

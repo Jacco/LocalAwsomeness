@@ -1,5 +1,5 @@
 import { AwsError } from "../common"
-import { findRole } from "../db/iam"
+import { findRole } from '../data/iam'
 
 // What PutBucketPolicy accepts. AWS checks a bucket policy when it is put and answers MalformedPolicy for a structure it
 // cannot use, a resource outside the bucket, an action that is not an S3 action, or a principal that does not exist; doing

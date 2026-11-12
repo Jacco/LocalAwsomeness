@@ -5,7 +5,7 @@ import {
   assertValidRegion,
   assertAccountExists,
   PARTITION,
-} from '@/app/api/db/common'
+} from '@/app/api/data/common'
 
 // Mock the fs module
 jest.mock('fs')

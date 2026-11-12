@@ -15,10 +15,10 @@ import {
   detachRolePolicy,
   trustAllows,
   attachmentCounts,
-} from '@/app/api/db/iam'
+} from '@/app/api/data/iam'
 
 // Mock the reference module that loads AWS managed policies
-jest.mock('@/app/api/db/reference', () => ({
+jest.mock('@/app/api/data/reference', () => ({
   listManagedPolicies: jest.fn(() => [
     {
       name: 'AWSLambdaExecute',
@@ -84,7 +84,7 @@ jest.mock('@/app/api/db/reference', () => ({
 }))
 
 // Mock common validation functions
-jest.mock('@/app/api/db/common', () => ({
+jest.mock('@/app/api/data/common', () => ({
   assertAccountExists: jest.fn(),
   assertValidRegion: jest.fn(),
   PARTITION: 'aws',

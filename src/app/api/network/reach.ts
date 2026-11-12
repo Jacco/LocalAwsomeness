@@ -1,6 +1,6 @@
 import { createHash } from "crypto"
-import { contains, parseAddress, parseCidr } from "../db/ec2/cidr"
-import type { Ec2State, Resource, Tag } from "../db/ec2/state"
+import { contains, parseAddress, parseCidr } from '../data/ec2/cidr'
+import type { Ec2State, Resource, Tag } from '../data/ec2/state'
 import { describeRoute, effectiveRouteState, lookupRoute, routeTableFor, routeTarget } from "./routes"
 import { summarize, type Cause, type Evidence, type Phase, type RequestContext, type Step, type Trace } from "./trace"
 

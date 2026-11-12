@@ -1,4 +1,4 @@
-import * as iam from "../db/iam"
+import * as iam from '../data/iam'
 import type { QueryHandler } from "../query"
 
 const iso = (ms: number) => new Date(ms).toISOString().replace(/\.\d{3}Z$/, 'Z')

@@ -1,6 +1,6 @@
 import { AwsError } from "../common"
 import type { AuthorizationRequest } from "../authorization"
-import type { PolicyDocument } from "../db/reference"
+import type { PolicyDocument } from "../data/reference"
 import { evaluateIdentityPolicies, evaluateResourcePolicy, PolicyNotModelled } from "./engine"
 import { subjectOf } from "./identity"
 import { accountOf } from "./principal"

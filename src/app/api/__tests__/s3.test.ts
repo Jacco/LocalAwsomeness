@@ -15,7 +15,7 @@ const { s3 } = require('@/app/api/s3/service')
 const { AwsError } = require('@/app/api/common')
 const { createKey } = require('@/app/api/kms/storage')
 const { readCloudTrailEvents } = require('@/app/api/cloudtrail/cloudtrail')
-const iam = require('@/app/api/db/iam')
+const iam = require('@/app/api/data/iam')
 
 const account = '111111111111'
 const otherAccount = '222222222222'

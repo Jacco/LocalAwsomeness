@@ -4,7 +4,7 @@ import {
   getParameter,
   getServiceSetting,
   setServiceSetting,
-} from '@/app/api/db/ssm'
+} from '@/app/api/data/ssm'
 
 jest.mock('fs')
 

@@ -1,5 +1,5 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSync, unlinkSync } from 'fs'
-import { provisionAccount } from '@/app/api/db/ec2/state'
+import { provisionAccount } from '"@/app/data/ec2/state'
 import {
   getAccount,
   accountExists,
@@ -20,7 +20,7 @@ import {
   RCP,
   POLICY_TYPES,
   type OrgState,
-} from '@/app/api/db/organizations'
+} from '"@/app/data/organizations'
 
 // Mock the reference module that loads AWS organization policies
 jest.mock('@/app/api/db/reference', () => ({

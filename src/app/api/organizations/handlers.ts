@@ -1,6 +1,6 @@
 import { AwsError } from "../common"
-import * as org from "../db/organizations"
-import type { OrgState } from "../db/organizations"
+import * as org from '../data/organizations'
+import type { OrgState } from '../data/organizations'
 
 import type { RequestContext } from "../registry"
 

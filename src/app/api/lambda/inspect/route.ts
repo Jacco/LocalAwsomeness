@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
-import { loadInvocations, loadLambda } from '../../db/lambda'
-import { accountDirExists } from '../../db/store'
+import { loadInvocations, loadLambda } from '../../data/lambda'
+import { accountDirExists } from '../../data/store'
 
 // An internal endpoint, not an AWS API (like /api/network/inspect): what the last invocations of a function did, with the
 // log and the connections the code made and their traces. GET /api/lambda/inspect?account=&region=&function=

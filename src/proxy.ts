@@ -3,7 +3,7 @@ import type { NextFetchEvent, NextRequest } from 'next/server'
 import { SignatureV4 } from '@smithy/signature-v4'
 import { Sha256 } from '@aws-crypto/sha256-js'
 import { randomUUID } from 'crypto'
-import { findCredential } from './app/api/db/credentials'
+import { findCredential } from './app/api/data/credentials'
 import { VHOST_BUCKET_HEADER } from './app/api/s3/protocol'
 
 function authError(req: NextRequest, service: string, code: string, message: string): Response {

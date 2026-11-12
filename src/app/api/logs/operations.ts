@@ -2,7 +2,7 @@ import { AwsError } from "../common"
 import {
   appendEvents, createGroup, createStream, eventSize, loadLogs, logGroupArn, logStreamArn, readEvents, removeGroupData, removeStreamData,
   saveLogs, storedBytes, type LogEvent, type LogGroup, type LogStream, type LogsState,
-} from "../db/logs"
+} from '../data/logs'
 import { QUOTAS, hardLimit, quota } from "../quotas"
 import type { RequestContext } from "../registry"
 

@@ -1,6 +1,6 @@
 import { AwsError } from "../common"
-import { getRegion } from "../db/account"
-import { PARTITION } from "../db/common"
+import { getRegion } from '../data/account'
+import { PARTITION } from '../data/common'
 import { defineService, type Handler, type Operation, type RequestContext } from "../registry"
 import type { ResourcePolicy } from "../policy/authorizer"
 import { S3Protocol } from "./protocol"

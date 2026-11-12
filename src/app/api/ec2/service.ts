@@ -1,6 +1,6 @@
 import { AwsError } from "../common"
-import { getRegion } from "../db/account"
-import { loadState, saveState } from "../db/ec2/state"
+import { getRegion } from "../data/account"
+import { loadState, saveState } from "../data/ec2/state"
 import { defineService, type Handler } from "../registry"
 import { describeAccountAttributesOp, describeAvailabilityZonesOp, describeRegionsOp } from "./account"
 import {

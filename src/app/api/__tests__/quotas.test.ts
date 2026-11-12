@@ -8,7 +8,7 @@ process.env.JPK_DB_ROOT = root
 
 /* eslint-disable @typescript-eslint/no-require-imports */
 const { QUOTAS, hardLimit, quota, resetQuota, setQuota } = require('@/app/api/quotas')
-const { quotaDefinitions } = require('@/app/api/db/reference')
+const { quotaDefinitions } = require('@/app/api/data/reference')
 
 const A = '111111111111'
 const B = '222222222222'

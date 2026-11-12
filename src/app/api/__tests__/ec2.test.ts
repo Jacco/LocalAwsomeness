@@ -10,7 +10,7 @@ const ACCOUNT = '123456789012'
 
 /* eslint-disable @typescript-eslint/no-require-imports */
 const { ec2 } = require('@/app/api/ec2/service')
-const { provisionAccount } = require('@/app/api/db/ec2/state')
+const { provisionAccount } = require('@/app/api/data/ec2/state')
 
 const headers = (region: string) => ({
   'content-type': 'application/x-www-form-urlencoded',
@@ -842,7 +842,7 @@ describe('ec2 security groups (phase 3)', () => {
     expect(error(await call('DeleteVpc', { VpcId: vpc }))).toMatchObject({ code: 'DependencyViolation' })
 
     // a network interface that uses the group keeps it alive
-    const { loadState, saveState } = require('@/app/api/db/ec2/state')
+    const { loadState, saveState } = require('@/app/api/data/ec2/state')
     const scope = { account: ACCOUNT, region: 'eu-west-1' }
     const state = loadState(scope)
     state.networkInterfaces['eni-0123456789abcdef0'] = { NetworkInterfaceId: 'eni-0123456789abcdef0', VpcId: vpc, SubnetId: 'subnet-x', Groups: [{ GroupId: db, GroupName: 'db' }], Tags: [] }
@@ -1111,7 +1111,7 @@ describe('ec2 quotas of the account', () => {
 
   it('limits security groups per Region and rules per security group and network ACL', async () => {
     const vpc = await vpcOf('10.0.0.0/16')
-    const groups = Object.keys(require('@/app/api/db/ec2/state').loadState(scope()).securityGroups).length
+    const groups = Object.keys(require('@/app/api/data/ec2/state').loadState(scope()).securityGroups).length
     await withQuota(QUOTAS.securityGroupsPerRegion, groups + 1, async () => {
       const group = await groupOf(vpc, 'only-one-more')
       expect(error(await call('CreateSecurityGroup', { GroupName: 'one-too-many', GroupDescription: 'd', VpcId: vpc }))).toMatchObject({ code: 'SecurityGroupLimitExceeded' })
@@ -1151,7 +1151,7 @@ describe('ec2 quotas of the account', () => {
 // ---------------------------------------------------------------------------
 
 const { QUOTAS: Q4, setQuota: setQuota4, resetQuota: resetQuota4 } = require('@/app/api/quotas')
-const { loadState: loadState4, saveState: saveState4 } = require('@/app/api/db/ec2/state')
+const { loadState: loadState4, saveState: saveState4 } = require('@/app/api/data/ec2/state')
 
 const tagSpec = (type: string, key: string, value: string) =>
   ({ 'TagSpecification.1.ResourceType': type, 'TagSpecification.1.Tag.1.Key': key, 'TagSpecification.1.Tag.1.Value': value })

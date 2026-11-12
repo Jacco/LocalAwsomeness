@@ -1,6 +1,6 @@
 import { AwsError } from "../common"
-import * as iam from "../db/iam"
-import { findManagedPolicy, type ManagedPolicy } from "../db/reference"
+import * as iam from '../data/iam'
+import { findManagedPolicy, type ManagedPolicy } from '../data/reference'
 import type { QueryHandler } from "../query"
 
 function policyView(p: ManagedPolicy, counts: Record<string, number>) {

@@ -5,7 +5,7 @@ import { NextRequest } from 'next/server'
 // The proxy verifies SigV4 signatures by signing again exactly what the client signed. Operations of REST services carry
 // parameters in the query string (Lambda: Qualifier, MaxItems, Marker); the query is part of what is signed.
 
-jest.mock('@/app/api/db/credentials', () => ({
+jest.mock('@/app/api/data/credentials', () => ({
   findCredential: jest.fn(() => ({ secret: 'secret', principal: 'arn:aws:iam::123456789012:user/test', userId: 'AIDATEST' })),
 }))
 

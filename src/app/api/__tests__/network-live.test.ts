@@ -7,7 +7,7 @@ process.env.JPK_DB_ROOT = root
 
 /* eslint-disable @typescript-eslint/no-require-imports */
 const { BadReachRequest, inspectReach, resolveSource } = require('@/app/api/network/live')
-const { loadState, saveState } = require('@/app/api/db/ec2/state')
+const { loadState, saveState } = require('@/app/api/data/ec2/state')
 
 const account = '111111111111'
 const region = 'eu-west-1'

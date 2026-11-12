@@ -1,5 +1,5 @@
 import { AwsError } from "../common"
-import type { Ec2State, Resource, Scope, Tag } from "../db/ec2/state"
+import type { Ec2State, Resource, Scope, Tag } from "../data/ec2/state"
 import { QUOTAS, hardLimit } from "../quotas"
 import type { DescribeSpec } from "./describe"
 

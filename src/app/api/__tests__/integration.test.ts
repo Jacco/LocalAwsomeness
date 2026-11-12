@@ -14,7 +14,7 @@ import {
   assertValidRegion,
   assertAccountExists,
   enableByDefaultRegions,
-} from '@/app/api/db/common'
+} from '@/app/api/data/common'
 
 jest.mock('fs')
 

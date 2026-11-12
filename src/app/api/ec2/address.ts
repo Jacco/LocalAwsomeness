@@ -1,6 +1,6 @@
 import { AwsError } from "../common"
-import { allocatePublicIp } from "../db/ec2/interfaces"
-import { newResourceId } from "../db/ec2/ids"
+import { allocatePublicIp } from "../data/ec2/interfaces"
+import { newResourceId } from "../data/ec2/ids"
 import { QUOTAS, quota } from "../quotas"
 import { describe } from "./describe"
 import { KINDS, assertSupported, find, invalidValue, tagsFromSpecifications, type Op } from "./request"

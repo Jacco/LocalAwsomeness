@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'fs'
-import { accountDirExists, listAccountDirs, read, remove, storePath, update, write } from '@/app/api/db/store'
+import { accountDirExists, listAccountDirs, read, remove, storePath, update, write } from '@/app/api/data/store'
 
 jest.mock('fs')
 

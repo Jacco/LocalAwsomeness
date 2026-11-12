@@ -12,7 +12,7 @@ process.env.JPK_DB_ROOT = root
 jest.setTimeout(30000)
 
 // Sessions are issued into the shared credentials store, which does not follow JPK_DB_ROOT: keep the tests out of db/.
-jest.mock('@/app/api/db/credentials', () => ({
+jest.mock('@/app/api/data/credentials', () => ({
   issueSession: jest.fn((_account: string, _arn: string, userId: string) =>
     ({ keyId: 'ASIATESTKEY', secret: 'test-secret', sessionToken: 'test-token', expiration: Date.now() + 3600_000, userId })),
 }))
@@ -25,11 +25,11 @@ const codeRoute = require('@/app/api/lambda/2015-03-31/functions/[name]/code/rou
 const invocationsRoute = require('@/app/api/lambda/2015-03-31/functions/[name]/invocations/route')
 const inspectRoute = require('@/app/api/lambda/inspect/route')
 const ec2Route = require('@/app/api/ec2/route')
-const iam = require('@/app/api/db/iam')
-const { addSecurityGroup, createSubnet, createVpc, loadState, saveState, securityGroupRule } = require('@/app/api/db/ec2/state')
+const iam = require('@/app/api/data/iam')
+const { addSecurityGroup, createSubnet, createVpc, loadState, saveState, securityGroupRule } = require('@/app/api/data/ec2/state')
 const { QUOTAS, setQuota } = require('@/app/api/quotas')
-const { availableAddressCount } = require('@/app/api/db/ec2/interfaces')
-const { createGroup, loadLogs, readEvents, saveLogs } = require('@/app/api/db/logs')
+const { availableAddressCount } = require('@/app/api/data/ec2/interfaces')
+const { createGroup, loadLogs, readEvents, saveLogs } = require('@/app/api/data/logs')
 
 const account = '111111111111'
 const region = 'eu-west-1'

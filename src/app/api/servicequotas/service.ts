@@ -1,6 +1,6 @@
 import { AwsError } from "../common"
-import { PARTITION } from "../db/common"
-import { quotaDefinitions, quotaServiceNames, type QuotaDefinition } from "../db/reference"
+import { PARTITION } from '../data/common'
+import { quotaDefinitions, quotaServiceNames, type QuotaDefinition } from '../data/reference'
 import { JsonProtocol } from "../protocols"
 import { quota, quotaRequests, requestIncrease, type QuotaChangeRequest, type QuotaKey } from "../quotas"
 import { defineService, type RequestContext } from "../registry"

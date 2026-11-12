@@ -10,7 +10,7 @@ const { evaluateIdentityPolicies, evaluateResourcePolicy, wildcardMatch, PolicyN
 const { matchPrincipal, namesPrincipal, accountOf } = require('@/app/api/policy/principal')
 const { accessDenial } = require('@/app/api/policy/authorizer')
 const { subjectOf } = require('@/app/api/policy/identity')
-const iam = require('@/app/api/db/iam')
+const iam = require('@/app/api/data/iam')
 const { sts } = require('@/app/api/sts/service')
 const { ec2 } = require('@/app/api/ec2/service')
 const { lambda } = require('@/app/api/lambda/service')
