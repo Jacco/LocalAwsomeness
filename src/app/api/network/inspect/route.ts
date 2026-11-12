@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { BadReachRequest, inspectReach, type ReachRequest } from '../live'
+import { BadReachRequest, inspectReach, type ReachRequest } from '../../../analysis/network/live'
 
 // An internal endpoint, not an AWS API: the proxy lets unsigned requests through and this answers them without asking
 // who is calling. It only reads the state of the simulator. POST a ReachRequest (see ../live.ts); the answer holds the

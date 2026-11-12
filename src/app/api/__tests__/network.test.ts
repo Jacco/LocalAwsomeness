@@ -1,8 +1,8 @@
 import type { Ec2State } from '@/app/api/data/ec2/state'
 import { addNetworkAcl, addSecurityGroup, createSubnet, createVpc, securityGroupRule } from '@/app/api/data/ec2/state'
-import { effectiveRouteState, lookupRoute, routeTableFor } from '@/app/api/network/routes'
-import { reachPublicService, servicePublicAddress, type Source } from '@/app/api/network/reach'
-import { renderTrace, type Trace } from '@/app/api/network/trace'
+import { effectiveRouteState, lookupRoute, routeTableFor } from '@/app/analysis/network/routes'
+import { reachPublicService, servicePublicAddress, type Source } from '@/app/analysis/network/reach'
+import { renderTrace, type Trace } from '@/app/analysis/network/trace'
 
 // The network model is pure: these tests build the EC2 state by hand and ask whether a Lambda-like source can call a
 // public service. The four variants A to D are the walking skeleton scenario (docs/walking-skeleton.md).

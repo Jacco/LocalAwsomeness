@@ -1,5 +1,5 @@
-import { contains, parseCidr } from '../data/ec2/cidr'
-import type { Ec2State, Resource } from '../data/ec2/state'
+import { contains, parseCidr } from '../../api/data/ec2/cidr'
+import type { Ec2State, Resource } from '../../api/data/ec2/state'
 
 // Route tables, as the network model reads them. A route's `State` is not stored data: it follows its target, so a route
 // to a gateway that was detached or deleted is a blackhole without anybody having to update the route.

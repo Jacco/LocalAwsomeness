@@ -1,7 +1,7 @@
 import { AwsError } from "../common"
 import { availableAddressCount } from "../data/ec2/interfaces"
 import type { Resource } from "../data/ec2/state"
-import { effectiveRouteState } from "../network/routes"
+import { effectiveRouteState } from "../../analysis/network/routes"
 import { describe } from "./describe"
 import { KINDS, type Op } from "./request"
 import { ipPermissions, securityGroupView } from "./securitygroup"

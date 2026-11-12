@@ -8,9 +8,9 @@ import { contains, parseAddress, parseCidr } from '../../app/api/data/ec2/cidr'
 import { loadState } from '../../app/api/data/ec2/state'
 import * as iam from '../../app/api/data/iam'
 import { accountDirExists } from '../../app/api/data/store'
-import { BadReachRequest, resolveSource, type ReachRequest } from '../../app/api/network/live'
-import { reachPublicService, type Source } from '../../app/api/network/reach'
-import { renderTrace, type Step, type Trace } from '../../app/api/network/trace'
+import { BadReachRequest, resolveSource, type ReachRequest } from '../../app/analysis/network/live'
+import { reachPublicService, type Source } from '../../app/analysis/network/reach'
+import { renderTrace, type Step, type Trace } from '../../app/analysis/network/trace'
 
 // Runs a Python script as if it were somewhere in the simulated network (docs/walking-skeleton.md, step 3b). The script
 // runs in a subprocess behind the shim (netshim.py); every connection it opens is decided here by the network model, from

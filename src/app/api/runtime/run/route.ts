@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { BadReachRequest } from '../../network/live'
+import { BadReachRequest } from '../../../analysis/network/live'
 import { BadRunRequest, runInContext, type RunRequest } from '../../../../lib/lambda-runtime/run'
 
 // An internal endpoint, not an AWS API (like /api/network/inspect): runs the code of the request as if it were somewhere

@@ -6,7 +6,7 @@ const root = mkdtempSync(join(tmpdir(), 'jpk-live-'))
 process.env.JPK_DB_ROOT = root
 
 /* eslint-disable @typescript-eslint/no-require-imports */
-const { BadReachRequest, inspectReach, resolveSource } = require('@/app/api/network/live')
+const { BadReachRequest, inspectReach, resolveSource } = require('@/app/analysis/network/live')
 const { loadState, saveState } = require('@/app/api/data/ec2/state')
 
 const account = '111111111111'

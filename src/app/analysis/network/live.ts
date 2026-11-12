@@ -1,7 +1,7 @@
-import { contains, parseAddress, parseCidr } from '../data/ec2/cidr'
-import { nextPrivateIp } from '../data/ec2/interfaces'
-import { loadState, type Ec2State, type Resource } from '../data/ec2/state'
-import { accountDirExists } from '../data/store'
+import { contains, parseAddress, parseCidr } from '../../api/data/ec2/cidr'
+import { nextPrivateIp } from '../../api/data/ec2/interfaces'
+import { loadState, type Ec2State, type Resource } from '../../api/data/ec2/state'
+import { accountDirExists } from '../../api/data/store'
 import { reachPublicService, type Source } from "./reach"
 import { renderTrace, type Trace } from "./trace"
 
