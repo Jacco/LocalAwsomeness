@@ -6,6 +6,7 @@ import {
   createKey, describeKey, listKeys, getKeyPolicy, putKeyPolicy,
   enableKeyRotation, disableKeyRotation, getKeyRotationStatus,
   scheduleKeyDeletion, cancelKeyDeletion, enableKey, disableKey,
+  encrypt, decrypt, generateDataKey,
   type KeyMetadata,
 } from "./storage"
 
@@ -113,6 +114,30 @@ function parsePolicy(policy: unknown) {
 
 const onKey = { resources: keyResource }
 
+/**
+ * Helper to convert AWS base64 blob parameters to Buffer
+ * AWS JSON protocol sends binary data as base64 strings
+ */
+function blobToBuffer(blob: unknown): Buffer {
+  if (!blob) throw new AwsError('ValidationException', 'Blob parameter is required')
+  if (typeof blob === 'string') {
+    try {
+      return Buffer.from(blob, 'base64')
+    } catch {
+      throw new AwsError('ValidationException', 'Invalid base64 in blob parameter')
+    }
+  }
+  if (Buffer.isBuffer(blob)) return blob
+  throw new AwsError('ValidationException', 'Blob must be base64 string or Buffer')
+}
+
+/**
+ * Helper to convert Buffer to base64 for AWS JSON response
+ */
+function bufferToBlob(buf: Buffer): string {
+  return buf.toString('base64')
+}
+
 // AWS KMS over the JSON 1.1 protocol (X-Amz-Target: TrentService.<Operation>).
 export const kms = defineService({
   iamPrefix: 'kms',
@@ -160,5 +185,82 @@ export const kms = defineService({
     CancelKeyDeletion: { ...onKey, handler: ctx => withKey(ctx, id => { cancelKeyDeletion(ctx.account, id); return { KeyId: keyArn(ctx, id) } }) },
     EnableKey: { ...onKey, handler: ctx => withKey(ctx, id => { enableKey(ctx.account, id); return {} }) },
     DisableKey: { ...onKey, handler: ctx => withKey(ctx, id => { disableKey(ctx.account, id); return {} }) },
+    
+    // Cryptographic operations
+    Encrypt: {
+      ...onKey,
+      handler: ctx => {
+        try {
+          return withKey(ctx, id => {
+            const plaintext = blobToBuffer(ctx.params.Plaintext)
+            const encryptionContext = ctx.params.EncryptionContext as Record<string, string> | undefined
+            const ciphertext = encrypt(ctx.account, id, plaintext, encryptionContext)
+            return {
+              CiphertextBlob: ciphertext,
+              KeyId: keyArn(ctx, id),
+            }
+          })
+        } catch (e) {
+          const msg = (e as Error).message
+          if (msg.includes('DisabledException')) throw new AwsError('DisabledException', msg)
+          if (msg.includes('KMSInvalidStateException')) throw new AwsError('KMSInvalidStateException', msg)
+          if (msg.includes('ValidationException')) throw new AwsError('ValidationException', msg)
+          throw e
+        }
+      }
+    },
+    Decrypt: {
+      handler: ctx => {
+        try {
+          const ciphertext = typeof ctx.params.CiphertextBlob === 'string' 
+            ? ctx.params.CiphertextBlob 
+            : Buffer.isBuffer(ctx.params.CiphertextBlob)
+            ? ctx.params.CiphertextBlob.toString('base64')
+            : String(ctx.params.CiphertextBlob)
+          
+          const encryptionContext = ctx.params.EncryptionContext as Record<string, string> | undefined
+          const { plaintext, keyId } = decrypt(ctx.account, ciphertext, encryptionContext)
+          
+          return {
+            Plaintext: bufferToBlob(plaintext),
+            KeyId: keyArn(ctx, keyId),
+          }
+        } catch (e) {
+          const msg = (e as Error).message
+          if (msg.includes('DisabledException')) throw new AwsError('DisabledException', msg)
+          if (msg.includes('KMSInvalidStateException')) throw new AwsError('KMSInvalidStateException', msg)
+          if (msg.includes('InvalidCiphertextException')) throw new AwsError('InvalidCiphertextException', msg)
+          if (msg.includes('ValidationException')) throw new AwsError('ValidationException', msg)
+          throw e
+        }
+      },
+      resources: keyResource,
+    },
+    GenerateDataKey: {
+      ...onKey,
+      handler: ctx => {
+        try {
+          return withKey(ctx, id => {
+            const keySpec = ctx.params.KeySpec ?? 'AES_256'
+            const numberOfBytes = ctx.params.NumberOfBytes ?? (keySpec === 'AES_256' ? 32 : 16)
+            const encryptionContext = ctx.params.EncryptionContext as Record<string, string> | undefined
+            
+            const { plaintext, ciphertext } = generateDataKey(ctx.account, id, numberOfBytes, encryptionContext)
+            return {
+              Plaintext: plaintext,
+              CiphertextBlob: ciphertext,
+              KeyId: keyArn(ctx, id),
+              KeySpec: keySpec,
+            }
+          })
+        } catch (e) {
+          const msg = (e as Error).message
+          if (msg.includes('DisabledException')) throw new AwsError('DisabledException', msg)
+          if (msg.includes('KMSInvalidStateException')) throw new AwsError('KMSInvalidStateException', msg)
+          if (msg.includes('ValidationException')) throw new AwsError('ValidationException', msg)
+          throw e
+        }
+      }
+    },
   },
 })
