@@ -299,6 +299,83 @@ function internetGatewayStep(state: Ec2State, subnet: Resource, igwId: string, p
   }
 }
 
+interface NetworkInterfacePath {
+  step: Step
+  // The subnet of the target interface and its owner info for trace context.
+  targetSubnet?: Resource
+  targetInterface?: Resource
+}
+
+// Network interface target: the traffic is routed directly to the interface's subnet and must be allowed by its security groups.
+// AWS services like Lambda use shared interfaces with their own security group rules; the traffic goes through their rules first.
+function networkInterfaceStep(state: Ec2State, destination: string, eniId: string, address: number, addressText: string, port: number): NetworkInterfacePath {
+  const eni = state.networkInterfaces[eniId]
+  const ev: Evidence[] = [evidence('network-interface', eniId, eni)]
+  if (!eni) {
+    return {
+      step: {
+        phase: 'route', decision: 'deny', cause: 'blackhole-route',
+        summary: `network interface ${eniId} does not exist`,
+        detail: ['Found: the route target is a network interface, but it no longer exists.'],
+        evidence: ev,
+      },
+    }
+  }
+  if (eni.Status !== 'in-use') {
+    return {
+      step: {
+        phase: 'route', decision: 'deny', cause: 'blackhole-route',
+        summary: `network interface ${eniId} is ${eni.Status}, not in-use`,
+        detail: [`Found: the network interface status is '${eni.Status}'; traffic cannot reach an interface that is not active.`],
+        evidence: ev,
+      },
+    }
+  }
+  const targetSubnet = state.subnets[eni.SubnetId]
+  const isLambda = eni.InterfaceType === 'lambda'
+  const detail: string[] = [
+    `Asked: can the packet reach ${eniId} to ${addressText}?`,
+    `Found: ${eniId} is a ${isLambda ? 'Lambda-managed' : 'requester-managed'} interface in ${named(targetSubnet.SubnetId, targetSubnet)}.`,
+  ]
+  if (eni.RequesterManaged && eni.Groups?.length) {
+    detail.push(`Requester-managed interfaces have their own security group rules; the packet must pass through: ${eni.Groups.map((g: any) => g.GroupId).join(', ')}.`)
+  }
+  return {
+    targetSubnet,
+    targetInterface: eni,
+    step: {
+      phase: 'route', decision: 'info',
+      summary: `routed to network interface ${eniId}${isLambda ? ' (Lambda)' : ''}`,
+      detail,
+      evidence: ev,
+    },
+  }
+}
+
+// Direct path: the interface itself has to have a public address, the internet gateway translates it.
+function internetGatewayStep2(state: Ec2State, subnet: Resource, igwId: string, publicIp: string | undefined, via: string): Step {
+  const igw = state.internetGateways[igwId]
+  const attached = igw?.Attachments.some((a: { VpcId: string }) => a.VpcId === subnet.VpcId)
+  const ev = [evidence('internet-gateway', igwId, igw)]
+  if (!publicIp) {
+    return {
+      phase: 'internet-gateway', decision: 'deny', cause: 'no-public-ip',
+      summary: `${igwId} cannot be used: the source has no public IPv4 address`,
+      detail: [
+        `Asked: can ${via} send the packet out through ${igwId}?`,
+        'Found: an internet gateway translates a private address to the public one of the interface; this interface has none, so the packet is dropped.',
+      ],
+      evidence: ev,
+    }
+  }
+  return {
+    phase: 'internet-gateway', decision: attached ? 'allow' : 'deny', cause: attached ? undefined : 'blackhole-route',
+    summary: `${igwId} translates the source to ${publicIp}`,
+    detail: [`Asked: can ${via} send the packet out through ${igwId}?`, `Found: ${igwId} is attached to ${subnet.VpcId}; the source address on the internet is ${publicIp}.`],
+    evidence: ev,
+  }
+}
+
 interface NatPath {
   step: Step
   publicIp?: string
@@ -413,6 +490,26 @@ export function reachPublicService(state: Ec2State, source: Source, destination:
         steps.push(internetGatewayStep(state, state.subnets[state.natGateways[route.target.id].SubnetId], nat.igwId!, nat.publicIp, route.target.id))
         publicIp = nat.publicIp
         path = { path: 'nat-gateway', natGatewayId: route.target.id, sourceIp: nat.publicIp }
+      }
+    } else if (route.target?.kind === 'network-interface') {
+      const eni = networkInterfaceStep(state, destination.host, route.target.id, address, addressText, destination.port)
+      steps.push(eni.step)
+      if (eni.step.decision !== 'deny' && eni.targetInterface) {
+        const iface = eni.targetInterface
+        steps.push(securityGroupStep(state, (iface.Groups ?? []).map((g: any) => g.GroupId), address, destination.port, addressText))
+        if (eni.targetSubnet) {
+          steps.push(naclStep(state, eni.targetSubnet, 'nacl-in', address, destination.port, {
+            ask: `does the network ACL of ${eni.targetSubnet.SubnetId} allow tcp/${destination.port} from ${source.privateIp}?`, noun: 'ingress',
+          }))
+        }
+      }
+      if (eni.step.decision !== 'deny') {
+        steps.push({
+          phase: 'delivery', decision: 'allow',
+          summary: `delivered to network interface ${route.target.id}`,
+          detail: [`The packet reaches the network interface in the destination subnet.`],
+          evidence: [evidence('network-interface', route.target.id, eni.targetInterface)],
+        })
       }
     }
     steps.push(naclStep(state, subnet, 'nacl-in', address, sourcePort, {

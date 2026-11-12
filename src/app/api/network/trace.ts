@@ -33,7 +33,7 @@ export type Cause =
 // A resource or rule that decided, as the console shows it: its id, its Name tag when there is one.
 export interface Evidence {
   kind: 'vpc' | 'subnet' | 'route-table' | 'route' | 'security-group' | 'security-group-rule' | 'network-acl' | 'network-acl-entry'
-    | 'internet-gateway' | 'nat-gateway' | 'address' | 'dns'
+    | 'internet-gateway' | 'nat-gateway' | 'network-interface' | 'address' | 'dns'
   id: string
   name?: string
   note?: string

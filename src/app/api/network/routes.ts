@@ -8,11 +8,12 @@ export type RouteTarget =
   | { kind: 'local' }
   | { kind: 'internet-gateway'; id: string }
   | { kind: 'nat-gateway'; id: string }
+  | { kind: 'network-interface'; id: string }
   | { kind: 'other'; id: string; type: string }
 
-// Targets of routes that exist in the API but are not modelled yet (peering, transit gateway, interface, ...).
+// Targets of routes that exist in the API but are not modelled yet (peering, transit gateway, ...).
 const OTHER_TARGETS = [
-  'GatewayId', 'VpcPeeringConnectionId', 'TransitGatewayId', 'NetworkInterfaceId', 'InstanceId',
+  'GatewayId', 'VpcPeeringConnectionId', 'TransitGatewayId', 'InstanceId',
   'EgressOnlyInternetGatewayId', 'CarrierGatewayId', 'LocalGatewayId', 'CoreNetworkArn',
 ]
 
@@ -25,6 +26,9 @@ export function routeTarget(route: Resource): RouteTarget {
   }
   if (route.NatGatewayId) {
     return { kind: 'nat-gateway', id: route.NatGatewayId }
+  }
+  if (route.NetworkInterfaceId) {
+    return { kind: 'network-interface', id: route.NetworkInterfaceId }
   }
   const type = OTHER_TARGETS.find(field => route[field])
   return { kind: 'other', id: type ? route[type] : 'unknown', type: type ?? 'unknown' }
@@ -40,6 +44,10 @@ export function effectiveRouteState(state: Ec2State, vpcId: string, route: Resou
     case 'nat-gateway': {
       const nat = state.natGateways[target.id]
       return nat && !['deleting', 'deleted', 'failed'].includes(nat.State) ? 'active' : 'blackhole'
+    }
+    case 'network-interface': {
+      const eni = state.networkInterfaces[target.id]
+      return eni && eni.Status === 'in-use' ? 'active' : 'blackhole'
     }
     default:
       // Not modelled: keep what is stored.

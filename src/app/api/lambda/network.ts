@@ -42,6 +42,13 @@ export interface InterfaceFailure {
 
 // Creates the interfaces the functions need and deletes the ones nobody needs any more. A function whose interface cannot
 // be created is reported (a full subnet, the interface quota) and does not keep the others from getting theirs.
+// 
+// SAFETY: An interface is deleted ONLY when NO remaining function needs that (subnet, securityGroupIds) combination.
+// This is safe because:
+// 1. If a function specifies SubnetIds but no SecurityGroupIds, Lambda defaults to the VPC's default security group
+// 2. The default SG always exists, so the interface cannot disappear unexpectedly
+// 3. The "wanted" set is rebuilt from scratch each call by scanning all active functions
+// 4. Only interfaces NOT in the "wanted" set are deleted—if any function still needs a combo, the interface remains
 export function reconcileInterfaces(scope: Scope, lambda: LambdaState): InterfaceFailure[] {
   const state = loadState(scope)
   const failures: InterfaceFailure[] = []

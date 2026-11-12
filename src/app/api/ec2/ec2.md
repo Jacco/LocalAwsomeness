@@ -65,7 +65,16 @@ Network ACLs (`networkacl.ts`).
 
 Error codes for malformed IDs follow the API: `InvalidGroupId.Malformed` and `InvalidNetworkAclId.Malformed` (the `NotFound` codes are `InvalidGroup.NotFound` and `InvalidNetworkAclID.NotFound`).
 
-### Phase 4, partial (Elastic IPs and NAT gateways)
+### Phase 4, partial (Elastic IPs, NAT gateways, and Network Interface targeting)
+
+**What Phase 4 adds** (beyond Phase 3):
+
+Network interfaces are now part of the routing model:
+- Routes can target `NetworkInterfaceId`; the route state is derived from the interface's availability (`in-use` status).
+- Network traces through interfaces show their security groups and the interface type (Lambda, NAT gateway, or custom).
+- Lambda-managed interfaces are recognized; the trace documents which functions depend on them.
+- Interface cleanup is automatic: when Lambda functions change, shared interfaces are created or destroyed as needed (no scenario code required).
+- Reach queries can route through interfaces to test network connectivity to Lambda functions or other AWS services.
 
 Scoped by the [walking skeleton](../../../../docs/walking-skeleton.md): only what its scenarios and Terraform need. An operation accepts the parameters it handles and rejects the others with `UnsupportedOperation` naming the parameter (`assertSupported` in `request.ts`) — except parameters that are harmless, which a real client sends (the Terraform provider sends `NetworkBorderGroup` on `ReleaseAddress`, found when it was rejected).
 
@@ -93,7 +102,9 @@ What this changes elsewhere (the lifetime rules):
   - `CreateNetworkInterface`, `DeleteNetworkInterface`, `ModifyNetworkInterfaceAttribute`, `AssignPrivateIpAddresses`, `UnassignPrivateIpAddresses`, `AttachNetworkInterface`/`DetachNetworkInterface` (attachment needs instances). Interfaces exist only as requester-managed records created by NAT gateways and by Lambda functions in a VPC (one shared interface per subnet and security group set, see `src/app/api/lambda/lambda.md`; endpoints will create them the same way).
   - NAT gateway idempotency (`ClientToken` is echoed, not used), `PrivateIpAddress`, regional and zonal availability modes, a NAT gateway being in the same VPC as the route that points at it (not checked), the `pending` and `deleting` states (states are instant).
   - Quotas not enforced yet: Elastic IPs per public NAT gateway (one address per NAT gateway), security groups per network interface.
-- **After phase 4**: VPC endpoints (interface and gateway), then Route 53, peering and transit gateways, see [network-connectivity-plan.md](../../../../docs/network-connectivity-plan.md).
+  - Gateway Attachments for cross-account traffic: VPC Peering Connections, Transit Gateways. See [phase4-ec2-implementation.md](../../../../docs/phase4-ec2-implementation.md) for the design.
+- **After phase 4**: VPC endpoints (interface and gateway), then Route 53, see [network-connectivity-plan.md](../../../../docs/network-connectivity-plan.md).
+- **Phase 5 and beyond**: VPC Flow Logs for traffic debugging, peering and transit gateways, instances and their network interfaces.
 - Security group rules that use prefix lists or reference a group in a peered VPC or another account; managed and customer-owned prefix lists.
 - `ClientToken` idempotency and VPC associations of security groups.
 - IPv6 (CIDR associations, egress-only gateways) and IPAM: requests that ask for them return `UnsupportedOperation`.
