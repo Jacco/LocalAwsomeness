@@ -12,7 +12,14 @@ import {
 const KEY_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const KEY_ARN = /^arn:[^:]+:kms:[^:]*:(\d{12}):key\/([^/]+)$/
 
-// Accepts a key id or key ARN of the caller's account; aliases are not supported (yet).
+/**
+ * Key ID resolution: accepts key ID (UUID) or key ARN, validates ownership
+ * @param account Caller's account ID
+ * @param params Request parameters (must contain KeyId)
+ * @returns Normalized key UUID (without account/region prefix)
+ * @throws ValidationException if KeyId is missing or malformed
+ * @throws NotFoundException if key does not belong to caller's account
+ */
 function resolveKeyId({ account, params }: RequestContext): string {
   const raw = params.KeyId
   if (typeof raw !== 'string' || raw === '') {
@@ -26,6 +33,28 @@ function resolveKeyId({ account, params }: RequestContext): string {
   return id
 }
 
+/**
+ * RESOURCE WRAPPER PATTERN (KMS-Specific)
+ * 
+ * Wraps KMS operations that work with specific key resources:
+ * 1. Resolve KeyId (UUID or ARN format)
+ * 2. Validate key exists and belongs to caller's account
+ * 3. Execute operation with resolved key ID
+ * 4. Transform storage errors to AWS-compatible error codes:
+ *    - "Key not found" → NotFoundException
+ *    - Other errors → KMSInvalidStateException
+ * 
+ * Resource validation ensures:
+ * - Cross-account key access is denied
+ * - Invalid key IDs are rejected early
+ * - Consistent error messages
+ * 
+ * @param ctx Request context (account, params, etc.)
+ * @param fn Operation function that uses the resolved key ID
+ * @returns Result from operation function
+ * @throws NotFoundException if key doesn't exist or belongs to different account
+ * @throws KMSInvalidStateException for other operation errors
+ */
 function withKey<T>(ctx: RequestContext, fn: (keyId: string) => T): T {
   const keyId = resolveKeyId(ctx)
   try {

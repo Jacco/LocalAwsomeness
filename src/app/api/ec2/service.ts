@@ -39,8 +39,26 @@ import {
   createVpcEndpointOp, deleteVpcEndpointOp, describeVpcEndpointsOp, modifyVpcEndpointOp,
 } from "./vpcendpoint"
 
-// Runs an operation against the caller's state for the request region. DryRun operations do all validation
-// and then fail with DryRunOperation instead of persisting.
+/**
+ * STANDARDIZED OPERATION WRAPPER PATTERN
+ * 
+ * Wraps EC2 operations to handle:
+ * 1. Region validation (must be enabled for account)
+ * 2. State loading (in-memory state from persistent storage)
+ * 3. DryRun support (validates but does NOT persist changes)
+ * 4. Conditional persistence (only saves if operation mutates and not DryRun)
+ * 
+ * Flow:
+ * - Load state for (account, region)
+ * - Execute operation against state object
+ * - If DryRun=true: throw DRY_RUN_OPERATION (validation only, no persistence)
+ * - If mutates=true: save modified state
+ * - Return operation result
+ * 
+ * @param op The operation function that modifies/reads state
+ * @param mutates Whether this operation modifies state (write vs. read)
+ * @returns Handler function for Next.js API route
+ */
 function operation(op: Op, mutates: boolean): Handler {
   return ctx => {
     const scope = { account: ctx.account, region: ctx.region }
