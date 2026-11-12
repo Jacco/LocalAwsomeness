@@ -6,7 +6,7 @@ import { loadState } from "../data/ec2/state"
 import { loadInvocations, loadLambda, saveInvocations, type FunctionRecord, type InvocationRecord } from "../data/lambda"
 import { QUOTAS, hardLimit } from "../quotas"
 import type { RequestContext } from "../registry"
-import { BadRunRequest, runInContext, type RunResult } from "../runtime/run"
+import { BadRunRequest, runInContext, type RunResult } from '../../../lib/lambda-runtime/run'
 import { codeDirectory } from "./code"
 import { invalidParameter } from "./errors"
 import { lookup } from "./functions"

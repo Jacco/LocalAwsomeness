@@ -1,6 +1,6 @@
 import { appendEvents, createGroup, createStream, loadLogs, logGroupArn, logStreamArn, saveLogs } from "../data/logs"
 import { accessDenial } from "../policy/authorizer"
-import type { LogNetworkDecision } from "../runtime/run"
+import type { LogNetworkDecision } from '../../../lib/lambda-runtime/run'
 
 // Lambda writes the log of an invocation to CloudWatch Logs: log group /aws/lambda/<function>, one stream per execution
 // environment (here: one per invocation, every invocation is a cold start). AWS does it with the permissions of the

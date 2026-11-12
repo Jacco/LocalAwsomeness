@@ -3,14 +3,14 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs
 import { tmpdir } from 'os'
 import { join } from 'path'
 import type { Duplex } from 'stream'
-import { issueSession } from '../data/credentials'
-import { contains, parseAddress, parseCidr } from '../data/ec2/cidr'
-import { loadState } from '../data/ec2/state'
-import * as iam from '../data/iam'
-import { accountDirExists } from '../data/store'
-import { BadReachRequest, resolveSource, type ReachRequest } from '../network/live'
-import { reachPublicService, type Source } from '../network/reach'
-import { renderTrace, type Step, type Trace } from '../network/trace'
+import { issueSession } from '../../app/api/data/credentials'
+import { contains, parseAddress, parseCidr } from '../../app/api/data/ec2/cidr'
+import { loadState } from '../../app/api/data/ec2/state'
+import * as iam from '../../app/api/data/iam'
+import { accountDirExists } from '../../app/api/data/store'
+import { BadReachRequest, resolveSource, type ReachRequest } from '../../app/api/network/live'
+import { reachPublicService, type Source } from '../../app/api/network/reach'
+import { renderTrace, type Step, type Trace } from '../../app/api/network/trace'
 
 // Runs a Python script as if it were somewhere in the simulated network (docs/walking-skeleton.md, step 3b). The script
 // runs in a subprocess behind the shim (netshim.py); every connection it opens is decided here by the network model, from
@@ -104,7 +104,7 @@ export interface RunResult {
 export class BadRunRequest extends Error {}
 
 const MAX_OUTPUT = 64 * 1024
-const SHIM = join(process.cwd(), 'src/app/api/runtime/netshim.py')
+const SHIM = join(process.cwd(), 'src/lib/lambda-runtime/netshim.py')
 const PASSED_ENVIRONMENT = ['PATH', 'HOME', 'LANG', 'LC_ALL', 'PYENV_ROOT', 'PYENV_VERSION', 'VIRTUAL_ENV']
 
 // The interpreter to run, resolved once: `python3` is often a shim (pyenv) that costs about 0.6 s on every start, while the
