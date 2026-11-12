@@ -2,7 +2,7 @@ import { AwsError } from "../common"
 import { getRegion } from '../data/account'
 import { PARTITION } from '../data/common'
 import { defineService, type Handler, type Operation, type RequestContext } from "../registry"
-import type { ResourcePolicy } from "../policy/authorizer"
+import type { ResourcePolicy } from "../../auth/policy/authorizer"
 import { S3Protocol } from "./protocol"
 import { s3Storage } from "./storage"
 import type { Op, Req } from "./s3"

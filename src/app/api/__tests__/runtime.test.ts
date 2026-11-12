@@ -15,7 +15,7 @@ jest.mock('@/app/api/data/credentials', () => ({
 }))
 
 /* eslint-disable @typescript-eslint/no-require-imports */
-const { BadRunRequest, runInContext } = require('@/app/api/runtime/run')
+const { BadRunRequest, runInContext } = require('@/lib/lambda-runtime/run')
 const { loadState } = require('@/app/api/data/ec2/state')
 const iam = require('@/app/api/data/iam')
 

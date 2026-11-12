@@ -1,6 +1,6 @@
 import { authorize } from "./authorization"
 import { AwsError, getRequestInfo } from "./common"
-import type { ResourcePolicy } from "./policy/authorizer"
+import type { ResourcePolicy } from "../auth/policy/authorizer"
 
 export interface RequestContext<P = any> {
   principal: string

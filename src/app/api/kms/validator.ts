@@ -9,7 +9,7 @@
  */
 
 import { getKeyPolicy, describeKey } from './storage'
-import { namesPrincipal } from '../policy/principal'
+import { namesPrincipal } from '../../auth/policy/principal'
 
 export interface KmsPermissionCheck {
   allowed: boolean

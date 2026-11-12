@@ -1,5 +1,5 @@
 import type { RequestContext } from "./registry"
-import { policyAuthorizer, type ResourcePolicy } from "./policy/authorizer"
+import { policyAuthorizer, type ResourcePolicy } from "../auth/policy/authorizer"
 import { logCloudTrailEvent, type CloudTrailEvent } from "./cloudtrail/cloudtrail"
 
 export interface AuthorizationRequest {

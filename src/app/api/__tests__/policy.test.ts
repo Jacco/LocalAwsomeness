@@ -6,15 +6,15 @@ const root = mkdtempSync(join(tmpdir(), 'jpk-policy-'))
 process.env.JPK_DB_ROOT = root
 
 /* eslint-disable @typescript-eslint/no-require-imports */
-const { evaluateIdentityPolicies, evaluateResourcePolicy, wildcardMatch, PolicyNotModelled } = require('@/app/api/policy/engine')
-const { matchPrincipal, namesPrincipal, accountOf } = require('@/app/api/policy/principal')
-const { accessDenial } = require('@/app/api/policy/authorizer')
-const { subjectOf } = require('@/app/api/policy/identity')
+const { evaluateIdentityPolicies, evaluateResourcePolicy, wildcardMatch, PolicyNotModelled } = require('@/app/auth/policy/engine')
+const { matchPrincipal, namesPrincipal, accountOf } = require('@/app/auth/policy/principal')
+const { accessDenial } = require('@/app/auth/policy/authorizer')
+const { subjectOf } = require('@/app/auth/policy/identity')
 const iam = require('@/app/api/data/iam')
 const { sts } = require('@/app/api/sts/service')
 const { ec2 } = require('@/app/api/ec2/service')
 const { lambda } = require('@/app/api/lambda/service')
-const checkRoute = require('@/app/api/policy/check/route')
+const checkRoute = require('@/app/auth/policy/check/route')
 
 const account = '111111111111'
 const region = 'eu-west-1'
