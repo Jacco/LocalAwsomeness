@@ -1,6 +1,6 @@
 import { randomBytes } from "crypto"
-import { quotaDefinitions, type QuotaDefinition } from '../data/reference'
-import * as store from '../data/store'
+import { quotaDefinitions, type QuotaDefinition } from './data/reference'
+import * as store from './data/store'
 
 // The one place that knows how many of something an account may have. Operations ask for the limit here instead of
 // keeping their own constants. Defaults are reference data (data/aws/quotas.json); an account only stores the values
