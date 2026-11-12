@@ -65,9 +65,9 @@ Network ACLs (`networkacl.ts`).
 
 Error codes for malformed IDs follow the API: `InvalidGroupId.Malformed` and `InvalidNetworkAclId.Malformed` (the `NotFound` codes are `InvalidGroup.NotFound` and `InvalidNetworkAclID.NotFound`).
 
-### Phase 4, partial (Elastic IPs, NAT gateways, and Network Interface targeting)
+### Phase 4, partial (Elastic IPs, NAT gateways, Network Interfaces, and Transit Gateways)
 
-**What Phase 4 adds** (beyond Phase 3):
+**Phase 4.1 Status: ✅ COMPLETE**
 
 Network interfaces are now part of the routing model:
 - Routes can target `NetworkInterfaceId`; the route state is derived from the interface's availability (`in-use` status).
@@ -75,6 +75,14 @@ Network interfaces are now part of the routing model:
 - Lambda-managed interfaces are recognized; the trace documents which functions depend on them.
 - Interface cleanup is automatic: when Lambda functions change, shared interfaces are created or destroyed as needed (no scenario code required).
 - Reach queries can route through interfaces to test network connectivity to Lambda functions or other AWS services.
+
+**Phase 4.2 Status: 🔲 PENDING (Transit Gateways)**
+
+Transit Gateways are the enterprise-standard hub for cross-account and on-premises connectivity:
+- Routes can target `TransitGatewayId` for centralized networking across accounts
+- Network traces follow routes through TGW attachments to destination VPCs
+- Cross-account routing enables multi-account architecture analysis
+- Foundation for on-premises connectivity (VPN, Direct Connect)
 
 Scoped by the [walking skeleton](../../../../docs/walking-skeleton.md): only what its scenarios and Terraform need. An operation accepts the parameters it handles and rejects the others with `UnsupportedOperation` naming the parameter (`assertSupported` in `request.ts`) — except parameters that are harmless, which a real client sends (the Terraform provider sends `NetworkBorderGroup` on `ReleaseAddress`, found when it was rejected).
 
