@@ -27,9 +27,17 @@ enum SsmParameterTier {
   IntelligentTiering = "Intelligent-Tiering"
 }
 
+export type SsmParameterType = 'String' | 'StringList' | 'SecureString'
+const PARAMETER_TYPES: SsmParameterType[] = ['String', 'StringList', 'SecureString']
+
 export interface SsmPutParameterProps {
   name: string
   value: string
+  type?: SsmParameterType
+  description?: string
+  allowedPattern?: string
+  overwrite?: boolean
+  tags?: { Key: string; Value: string }[]
   dataType?: SsmParameterDataType
   tier?: SsmParameterTier
 }
@@ -40,11 +48,23 @@ export function putParameter(
   props: SsmPutParameterProps
 ) {
   const parameters = loadSsmSection(account, region, 'parameters')
-  let version = 0
-  if (props.name in parameters) {
-    version = parameters[props.name].Version
-    // TODO check overwrite
+  const existing = parameters[props.name]
+  if (existing && !props.overwrite) {
+    throw new AwsError('ParameterAlreadyExists', 'The parameter already exists. To overwrite this value, set the overwrite option in the request to true.')
   }
+  if (existing && props.tags?.length) {
+    throw new AwsError('ValidationException', 'Invalid request: tags and overwrite can\'t be used together. To create a parameter with tags, please remove overwrite flag. To update tags for an existing parameter, please use AddTagsToResource or RemoveTagsFromResource.')
+  }
+  if (props.type !== undefined && !PARAMETER_TYPES.includes(props.type)) {
+    throw new AwsError('ValidationException', `1 validation error detected: Value '${props.type}' at 'type' failed to satisfy constraint: Member must satisfy enum value set: [SecureString, StringList, String]`)
+  }
+  const allowedPattern = props.allowedPattern ?? existing?.AllowedPattern
+  if (allowedPattern && !new RegExp(allowedPattern).test(props.value)) {
+    throw new AwsError('ParameterPatternMismatchException', `Parameter value, cannot be validated against allowedPattern: ${allowedPattern}`)
+  }
+  const description = props.description ?? existing?.Description
+  const tags = existing?.Tags ?? props.tags
+  const version = existing?.Version ?? 0
   const tierSetting = getServiceSetting(account, region, "/ssm/parameter-store/default-parameter-tier").SettingValue
   parameters[props.name] = {
     DataType: props.dataType ?? SsmParameterDataType.Text,
@@ -52,16 +72,31 @@ export function putParameter(
     Name: props.name,
     Selector: "string",
     SourceResult: "string",
-    Type: "string",
+    // AWS requires a Type to create a parameter; the simulator defaults to String. An update keeps the type.
+    Type: props.type ?? existing?.Type ?? 'String',
     Value: props.value,
     Version: version+1,
-    Tier: props.tier ?? tierSetting
+    Tier: props.tier ?? tierSetting,
+    ...(description !== undefined && { Description: description }),
+    ...(allowedPattern && { AllowedPattern: allowedPattern }),
+    ...(tags && { Tags: tags }),
   }
   saveSsmSection(account, region, 'parameters', parameters)
   return {
     Tier: tierSetting,
     Version: version + 1
   }
+}
+
+export function deleteParameter(account: string, region: string, name: string) {
+  assertAccountExists(account)
+  assertValidRegion(region)
+  const parameters = loadSsmSection(account, region, 'parameters')
+  if (!(name in parameters)) {
+    throw new AwsError('ParameterNotFound', `Parameter ${name} not found`)
+  }
+  delete parameters[name]
+  saveSsmSection(account, region, 'parameters', parameters)
 }
 
 export function getParameter(account: string, region: string, name: string) {

@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs
 import { tmpdir } from 'os'
 import { join } from 'path'
 import type { Duplex } from 'stream'
-import { issueSession } from '../../app/api/data/credentials'
+import { assumeRoleAsService } from '../../app/api/sts/service-role'
 import { contains, parseAddress, parseCidr } from '../../app/api/data/ec2/cidr'
 import { loadState } from '../../app/api/data/ec2/state'
 import * as iam from '../../app/api/data/iam'
@@ -124,17 +124,16 @@ function pythonExecutable(): string {
   return interpreter
 }
 
-function credentialsFor(account: string, roleName: string, sessionName: string) {
+function credentialsFor(account: string, roleName: string, sessionName: string, region: string) {
   const role = iam.findRole(account, roleName)
   if (!role) {
     throw new BadRunRequest(`No role '${roleName}' in account ${account}`)
   }
-  if (!iam.trustsService(role, 'lambda.amazonaws.com')) {
+  const assumed = assumeRoleAsService('lambda.amazonaws.com', role.arn, sessionName, region)
+  if (!assumed) {
     throw new BadRunRequest(`The trust policy of role '${roleName}' does not allow lambda.amazonaws.com to assume it`)
   }
-  const arn = `arn:aws:sts::${account}:assumed-role/${roleName}/${sessionName}`
-  const session = issueSession(account, arn, `${role.roleId}:${sessionName}`, 3600)
-  return { arn, session }
+  return { arn: assumed.principal, session: assumed.session }
 }
 
 interface Decision {
@@ -346,7 +345,7 @@ export async function runInContext(request: RunRequest): Promise<RunResult> {
   }
   let identity: string | undefined
   if (request.role) {
-    const { arn, session } = credentialsFor(request.account, request.role, request.sessionName ?? 'run')
+    const { arn, session } = credentialsFor(request.account, request.role, request.sessionName ?? 'run', request.region)
     identity = arn
     Object.assign(env, { AWS_ACCESS_KEY_ID: session.keyId, AWS_SECRET_ACCESS_KEY: session.secret, AWS_SESSION_TOKEN: session.sessionToken })
   }

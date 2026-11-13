@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto'
 import { promises as fs } from 'fs'
 import path from 'path'
+import { decryptForService, generateDataKeyForService, type EncryptionRecord, type ServiceCaller } from '../kms/service-use'
 
 // Safe data path initialization
 function getDataPath(): string {
@@ -63,6 +64,16 @@ function getStackFilePath(account: string, stackName: string): string {
 // Template version file: {stackDir}/templates/v{version}.json
 function getTemplateVersionPath(account: string, stackName: string, version: number): string {
   return path.join(DATA_ROOT, 'data', 'accounts', account, 'cloudformation', 'stacks', stackName, 'templates', `v${version}.json`)
+}
+
+// KMS record of a template version: {stackDir}/templates/v{version}.kms.json, next to the plaintext template.
+function getTemplateKmsPath(account: string, stackName: string, version: number): string {
+  return getTemplateVersionPath(account, stackName, version).replace(/\.json$/, '.kms.json')
+}
+
+// Templates are encrypted with CloudFormation's AWS owned key (record-only: the file stays readable, see kms/service-use.ts).
+function templateEncryptionContext(stackId: string, version: number): Record<string, string> {
+  return { 'aws:cloudformation:stack-id': stackId, templateVersion: String(version) }
 }
 
 export interface StackParameter {
@@ -169,22 +180,24 @@ export async function storeTemplate(
  */
 export async function createStack(
   account: string,
+  region: string,
   stackName: string,
   templateBody: string,
-  stackDescription?: string,
-  parameters?: StackParameter[],
-  tags?: Array<{ Key: string; Value: string }>,
-  timeoutInMinutes?: number,
-  notificationARNs?: string[],
-  disableRollback?: boolean,
-  capabilities?: string[],
-  roleARN?: string,
-  enableTerminationProtection?: boolean
+  stackDescription: string | undefined,
+  parameters: StackParameter[] | undefined,
+  tags: Array<{ Key: string; Value: string }> | undefined,
+  timeoutInMinutes: number | undefined,
+  notificationARNs: string[] | undefined,
+  disableRollback: boolean | undefined,
+  capabilities: string[] | undefined,
+  roleARN: string | undefined,
+  enableTerminationProtection: boolean | undefined,
+  caller: ServiceCaller
 ): Promise<string> {
   // Validate template first
   const templateInfo = await storeTemplate(account, templateBody)
 
-  const stackId = `arn:aws:cloudformation:us-east-1:${account}:stack/${stackName}/${randomUUID()}`
+  const stackId = `arn:aws:cloudformation:${region}:${account}:stack/${stackName}/${randomUUID()}`
   
   const stack: Stack = {
     StackId: stackId,
@@ -222,8 +235,11 @@ export async function createStack(
   const templatesDir = await getStackTemplatesDir(account, stackName)
   const templateVersionPath = getTemplateVersionPath(account, stackName, 1)
   
+  const encryption = generateDataKeyForService('cloudformation', caller, templateEncryptionContext(stackId, 1))
   try {
-    await fs.writeFile(templateVersionPath, templateBody, 'utf-8')
+    const prettyTemplate = JSON.stringify(JSON.parse(templateBody), null, 2)
+    await fs.writeFile(templateVersionPath, prettyTemplate, 'utf-8')
+    await fs.writeFile(getTemplateKmsPath(account, stackName, 1), JSON.stringify(encryption, null, 2), 'utf-8')
     console.log(`Template v1 persisted: ${templateVersionPath}`)
   } catch (e) {
     console.error(`Failed to write template file: ${templateVersionPath}`, e)
@@ -262,6 +278,7 @@ export async function getStack(account: string, stackNameOrId: string): Promise<
 export async function getStackTemplate(
   account: string,
   stackName: string,
+  caller: ServiceCaller,
   version?: number
 ): Promise<string> {
   const stack = await getStack(account, stackName)
@@ -269,26 +286,41 @@ export async function getStackTemplate(
   
   const templatePath = getTemplateVersionPath(account, stackName, templateVersion)
   
+  let templateBody: string
   try {
-    const templateBody = await fs.readFile(templatePath, 'utf-8')
-    return templateBody
+    templateBody = await fs.readFile(templatePath, 'utf-8')
   } catch (e) {
     if ((e as NodeJS.ErrnoException).code === 'ENOENT') {
       throw new Error(`Template version ${templateVersion} not found for stack ${stackName}`)
     }
     throw new Error(`Failed to read template: ${(e as Error).message}`)
   }
+  await decryptTemplate(account, stack, templateVersion, caller)
+  return templateBody
+}
+
+// Decrypt the data key of a template version before it is returned. A version written before templates were encrypted
+// has no KMS record and is returned as is.
+async function decryptTemplate(account: string, stack: Stack, version: number, caller: ServiceCaller): Promise<void> {
+  let stored: EncryptionRecord
+  try {
+    stored = JSON.parse(await fs.readFile(getTemplateKmsPath(account, stack.StackName, version), 'utf-8'))
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code === 'ENOENT') return
+    throw e
+  }
+  decryptForService('cloudformation', caller, stored, templateEncryptionContext(stack.StackId, version))
 }
 
 /**
  * Get stack with current template body loaded
  */
-export async function getStackWithTemplate(account: string, stackNameOrId: string): Promise<Stack & { TemplateBody?: string }> {
+export async function getStackWithTemplate(account: string, stackNameOrId: string, caller: ServiceCaller): Promise<Stack & { TemplateBody?: string }> {
   const stack = await getStack(account, stackNameOrId)
   const stackName = stack.StackName
   
   try {
-    const templateBody = await getStackTemplate(account, stackName)
+    const templateBody = await getStackTemplate(account, stackName, caller)
     return { ...stack, TemplateBody: templateBody }
   } catch (e) {
     console.warn(`Could not load template for stack ${stackName}:`, e)
@@ -402,8 +434,8 @@ export async function getStackResources(account: string, stackName: string): Pro
 /**
  * Get template for a stack
  */
-export async function getTemplate(account: string, stackName: string): Promise<string> {
-  return await getStackTemplate(account, stackName)
+export async function getTemplate(account: string, stackName: string, caller: ServiceCaller): Promise<string> {
+  return await getStackTemplate(account, stackName, caller)
 }
 
 /**

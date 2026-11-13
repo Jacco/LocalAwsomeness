@@ -39,3 +39,14 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# python
+__pycache__/
+.pytest_cache/
+
+# simulator state, recreated with scripts/seed.sh; data/aws/ is AWS reference data and stays tracked,
+# except the key material of the AWS owned KMS keys
+/db/
+/data/*
+!/data/aws/
+/data/aws/kms/

@@ -1,7 +1,0 @@
-{
-  "environment": "development",
-  "debugMode": true,
-  "maxConnections": 100,
-  "logLevel": "debug",
-  "timeout": 30000
-}

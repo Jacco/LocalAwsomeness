@@ -1,7 +1,7 @@
 import { defineService, type RequestContext } from "../registry"
 import { JsonProtocol } from "../protocols"
 import { PARTITION } from '../data/common'
-import { getParameter, getServiceSetting, putParameter, setServiceSetting } from '../data/ssm'
+import { deleteParameter, getParameter, getServiceSetting, putParameter, setServiceSetting } from '../data/ssm'
 
 const parameterArn = ({ account, region, params }: RequestContext) =>
   [`arn:${PARTITION}:ssm:${region}:${account}:parameter/${String(params.Name).replace(/^\//, '')}`]
@@ -24,9 +24,22 @@ export const ssm = defineService({
       handler: ({ account, region, params }) => putParameter(account, region, {
         name: params.Name,
         value: params.Value,
+        type: params.Type,
+        description: params.Description,
+        allowedPattern: params.AllowedPattern,
+        overwrite: params.Overwrite === true,
+        tags: params.Tags,
         dataType: params.DataType,
         tier: params.Tier
       }),
+      resources: parameterArn
+    },
+
+    DeleteParameter: {
+      handler: ({ account, region, params }) => {
+        deleteParameter(account, region, params.Name)
+        return {}
+      },
       resources: parameterArn
     },
 

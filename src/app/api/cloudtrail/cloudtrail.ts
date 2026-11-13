@@ -33,6 +33,9 @@ export interface CloudTrailEvent {
   errorCode?: string
   // Error message if operation failed
   errorMessage?: string
+  // An event AWS CloudTrail does not record (e.g. the iam:PassRole check inside CreateStack), recorded by the simulator
+  // so the check and its failures can be traced.
+  simulated?: boolean
 }
 
 const dbRoot = (() => {

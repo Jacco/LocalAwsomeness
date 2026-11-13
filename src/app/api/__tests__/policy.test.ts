@@ -299,3 +299,34 @@ describe('the can-X-perform-Y query', () => {
     iam.deleteRolePolicy(account, ROLE, 'ec2-read')
   })
 })
+
+describe('conditions on keys the request supplies', () => {
+  const passRole = (condition: Record<string, unknown>) =>
+    [policy({ Effect: 'Allow', Action: 'iam:PassRole', Resource: '*', Condition: condition })]
+  const ROLE_ARN = `arn:aws:iam::${account}:role/deploy`
+  const decide = (policies: unknown, context?: Record<string, string>) =>
+    evaluateIdentityPolicies(policies, 'iam:PassRole', ROLE_ARN, context).decision
+
+  it('evaluates String(Not)Equals and String(Not)Like on a supplied key, case-insensitively by key name', () => {
+    const toCfn = { 'iam:PassedToService': 'cloudformation.amazonaws.com' }
+    expect(decide(passRole({ StringEquals: { 'iam:PassedToService': 'cloudformation.amazonaws.com' } }), toCfn)).toBe('allow')
+    expect(decide(passRole({ StringEquals: { 'IAM:passedToService': ['lambda.amazonaws.com', 'cloudformation.amazonaws.com'] } }), toCfn)).toBe('allow')
+    expect(decide(passRole({ StringEquals: { 'iam:PassedToService': 'lambda.amazonaws.com' } }), toCfn)).toBe('implicit-deny')
+    expect(decide(passRole({ StringLike: { 'iam:PassedToService': '*.amazonaws.com' } }), toCfn)).toBe('allow')
+    expect(decide(passRole({ StringNotEquals: { 'iam:PassedToService': 'lambda.amazonaws.com' } }), toCfn)).toBe('allow')
+    expect(decide(passRole({ StringNotLike: { 'iam:PassedToService': 'cloud*' } }), toCfn)).toBe('implicit-deny')
+  })
+
+  it('lets a conditional deny win only when its condition holds', () => {
+    const policies = [policy(allow('iam:PassRole')), policy({ Effect: 'Deny', Action: 'iam:PassRole', Resource: '*', Condition: { StringEquals: { 'iam:PassedToService': 'ec2.amazonaws.com' } } })]
+    expect(decide(policies, { 'iam:PassedToService': 'cloudformation.amazonaws.com' })).toBe('allow')
+    expect(decide(policies, { 'iam:PassedToService': 'ec2.amazonaws.com' })).toBe('explicit-deny')
+  })
+
+  it('does not guess about keys or operators it is not given', () => {
+    const toCfn = { 'iam:PassedToService': 'cloudformation.amazonaws.com' }
+    expect(() => decide(passRole({ StringEquals: { 'aws:RequestedRegion': 'eu-west-1' } }), toCfn)).toThrow(PolicyNotModelled)
+    expect(() => decide(passRole({ ArnLike: { 'iam:AssociatedResourceArn': '*' } }), toCfn)).toThrow(/Condition \(ArnLike\)/)
+    expect(() => decide(passRole({ StringEquals: { 'iam:PassedToService': 'cloudformation.amazonaws.com' } }))).toThrow(PolicyNotModelled)
+  })
+})

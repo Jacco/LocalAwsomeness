@@ -1,7 +1,7 @@
 import { AwsError } from "../../api/common"
 import type { AuthorizationRequest } from "../../api/authorization"
 import type { PolicyDocument } from "../../api/data/reference"
-import { evaluateIdentityPolicies, evaluateResourcePolicy, PolicyNotModelled } from "./engine"
+import { evaluateIdentityPolicies, evaluateResourcePolicy, PolicyNotModelled, type ConditionContext } from "./engine"
 import { subjectOf } from "./identity"
 import { accountOf } from "./principal"
 
@@ -20,8 +20,8 @@ export interface ResourcePolicy {
 
 type Reason = 'identity-deny' | 'resource-deny' | 'no-identity-allow' | 'no-resource-allow'
 
-// The error each kind of service gives. EC2 has its own code; the Query services IAM and STS and the REST service S3 say
-// AccessDenied; the JSON and REST services say AccessDeniedException.
+// The error each kind of service gives. EC2 has its own code; the Query services IAM, STS and CloudFormation and the REST
+// service S3 say AccessDenied; the JSON and REST services say AccessDeniedException.
 function denial(principal: string, action: string, resource: string, why: Reason): AwsError {
   const reason = {
     'identity-deny': 'with an explicit deny in an identity-based policy',
@@ -34,11 +34,13 @@ function denial(principal: string, action: string, resource: string, why: Reason
   if (service === 'ec2') {
     return new AwsError('UnauthorizedOperation', `You are not authorized to perform this operation. ${message}`, 403)
   }
-  return new AwsError(['iam', 'sts', 's3'].includes(service) ? 'AccessDenied' : 'AccessDeniedException', message, 403)
+  return new AwsError(['iam', 'sts', 's3', 'cloudformation'].includes(service) ? 'AccessDenied' : 'AccessDeniedException', message, 403)
 }
 
 // Why a principal may not perform an action on a resource, as the error the service would answer with; undefined when it may.
-// Used by the authorizer and by the services that act for a role themselves (Lambda writing the log of a function).
+// Used by the authorizer and by the services that act for a role themselves (Lambda writing the log of a function), and for
+// the checks a service makes inside an operation (iam:PassRole when CloudFormation is given a role). `conditions` holds the
+// condition keys known for the request (iam:PassedToService); statements with other conditions are not evaluated.
 //
 // The IAM evaluation logic for the policies that are modelled:
 // - an explicit deny in an identity-based or in the resource-based policy denies;
@@ -46,18 +48,18 @@ function denial(principal: string, action: string, resource: string, why: Reason
 //   account (arn:aws:iam::<account>:root) delegates to the identity-based policies and does not grant on its own;
 // - from another account both are needed: the identity-based policies of the caller and the resource-based policy.
 // An identity the simulator holds no policies for (see identity.ts) counts as allowed by its identity-based policies.
-export function accessDenial(principal: string, action: string, resource: string, resourcePolicy?: ResourcePolicy): AwsError | undefined {
+export function accessDenial(principal: string, action: string, resource: string, resourcePolicy?: ResourcePolicy, conditions?: ConditionContext): AwsError | undefined {
   if (NO_PERMISSION_REQUIRED.has(action)) {
     return undefined
   }
   const subject = subjectOf(principal)
   try {
-    const identity = subject.restricted ? evaluateIdentityPolicies(subject.policies, action, resource) : undefined
+    const identity = subject.restricted ? evaluateIdentityPolicies(subject.policies, action, resource, conditions) : undefined
     if (identity?.decision === 'explicit-deny') {
       return denial(principal, action, resource, 'identity-deny')
     }
     const onResource = resourcePolicy?.document
-      ? evaluateResourcePolicy({ source: resourcePolicy.source, document: resourcePolicy.document }, principal, action, resource)
+      ? evaluateResourcePolicy({ source: resourcePolicy.source, document: resourcePolicy.document }, principal, action, resource, conditions)
       : undefined
     if (onResource?.decision === 'explicit-deny') {
       return denial(principal, action, resource, 'resource-deny')

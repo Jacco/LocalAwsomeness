@@ -42,6 +42,17 @@ export function wildcardMatch(pattern: string, text: string, ignoreCase = false)
   return regex.test(text)
 }
 
+// Condition keys the caller of the evaluation knows the value of for this request (iam:PassedToService for iam:PassRole).
+// A statement whose Condition uses any other key, or an operator not listed below, is not evaluated (PolicyNotModelled).
+export type ConditionContext = Record<string, string | string[]>
+
+const STRING_OPERATORS: Record<string, { like: boolean; negated: boolean }> = {
+  StringEquals: { like: false, negated: false },
+  StringNotEquals: { like: false, negated: true },
+  StringLike: { like: true, negated: false },
+  StringNotLike: { like: true, negated: true },
+}
+
 const asList = (value: unknown): string[] => (value === undefined ? [] : ([] as string[]).concat(value as string[]))
 
 function statementsOf(document: PolicyDocument): Record<string, any>[] {
@@ -69,23 +80,64 @@ function matches(statement: Record<string, any>, action: string, resource: strin
   return { applies: true, why: `action ${action} and resource ${resource} match` }
 }
 
-export function evaluateIdentityPolicies(policies: IdentityPolicy[], action: string, resource: string): Evaluation {
+function statementLabel(statement: { Sid?: string }, effect: string, source: string) {
+  return `${statement.Sid ? `statement "${statement.Sid}"` : `a ${effect} statement`} of ${source}`
+}
+
+// Whether the Condition block holds: every operator and every key in it must. A key is matched case-insensitively and
+// against any of the request's values; for the Not operators, none of the policy values may match.
+function conditionHolds(statement: Record<string, any>, effect: string, source: string, context: ConditionContext): { holds: boolean; why: string } {
+  const failed: string[] = []
+  for (const [operator, entries] of Object.entries(statement.Condition as Record<string, Record<string, unknown>>)) {
+    const kind = STRING_OPERATORS[operator]
+    if (!kind) {
+      throw conditionNotModelled(statement, effect, source)
+    }
+    for (const [key, expected] of Object.entries(entries ?? {})) {
+      const contextKey = Object.keys(context).find(k => k.toLowerCase() === key.toLowerCase())
+      if (contextKey === undefined) {
+        throw conditionNotModelled(statement, effect, source)
+      }
+      const actual = asList(context[contextKey])
+      const patterns = asList(expected)
+      const anyMatch = actual.some(value => patterns.some(p => kind.like ? wildcardMatch(p, value) : p === value))
+      if (anyMatch === kind.negated) {
+        failed.push(`${operator} ${key} ${patterns.join(', ')} (request: ${actual.join(', ') || 'none'})`)
+      }
+    }
+  }
+  return failed.length
+    ? { holds: false, why: `Condition does not hold: ${failed.join('; ')}` }
+    : { holds: true, why: 'condition holds' }
+}
+
+// Matches the action and resource, then the Condition. Without a context, any Condition is not evaluated.
+function applies(statement: Record<string, any>, effect: string, source: string, action: string, resource: string, context?: ConditionContext) {
+  const result = matches(statement, action, resource)
+  if (!result.applies || statement.Condition === undefined) {
+    return result
+  }
+  if (!context) {
+    throw conditionNotModelled(statement, effect, source)
+  }
+  const condition = conditionHolds(statement, effect, source, context)
+  return condition.holds ? { applies: true, why: `${result.why}, ${condition.why}` } : { applies: false, why: condition.why }
+}
+
+export function evaluateIdentityPolicies(policies: IdentityPolicy[], action: string, resource: string, context?: ConditionContext): Evaluation {
   const results: StatementResult[] = []
   for (const policy of policies) {
     for (const statement of statementsOf(policy.document)) {
       const effect = statement.Effect === 'Deny' ? 'Deny' : 'Allow'
-      const { applies, why } = matches(statement, action, resource)
-      if (applies && statement.Condition !== undefined) {
-        throw conditionNotModelled(statement, effect, policy.source)
-      }
-      results.push({ source: policy.source, sid: statement.Sid, effect, applies, why })
+      const result = applies(statement, effect, policy.source, action, resource, context)
+      results.push({ source: policy.source, sid: statement.Sid, effect, applies: result.applies, why: result.why })
     }
   }
   return decide(action, resource, results)
 }
 
 function conditionNotModelled(statement: { Sid?: string; Condition?: object }, effect: string, source: string) {
-  return new PolicyNotModelled(`${statement.Sid ? `statement "${statement.Sid}"` : `a ${effect} statement`} of ${source} has a Condition (${Object.keys(statement.Condition ?? {}).join(', ')}), which is not evaluated yet`)
+  return new PolicyNotModelled(`${statementLabel(statement, effect, source)} has a Condition (${Object.keys(statement.Condition ?? {}).join(', ')}), which is not evaluated yet`)
 }
 
 function decide<R extends StatementResult>(action: string, resource: string, results: R[], preferred?: (r: R) => boolean) {
@@ -108,7 +160,7 @@ export interface ResourceEvaluation extends Evaluation {
   statements: ResourceStatementResult[]
 }
 
-export function evaluateResourcePolicy(policy: IdentityPolicy, principal: string, action: string, resource: string): ResourceEvaluation {
+export function evaluateResourcePolicy(policy: IdentityPolicy, principal: string, action: string, resource: string, context?: ConditionContext): ResourceEvaluation {
   const results: ResourceStatementResult[] = []
   for (const statement of statementsOf(policy.document)) {
     const effect = statement.Effect === 'Deny' ? 'Deny' : 'Allow'
@@ -120,11 +172,8 @@ export function evaluateResourcePolicy(policy: IdentityPolicy, principal: string
       results.push({ source: policy.source, sid: statement.Sid, effect, applies: false, why: `Principal ${JSON.stringify(statement.Principal)} does not name ${principal}` })
       continue
     }
-    const { applies, why } = matches(statement, action, resource)
-    if (applies && statement.Condition !== undefined) {
-      throw conditionNotModelled(statement, effect, policy.source)
-    }
-    results.push({ source: policy.source, sid: statement.Sid, effect, applies, why, principal: named })
+    const result = applies(statement, effect, policy.source, action, resource, context)
+    results.push({ source: policy.source, sid: statement.Sid, effect, applies: result.applies, why: result.why, principal: named })
   }
   // An allow that names the principal itself (or everyone) decides over one that names its account: only the first grants
   // access on its own within the account (see authorizer.ts).

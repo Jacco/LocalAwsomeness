@@ -1,5 +1,0 @@
-2024-11-11T14:30:00Z INFO Initialization complete
-2024-11-11T14:31:15Z DEBUG Processing request from 127.0.0.1
-2024-11-11T14:31:16Z INFO Request completed successfully in 1245ms
-2024-11-11T14:32:45Z ERROR Failed to connect to database: ECONNREFUSED
-2024-11-11T14:33:00Z INFO Retry attempt 1/3 starting

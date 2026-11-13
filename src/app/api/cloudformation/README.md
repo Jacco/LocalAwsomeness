@@ -16,6 +16,26 @@ Infrastructure as Code (IaC) stack management with template-based resource deplo
 
 ## API Endpoints
 
+The service speaks the AWS **query protocol** (as real CloudFormation does), so the AWS CLI, boto3 and terraform work
+against `http://localhost:3000/`: requests are form-encoded (`Action=CreateStack&StackName=...`, lists as
+`Tags.member.1.Key=...`), responses are XML with lists as `<member>` elements, errors use the `ValidationError` code.
+The JSON bodies below are a readable summary of the parameters, not the wire format.
+
+```bash
+aws cloudformation create-stack --stack-name my-stack --template-body file://template.json
+```
+
+### Authorization
+
+- Stack operations are authorized as `cloudformation:<Operation>` on `arn:aws:cloudformation:<region>:<account>:stack/<name>/*`
+  (`ValidateTemplate`, `ListStacks` and `DescribeStacks` without a name: `*`). Denials are `AccessDenied` (403).
+- A `RoleARN` on `CreateStack`/`DeleteStack` is an implicit `iam:PassRole` by the caller on that role, evaluated with
+  `iam:PassedToService = cloudformation.amazonaws.com`. Then the role must exist and trust `cloudformation.amazonaws.com`,
+  else `ValidationError: Role <arn> is invalid or cannot be assumed`.
+- The deployment engine (`python/cf_deploy.py`) calls the service APIs with credentials from `deploymentSession()` in
+  `role.ts`: a session of the service role (`assumed-role/<role>/AWSCloudFormation`), or without a role, of the caller.
+  So each resource operation is authorized against the role's (or caller's) policies like any other request.
+
 ### Core Operations (Phase 1)
 
 #### ValidateTemplate
@@ -36,7 +56,7 @@ Response:
 - `CapabilitiesReason`: Human-readable capability explanation
 
 **Errors:**
-- `ValidationException`: Invalid template syntax or missing required sections
+- `ValidationError`: Invalid template syntax or missing required sections
 
 ---
 
@@ -65,7 +85,7 @@ Response:
 
 **Errors:**
 - `AlreadyExistsException`: Stack with this name already exists
-- `ValidationException`: Invalid template or parameters
+- `ValidationError`: Invalid template or parameters
 
 **Lifecycle:**
 1. Stack status: `CREATE_IN_PROGRESS`
@@ -100,7 +120,7 @@ Response:
   - `EnableTerminationProtection`: Whether deletion is protected
 
 **Errors:**
-- `ValidationException`: Invalid stack name or ARN format
+- `ValidationError`: Invalid stack name or ARN format
 
 ---
 
@@ -154,7 +174,7 @@ Response:
 - `StagesAvailable`: ["Original"] (future: could include "Processed" for ChangeSet versions)
 
 **Errors:**
-- `ValidationException`: Stack not found
+- `ValidationError`: Stack not found
 
 ---
 
@@ -173,7 +193,7 @@ Response:
 - `StackId`: ARN of deleted stack
 
 **Errors:**
-- `ValidationException`: Stack not found or TerminationProtection enabled
+- `ValidationError`: Stack not found or TerminationProtection enabled
 
 **Lifecycle:**
 1. Stack status: `DELETE_IN_PROGRESS`
@@ -205,7 +225,7 @@ Response:
 - `StackId`: Stack ARN
 
 **Errors:**
-- `ValidationException`: Stack or changeset not found
+- `ValidationError`: Stack or changeset not found
 
 **Lifecycle:**
 - If stack is `CREATE_IN_PROGRESS`: transition to `CREATE_COMPLETE`
@@ -565,9 +585,11 @@ db/
   {account}/
     cloudformation/
       stacks/
-        {StackName}.json          # Stack metadata (status, parameters, etc.)
-      templates/
-        {StackName}.json          # Original template body
+        {StackName}/
+          stack.json              # Stack metadata (status, parameters, etc.)
+          templates/
+            v{N}.json             # Template body per version, pretty-printed (2-space indent)
+            v{N}.kms.json         # KMS record: AWS owned key, encryption context, encrypted data key (the template stays plaintext)
 ```
 
 **Stack JSON Structure:**
@@ -608,7 +630,7 @@ Standard AWS CloudFormation errors:
 
 | Error | Meaning | HTTP |
 |-------|---------|------|
-| `ValidationException` | Invalid input (template, parameters, etc.) | 400 |
+| `ValidationError` | Invalid input (template, parameters, etc.) | 400 |
 | `AlreadyExistsException` | Stack already exists | 400 |
 | `NotFoundException` | Stack or resource not found | 404 |
 | `InsufficientCapabilities` | Missing IAM capabilities | 400 |

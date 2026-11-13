@@ -52,6 +52,53 @@ KMS differs from most services: the **key policy is the primary access control**
    - conflicting statements (an allow and a deny for the same principal and action, overlapping encryption context conditions).
    Each finding names the resources, the statements involved, and which call it breaks.
 
+## Service encryption with AWS managed and AWS owned keys
+
+Status: CloudFormation template storage with the AWS owned key is implemented (`src/app/api/kms/service-use.ts`, tests in `__tests__/cloudformation-kms.test.ts`); KMS per Region, aliases, AWS managed keys and the customer-key path of `kmsForService()` are planned. Every service that stores customer data encrypts it with a KMS key by default, without the customer choosing one. This section makes those calls happen in the simulator, so they are authorized, fail on a bad key state, and show up in CloudTrail. **Record-only**: the stored files stay plaintext and readable (the indented templates of CloudFormation stay as they are); only the KMS calls and the key ID next to the data are real.
+
+### The two kinds of default key
+
+| Kind | Who uses it | In the account? | Key policy | CloudTrail of the account |
+|---|---|---|---|---|
+| **AWS managed key** `alias/aws/<service>` | SSM `SecureString` (`aws/ssm`), Lambda environment variables (`aws/lambda`), S3 SSE-KMS without a key (`aws/s3`), Secrets Manager, EBS, ... | yes, created by the service on first use per account and Region; `KeyManager: AWS` | fixed by AWS: the account's principals may use it only through the service (`kms:ViaService = <service>.<region>.amazonaws.com`, `kms:CallerAccount = <account>`); read-only for everyone | `GenerateDataKey` / `Decrypt` with the caller as `userIdentity` and `invokedBy: <service>.amazonaws.com` |
+| **AWS owned key** | CloudFormation templates, and the default of many services (DynamoDB, SQS SSE, ...) | no: not listed, not describable, no policy the customer can see or change | none for the customer; the service always may | nothing in AWS; the simulator records the calls as **simulated** events (`simulated: true`, like `iam:PassRole`) so they can still be traced |
+
+CloudFormation has **no** `aws/cloudformation` managed key in AWS; its templates use an AWS-owned key. The simulator follows that.
+
+### Building blocks
+
+1. **KMS per Region and aliases** (prerequisite). Keys move from `data/accounts/<acct>/kms` to per-Region storage with the real Region in the ARN (today every key ARN says `us-east-1`). Aliases: `CreateAlias`, `DeleteAlias`, `ListAliases`, `UpdateAlias`, and `alias/...` / alias ARNs accepted wherever a `KeyId` is. `alias/aws/*` is reserved: customers cannot create, update or delete such aliases (`NotAuthorizedException`).
+2. **AWS managed keys.** `managedKey(account, region, service)` returns the key behind `alias/aws/<service>`, creating it on first use with `KeyManager: AWS`, the AWS managed key policy, `Description: "Default key that protects my <Service> data when no other key is defined"`, and yearly rotation that cannot be turned off. `PutKeyPolicy`, `DisableKey`, `ScheduleKeyDeletion`, `DisableKeyRotation` on it fail as in AWS. Calling `Encrypt` on it directly (not through the service) is denied by its policy (`kms:ViaService`).
+3. **AWS owned keys.** One simulator key per service and Region, kept outside every account (`data/aws/kms/<region>/<service>.json`, git-ignored), never listed or describable, no policy, never disabled. Real AES-GCM like any other key, so the record-only mode could later switch to real encryption without a format change.
+4. **One path for services: `kmsForService()`** (new, `src/app/api/kms/service-use.ts`). `generateDataKey` / `decrypt` for a service acting for the caller of a request:
+   - resolves the key (customer key ID/ARN/alias, `alias/aws/<service>`, or the AWS owned key);
+   - authorizes the **caller**, not the service, with the key policy as the resource-based policy and the condition keys `kms:ViaService`, `kms:CallerAccount`, `kms:EncryptionContext:<k>` supplied, through the policy engine (which already evaluates supplied condition keys, see the `iam:PassRole` work); the key policy check replaces the separate evaluator in `kms/validator.ts` that S3 uses today;
+   - checks the key state (`DisabledException`, `KMSInvalidStateException`, `NotFoundException`), turned into the calling service's error (S3: `KMS.DisabledException`);
+   - records the CloudTrail event: `kms:GenerateDataKey` / `kms:Decrypt`, principal = the caller, `invokedBy` = the service, resource = the key ARN, the encryption context in the parameters; for AWS owned keys `simulated: true`, in the caller's account.
+5. **Record-only storage.** Next to the data the service stores `{ kmsKeyId, encryptionContext }` (and later, in a real mode, the encrypted data key); the data itself stays as it is. The read path accepts data without this record (written before the change) and treats it as encrypted with the default key.
+
+### CloudFormation template storage first
+
+- **Write** (`CreateStack`, later `UpdateStack` and change sets): `kmsForService('cloudformation', 'GenerateDataKey', awsOwned)` with encryption context `{ "aws:cloudformation:stack-id": <stack id>, "templateVersion": "<n>" }`; then the template is written; `templates/v<n>.json` gets a sibling `v<n>.kms.json` with the key and context.
+- **Read** (`GetTemplate`, `DescribeStacks` with the template, the deployment reading the template for the Python engine, later `GetTemplateSummary`): `Decrypt` with the stored context before the file is returned.
+- **Expected trail of a CreateStack + GetTemplate:** `cloudformation:CreateStack` (caller) → `iam:PassRole` (simulated) → `kms:GenerateDataKey` (caller, `invokedBy: cloudformation.amazonaws.com`, simulated: AWS owned key) → ... → `cloudformation:GetTemplate` → `kms:Decrypt` (simulated).
+- No customer key option: CloudFormation has none in AWS.
+
+### Then
+
+| Service | Data | Key | Calls |
+|---|---|---|---|
+| SSM | `SecureString` values (`Type: SecureString`, `KeyId` optional) | `KeyId` or `aws/ssm` | `PutParameter`: `Encrypt` (≤ 4 KB, Standard tier) or `GenerateDataKey` (Advanced); `GetParameter(s)` with `WithDecryption`: `Decrypt`; without it the value is returned as the ciphertext placeholder AWS returns |
+| Lambda | environment variables (always), `KMSKeyArn` optional | `KMSKeyArn` or `aws/lambda` | `CreateFunction` / `UpdateFunctionConfiguration`: `GenerateDataKey` by the caller; every invocation: `Decrypt` by the **execution role** session (a disabled key then fails the invocation with `KMSDisabledException`) |
+| S3 | objects with SSE-KMS (`aws:kms`), bucket default encryption | `SSEKMSKeyId` or `aws/s3`; SSE-S3 (`AES256`) uses an AWS owned key | `PutObject`: `GenerateDataKey`; `GetObject` / `HeadObject`: `Decrypt`; S3 Bucket Keys later (fewer KMS calls) |
+
+Each one moves its KMS checks onto `kmsForService()`; S3 drops its own `checkKmsPermission`.
+
+### Tests
+
+- jest per building block: aliases and reserved `alias/aws/*`; managed key creation, policy and refused operations; owned key invisible to `ListKeys`/`DescribeKey`; `kmsForService` allow/deny (wrong account, missing `kms:ViaService`, explicit deny in an IAM policy, disabled customer key), and the CloudTrail event shape.
+- End-to-end with the AWS CLI per service: the CloudFormation case is the trail above; then SSM `put-parameter --type SecureString` + `get-parameter --with-decryption`, a Lambda with environment variables invoked after its key is disabled, S3 `put-object --server-side-encryption aws:kms`.
+
 ## ACM and certificates
 
 **Interpretation to confirm:** the emulated ACM issues *real X.509 certificates* so that TLS is genuinely terminated by the simulator, and real certificates can be imported. Both halves:
@@ -66,7 +113,7 @@ KMS differs from most services: the **key policy is the primary access control**
 
 1. KMS records and the control-plane API (keys, aliases, policies, states, grants) with access evaluation limited to key policy plus the IAM delegation rule, and the trace output.
 2. Manual encryption: symmetric `Encrypt` / `Decrypt` / `GenerateDataKey` / `ReEncrypt`, then asymmetric and HMAC.
-3. Service integrations as fake encryption, together with each service (S3 first, then SSM, Secrets Manager, Lambda).
+3. Service integrations as fake encryption ("Service encryption with AWS managed and AWS owned keys"): KMS per Region and aliases, AWS managed and AWS owned keys, `kmsForService()`, then CloudFormation template storage first, then SSM, Lambda, S3, Secrets Manager.
 4. The conflict report, once the policy engine can evaluate IAM policies, SCPs and boundaries.
 5. ACM with the simulator CA, then import, then validation through Route 53, then TLS termination in emulated endpoints.
 6. Optional real at-rest encryption for S3.

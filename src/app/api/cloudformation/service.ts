@@ -1,6 +1,7 @@
 import { AwsError } from '../common'
-import { JsonProtocol } from '../protocols'
 import { defineService, type RequestContext } from '../registry'
+import { CloudFormationQueryProtocol, toBoolean, toInteger } from './query-protocol'
+import { checkPassRole } from './role'
 import {
   createStack,
   getStack,
@@ -14,7 +15,19 @@ import {
   type Stack,
 } from './storage'
 
-const protocol = new JsonProtocol()
+const protocol = new CloudFormationQueryProtocol()
+
+// An empty list arrives as `Name=` (a string) in the query protocol.
+function asList<T>(value: unknown): T[] | undefined {
+  return Array.isArray(value) ? value as T[] : undefined
+}
+
+// The ARN policies match a stack operation against; a StackName may also be the stack ID (the full ARN).
+function stackResource({ account, region, params }: RequestContext): string[] {
+  const name = params.StackName
+  if (typeof name !== 'string' || !name) return ['*']
+  return [name.startsWith('arn:') ? name : `arn:aws:cloudformation:${region}:${account}:stack/${name}/*`]
+}
 
 /**
  * CloudFormation service - Infrastructure as Code stack management
@@ -45,7 +58,7 @@ export const cloudFormation = defineService({
 
         if (typeof TemplateBody !== 'string' || !TemplateBody.trim()) {
           throw new AwsError(
-            'ValidationException',
+            'ValidationError',
             'Template body cannot be empty'
           )
         }
@@ -65,12 +78,13 @@ export const cloudFormation = defineService({
           }
         } catch (error) {
           const msg = error instanceof Error ? error.message : 'Invalid template'
-          throw new AwsError('ValidationException', msg)
+          throw new AwsError('ValidationError', msg)
         }
       }
     },
 
     CreateStack: {
+      resources: stackResource,
       async handler(ctx: RequestContext) {
         console.log('[CloudFormation:CreateStack] Starting, ctx.account:', ctx.account, 'ctx.region:', ctx.region)
         const {
@@ -84,20 +98,25 @@ export const cloudFormation = defineService({
           Capabilities,
           RoleARN,
           Description,
+          EnableTerminationProtection,
         } = ctx.params
 
         if (typeof StackName !== 'string' || !StackName.trim()) {
           throw new AwsError(
-            'ValidationException',
+            'ValidationError',
             'StackName is required'
           )
         }
 
         if (typeof TemplateBody !== 'string' || !TemplateBody.trim()) {
           throw new AwsError(
-            'ValidationException',
+            'ValidationError',
             'TemplateBody is required'
           )
+        }
+
+        if (RoleARN !== undefined) {
+          checkPassRole(ctx, RoleARN)
         }
 
         try {
@@ -118,16 +137,19 @@ export const cloudFormation = defineService({
 
           const stackId = await createStack(
             ctx.account,
+            ctx.region,
             StackName,
             TemplateBody,
             Description,
-            Parameters,
-            Tags,
-            TimeoutInMinutes,
-            NotificationARNs,
-            DisableRollback,
-            Capabilities,
-            RoleARN
+            asList(Parameters),
+            asList(Tags),
+            toInteger(TimeoutInMinutes),
+            asList(NotificationARNs),
+            toBoolean(DisableRollback),
+            asList(Capabilities),
+            RoleARN,
+            toBoolean(EnableTerminationProtection),
+            { principal: ctx.principal, account: ctx.account, region: ctx.region }
           )
 
           return { StackId: stackId }
@@ -135,12 +157,13 @@ export const cloudFormation = defineService({
           if (error instanceof AwsError) throw error
           const errMsg = (error instanceof Error ? error.message : String(error)) || 'Failed to create stack'
           console.error('[CF CreateStack] Error:', errMsg, 'Full error:', error)
-          throw new AwsError('ValidationException', errMsg)
+          throw new AwsError('ValidationError', errMsg)
         }
       }
     },
 
     DescribeStacks: {
+      resources: stackResource,
       async handler(ctx: RequestContext) {
         const { StackName } = ctx.params
 
@@ -149,7 +172,9 @@ export const cloudFormation = defineService({
 
           if (StackName) {
             // Single stack lookup
-            const stack = await getStack(ctx.account, StackName)
+            const stack = await getStack(ctx.account, StackName).catch(() => {
+              throw new AwsError('ValidationError', `Stack with id ${StackName} does not exist`)
+            })
             stacks = [stack]
           } else {
             // List all stacks
@@ -179,7 +204,7 @@ export const cloudFormation = defineService({
         } catch (error) {
           if (error instanceof AwsError) throw error
           const msg = error instanceof Error ? error.message : 'Stack not found'
-          throw new AwsError('ValidationException', msg)
+          throw new AwsError('ValidationError', msg)
         }
       }
     },
@@ -189,7 +214,7 @@ export const cloudFormation = defineService({
         const { StackStatusFilter } = ctx.params
 
         try {
-          const stacks = await listStacks(ctx.account, StackStatusFilter)
+          const stacks = await listStacks(ctx.account, asList<string>(StackStatusFilter))
 
           return {
             StackSummaries: stacks.map(s => ({
@@ -208,24 +233,25 @@ export const cloudFormation = defineService({
           }
         } catch (error) {
           const msg = error instanceof Error ? error.message : 'Failed to list stacks'
-          throw new AwsError('ValidationException', msg)
+          throw new AwsError('ValidationError', msg)
         }
       }
     },
 
     GetTemplate: {
+      resources: stackResource,
       async handler(ctx: RequestContext) {
         const { StackName } = ctx.params
 
         if (!StackName) {
           throw new AwsError(
-            'ValidationException',
+            'ValidationError',
             'StackName is required'
           )
         }
 
         try {
-          const templateBody = await getTemplate(ctx.account, StackName)
+          const templateBody = await getTemplate(ctx.account, StackName, { principal: ctx.principal, account: ctx.account, region: ctx.region })
           const parsed = JSON.parse(templateBody)
 
           return {
@@ -236,20 +262,25 @@ export const cloudFormation = defineService({
         } catch (error) {
           if (error instanceof AwsError) throw error
           const msg = error instanceof Error ? error.message : 'Template not found'
-          throw new AwsError('ValidationException', msg)
+          throw new AwsError('ValidationError', msg)
         }
       }
     },
 
     DeleteStack: {
+      resources: stackResource,
       async handler(ctx: RequestContext) {
-        const { StackName } = ctx.params
+        const { StackName, RoleARN } = ctx.params
 
         if (!StackName) {
           throw new AwsError(
-            'ValidationException',
+            'ValidationError',
             'StackName is required'
           )
+        }
+
+        if (RoleARN !== undefined) {
+          checkPassRole(ctx, RoleARN)
         }
 
         try {
@@ -257,38 +288,38 @@ export const cloudFormation = defineService({
 
           if (stack.EnableTerminationProtection) {
             throw new AwsError(
-              'ValidationException',
+              'ValidationError',
               `Stack [${StackName}] cannot be deleted while TerminationProtection is enabled`
             )
           }
 
           await updateStackStatus(ctx.account, StackName, 'DELETE_IN_PROGRESS')
           await deleteStack(ctx.account, StackName)
-          await updateStackStatus(ctx.account, StackName, 'DELETE_COMPLETE')
 
           return { StackId: stack.StackId }
         } catch (error) {
           if (error instanceof AwsError) throw error
           const msg = error instanceof Error ? error.message : 'Failed to delete stack'
-          throw new AwsError('ValidationException', msg)
+          throw new AwsError('ValidationError', msg)
         }
       }
     },
 
     ExecuteChangeSet: {
+      resources: stackResource,
       async handler(ctx: RequestContext) {
         const { ChangeSetName, StackName } = ctx.params
 
         if (!StackName) {
           throw new AwsError(
-            'ValidationException',
+            'ValidationError',
             'StackName is required'
           )
         }
 
         if (!ChangeSetName) {
           throw new AwsError(
-            'ValidationException',
+            'ValidationError',
             'ChangeSetName is required'
           )
         }
@@ -309,18 +340,19 @@ export const cloudFormation = defineService({
         } catch (error) {
           if (error instanceof AwsError) throw error
           const msg = error instanceof Error ? error.message : 'Failed to execute changeset'
-          throw new AwsError('ValidationException', msg)
+          throw new AwsError('ValidationError', msg)
         }
       }
     },
 
     DescribeStackResources: {
+      resources: stackResource,
       async handler(ctx: RequestContext) {
         const { StackName, LogicalResourceId, PhysicalResourceId } = ctx.params
 
         if (!StackName) {
           throw new AwsError(
-            'ValidationException',
+            'ValidationError',
             'StackName is required'
           )
         }
@@ -351,7 +383,7 @@ export const cloudFormation = defineService({
           }
         } catch (error) {
           const msg = error instanceof Error ? error.message : 'Stack not found'
-          throw new AwsError('ValidationException', msg)
+          throw new AwsError('ValidationError', msg)
         }
       }
     }
