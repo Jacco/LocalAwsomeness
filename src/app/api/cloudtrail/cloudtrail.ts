@@ -35,14 +35,32 @@ export interface CloudTrailEvent {
   errorMessage?: string
 }
 
-const dbRoot = process.env.JPK_DB_ROOT || 'db'
+const dbRoot = (() => {
+  try {
+    const env = process.env.JPK_DB_ROOT
+    if (env && typeof env === 'string') {
+      return env
+    }
+    return 'db'
+  } catch (e) {
+    return 'db'
+  }
+})()
 
 function getCloudTrailPath(account: string): string {
-  const trailDir = join(dbRoot, 'cloudtrail')
-  if (!existsSync(trailDir)) {
-    mkdirSync(trailDir, { recursive: true })
+  if (!dbRoot || typeof dbRoot !== 'string') {
+    return '' // Disable CloudTrail if path can't be determined
   }
-  return join(trailDir, `${account}-events.jsonl`)
+  try {
+    const trailDir = join(dbRoot, 'cloudtrail')
+    if (!existsSync(trailDir)) {
+      mkdirSync(trailDir, { recursive: true })
+    }
+    return join(trailDir, `${account}-events.jsonl`)
+  } catch (e) {
+    console.error('[CloudTrail] Error getting path:', e)
+    return ''
+  }
 }
 
 /**
@@ -51,6 +69,7 @@ function getCloudTrailPath(account: string): string {
 export function logCloudTrailEvent(event: CloudTrailEvent): void {
   try {
     const path = getCloudTrailPath(event.account)
+    if (!path) return // Skip if path couldn't be determined
     appendFileSync(path, JSON.stringify(event) + '\n', 'utf8')
   } catch (error) {
     // Silently fail - CloudTrail logging should never break the application

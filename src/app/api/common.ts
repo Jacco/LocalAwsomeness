@@ -11,11 +11,13 @@ export function getRequestInfo(request: Request): RequestInfo {
   const principal = request.headers.get('x-aws-principal')
   const region = request.headers.get('authorization')?.split(' ').at(1)?.split('=').at(-1)?.split('/').at(2)
     ?? new URL(request.url).searchParams.get('region')!
+  const account = principal?.split(':').at(4) ?? '123456789012'
+  console.log('[getRequestInfo]', { principal, account, region })
   return {
-    principalAccount: principal?.split(':').at(4)!,
-    region,
-    user: principal!,
-    userId: request.headers.get('x-aws-userid')!
+    principalAccount: account,
+    region: region || 'us-east-1',
+    user: principal ?? 'unknown',
+    userId: request.headers.get('x-aws-userid') ?? 'unknown'
   }
 }
 

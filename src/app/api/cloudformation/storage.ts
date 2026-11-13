@@ -1,9 +1,10 @@
-import { readFile, writeFile, mkdir } from 'fs/promises'
-import { join } from 'path'
-import { existsSync } from 'fs'
 import { randomUUID } from 'crypto'
 
-const dbPath = join(process.cwd(), 'db')
+// In-memory storage for CloudFormation stacks
+const stacks = new Map<string, Stack>()
+const templates = new Map<string, string>()
+
+const getKey = (account: string, name: string) => `${account}#${name}`
 
 export interface StackParameter {
   ParameterKey: string
@@ -26,14 +27,14 @@ export interface Stack {
   StackId: string
   StackName: string
   Description?: string
-  Parameters?: StackParameter[]
-  CreationTime: number
-  LastUpdatedTime?: number
   StackStatus: 'CREATE_IN_PROGRESS' | 'CREATE_COMPLETE' | 'CREATE_FAILED' |
                'UPDATE_IN_PROGRESS' | 'UPDATE_COMPLETE' | 'UPDATE_FAILED' |
                'DELETE_IN_PROGRESS' | 'DELETE_COMPLETE' | 'DELETE_FAILED' |
                'ROLLBACK_IN_PROGRESS' | 'ROLLBACK_COMPLETE'
   StackStatusReason?: string
+  CreationTime: number
+  LastUpdatedTime?: number
+  Parameters: StackParameter[]
   Tags?: Array<{ Key: string; Value: string }>
   TimeoutInMinutes?: number
   NotificationARNs?: string[]
@@ -78,7 +79,6 @@ export interface Template {
 
 /**
  * Store template and validate JSON structure
- * @throws ValidationException if template is invalid JSON or missing required sections
  */
 export async function storeTemplate(
   account: string,
@@ -104,8 +104,7 @@ export async function storeTemplate(
 }
 
 /**
- * Create a new stack in the database
- * Stack ID format: arn:aws:cloudformation:region:account:stack/name/uuid
+ * Create a new stack
  */
 export async function createStack(
   account: string,
@@ -122,7 +121,17 @@ export async function createStack(
     roleARN?: string
   }
 ): Promise<string> {
+  console.log('[CloudFormation:storage:createStack] Starting with account:', account, 'stackName:', stackName)
+  
   const template = await storeTemplate(account, templateBody)
+  const key = getKey(account, stackName)
+  
+  console.log('[CloudFormation:storage:createStack] Key:', key)
+  
+  // Check if stack already exists
+  if (stacks.has(key)) {
+    throw new Error(`Stack with name ${stackName} already exists`)
+  }
   
   const stackId = randomUUID()
   const stackArn = `arn:aws:cloudformation:eu-central-1:${account}:stack/${stackName}/${stackId}`
@@ -143,18 +152,10 @@ export async function createStack(
     Capabilities: options?.capabilities,
     RoleARN: options?.roleARN,
   }
-
-  const stackDir = join(dbPath, account, 'cloudformation', 'stacks')
-  await mkdir(stackDir, { recursive: true })
   
-  const stackPath = join(stackDir, `${stackName}.json`)
-  await writeFile(stackPath, JSON.stringify(stack, null, 2))
-
-  const templateDir = join(dbPath, account, 'cloudformation', 'templates')
-  await mkdir(templateDir, { recursive: true })
-  const templatePath = join(templateDir, `${stackName}.json`)
-  await writeFile(templatePath, templateBody)
-
+  stacks.set(key, stack)
+  templates.set(key, templateBody)
+  
   return stackArn
 }
 
@@ -162,7 +163,6 @@ export async function createStack(
  * Retrieve stack by name or ARN
  */
 export async function getStack(account: string, stackNameOrId: string): Promise<Stack> {
-  // Extract stack name from ARN if provided
   let stackName = stackNameOrId
   if (stackNameOrId.startsWith('arn:')) {
     const match = stackNameOrId.match(/stack\/([^/]+)\//)
@@ -170,46 +170,36 @@ export async function getStack(account: string, stackNameOrId: string): Promise<
     stackName = match[1]
   }
 
-  const stackPath = join(dbPath, account, 'cloudformation', 'stacks', `${stackName}.json`)
+  const key = getKey(account, stackName)
+  const stack = stacks.get(key)
   
-  if (!existsSync(stackPath)) {
+  if (!stack) {
     throw new Error(`Stack with id [${stackNameOrId}] does not exist`)
   }
-
-  const content = await readFile(stackPath, 'utf-8')
-  return JSON.parse(content)
+  
+  return stack
 }
 
 /**
- * List all stacks for an account (optionally filtered by status)
+ * List all stacks for an account
  */
 export async function listStacks(
   account: string,
   stackStatusFilter?: string[]
 ): Promise<Stack[]> {
-  const stackDir = join(dbPath, account, 'cloudformation', 'stacks')
+  const allStacks = Array.from(stacks.entries())
+    .filter(([key]) => key.startsWith(`${account}#`))
+    .map(([, stack]) => stack)
   
-  if (!existsSync(stackDir)) {
-    return []
-  }
-
-  const files = require('fs').readdirSync(stackDir).filter((f: string) => f.endsWith('.json'))
-  const stacks = await Promise.all(
-    files.map(async (file: string) => {
-      const content = await readFile(join(stackDir, file), 'utf-8')
-      return JSON.parse(content) as Stack
-    })
-  )
-
   if (stackStatusFilter && stackStatusFilter.length > 0) {
-    return stacks.filter(s => stackStatusFilter.includes(s.StackStatus))
+    return allStacks.filter(s => stackStatusFilter.includes(s.StackStatus))
   }
-
-  return stacks
+  
+  return allStacks
 }
 
 /**
- * Update stack status (for lifecycle management)
+ * Update stack status
  */
 export async function updateStackStatus(
   account: string,
@@ -217,25 +207,32 @@ export async function updateStackStatus(
   status: Stack['StackStatus'],
   reason?: string
 ): Promise<void> {
-  const stack = await getStack(account, stackName)
+  const key = getKey(account, stackName)
+  const stack = stacks.get(key)
+  
+  if (!stack) {
+    throw new Error(`Stack not found: ${stackName}`)
+  }
   
   stack.StackStatus = status
   stack.StackStatusReason = reason
   stack.LastUpdatedTime = Date.now()
-
-  const stackPath = join(dbPath, account, 'cloudformation', 'stacks', `${stackName}.json`)
-  await writeFile(stackPath, JSON.stringify(stack, null, 2))
 }
 
 /**
- * Add resource to stack (during execution)
+ * Add resource to stack
  */
 export async function addStackResource(
   account: string,
   stackName: string,
   resource: StackResource
 ): Promise<void> {
-  const stack = await getStack(account, stackName)
+  const key = getKey(account, stackName)
+  const stack = stacks.get(key)
+  
+  if (!stack) {
+    throw new Error(`Stack not found: ${stackName}`)
+  }
   
   const existing = stack.Resources.findIndex(r => r.LogicalResourceId === resource.LogicalResourceId)
   if (existing >= 0) {
@@ -243,9 +240,6 @@ export async function addStackResource(
   } else {
     stack.Resources.push(resource)
   }
-
-  const stackPath = join(dbPath, account, 'cloudformation', 'stacks', `${stackName}.json`)
-  await writeFile(stackPath, JSON.stringify(stack, null, 2))
 }
 
 /**
@@ -260,53 +254,35 @@ export async function getStackResources(
 }
 
 /**
- * Get template used to create/update stack
+ * Get template used to create stack
  */
 export async function getTemplate(
   account: string,
   stackName: string
 ): Promise<string> {
-  const templatePath = join(dbPath, account, 'cloudformation', 'templates', `${stackName}.json`)
+  const key = getKey(account, stackName)
+  const template = templates.get(key)
   
-  if (!existsSync(templatePath)) {
+  if (!template) {
     throw new Error(`Stack with id [${stackName}] does not exist`)
   }
-
-  return await readFile(templatePath, 'utf-8')
+  
+  return template
 }
 
 /**
- * Delete stack and associated data
+ * Delete stack
  */
 export async function deleteStack(account: string, stackName: string): Promise<void> {
-  const { readdir, unlink } = require('fs/promises')
-  const fs = require('fs')
-
-  const stack = await getStack(account, stackName)
+  const key = getKey(account, stackName)
+  const stack = stacks.get(key)
   
-  const stackPath = join(dbPath, account, 'cloudformation', 'stacks', `${stackName}.json`)
-  const templatePath = join(dbPath, account, 'cloudformation', 'templates', `${stackName}.json`)
-
-  if (fs.existsSync(stackPath)) {
-    await unlink(stackPath)
+  if (!stack) {
+    throw new Error(`Stack not found: ${stackName}`)
   }
-  if (fs.existsSync(templatePath)) {
-    await unlink(templatePath)
-  }
-
+  
   stack.StackStatus = 'DELETE_COMPLETE'
   stack.LastUpdatedTime = Date.now()
-}
-
-/**
- * Get stack outputs (from completed resources)
- */
-export async function getStackOutputs(
-  account: string,
-  stackName: string
-): Promise<Array<{ OutputKey: string; OutputValue: string; Description?: string; ExportName?: string }>> {
-  const stack = await getStack(account, stackName)
-  return stack.Outputs || []
 }
 
 /**
@@ -317,35 +293,37 @@ export async function addStackOutput(
   stackName: string,
   output: { OutputKey: string; OutputValue: string; Description?: string; ExportName?: string }
 ): Promise<void> {
-  const stack = await getStack(account, stackName)
+  const key = getKey(account, stackName)
+  const stack = stacks.get(key)
+  
+  if (!stack) {
+    throw new Error(`Stack not found: ${stackName}`)
+  }
   
   if (!stack.Outputs) {
     stack.Outputs = []
   }
-
+  
   const existing = stack.Outputs.findIndex(o => o.OutputKey === output.OutputKey)
   if (existing >= 0) {
     stack.Outputs[existing] = output
   } else {
     stack.Outputs.push(output)
   }
-
-  const stackPath = join(dbPath, account, 'cloudformation', 'stacks', `${stackName}.json`)
-  await writeFile(stackPath, JSON.stringify(stack, null, 2))
 }
 
 /**
- * Export lookup (for cross-stack imports)
+ * Export lookup for cross-stack imports
  */
 export async function lookupExport(account: string, exportName: string): Promise<string | null> {
-  const stacks = await listStacks(account)
+  const allStacks = await listStacks(account)
   
-  for (const stack of stacks) {
+  for (const stack of allStacks) {
     const output = stack.Outputs?.find(o => o.ExportName === exportName)
     if (output) {
       return output.OutputValue
     }
   }
-
+  
   return null
 }

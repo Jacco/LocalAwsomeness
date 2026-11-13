@@ -22,7 +22,21 @@ const KEPT_INVOCATIONS = 10
 const LOG_TAIL_BYTES = 4096
 // Where the emulated services answer, for the code that runs in the subprocess.
 const simulatorUrl = () => process.env.JPK_SIMULATOR_URL ?? `http://localhost:${process.env.PORT ?? 3000}`
-const bootstrap = () => readFileSync(join(process.cwd(), 'src/app/api/lambda/bootstrap.py'), 'utf8')
+
+const getBootstrap = () => {
+  try {
+    const cwd = process.cwd()
+    if (!cwd || typeof cwd !== 'string') {
+      throw new Error('process.cwd() returned invalid value')
+    }
+    return readFileSync(join(cwd, 'src/app/api/lambda/bootstrap.py'), 'utf8')
+  } catch (e) {
+    console.error('Failed to load bootstrap.py:', e)
+    return ''
+  }
+}
+
+const bootstrap = () => getBootstrap()
 
 interface Outcome {
   statusCode: number

@@ -42,7 +42,24 @@ export class JsonProtocol implements ProtocolAdapter<any> {
   }
 
   failure(error: unknown) {
-    return awsJsonError(error, this.version)
+    const err = error instanceof AwsError
+      ? error
+      : new AwsError('ServiceException', (error as Error)?.message ?? 'Internal error', 500)
+    // Log any non-AwsError exceptions
+    if (!(error instanceof AwsError) && error instanceof Error) {
+      console.error('[JsonProtocol] Non-AwsError exception:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      })
+    }
+    return new Response(JSON.stringify({ __type: err.type, message: err.message }), {
+      status: err.status,
+      headers: {
+        'Content-Type': `application/x-amz-json-${this.version}`,
+        'x-amzn-errortype': err.type
+      }
+    })
   }
 }
 

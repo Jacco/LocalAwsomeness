@@ -33,9 +33,23 @@ export interface KeyPolicy {
   }>
 }
 
-const s3Root = process.env.JPK_DB_ROOT || 'data'
+const s3Root = (() => {
+  try {
+    const env = process.env.JPK_DB_ROOT
+    if (env && typeof env === 'string') {
+      return env
+    }
+    return 'data'
+  } catch (e) {
+    return 'data'
+  }
+})()
 
 function getKmsAccountPath(account: string): string {
+  console.log('[KMS:getKmsAccountPath] account:', account, 's3Root:', s3Root)
+  if (!s3Root || typeof s3Root !== 'string') {
+    throw new Error('Database root path not available')
+  }
   const kmsDir = join(s3Root, 'accounts', account, 'kms')
   if (!existsSync(kmsDir)) {
     mkdirSync(kmsDir, { recursive: true })

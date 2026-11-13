@@ -2,13 +2,24 @@ import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { NextRequest, NextResponse } from 'next/server';
 
-const dataPath = join(process.cwd(), 'db');
+const getDataPath = () => {
+  try {
+    const cwd = process.cwd()
+    if (!cwd || typeof cwd !== 'string') {
+      return '/tmp/jpk-db'
+    }
+    return join(cwd, 'db')
+  } catch (e) {
+    return '/tmp/jpk-db'
+  }
+}
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ bucket: string }> }
 ) {
   try {
+    const dataPath = getDataPath()
     const { bucket } = await params;
     const s3DataPath = join(dataPath, 's3', 'example-state-with-objects.json');
     const data = await readFile(s3DataPath, 'utf-8');

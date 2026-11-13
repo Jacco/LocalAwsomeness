@@ -45,7 +45,21 @@ import fs from 'fs'
 import path from 'path'
 import crypto from 'crypto'
 
-const DATA_DIR = process.env.JPK_DB_ROOT || path.join(process.cwd(), 'data')
+const DATA_DIR = (() => {
+  try {
+    const env = process.env.JPK_DB_ROOT
+    if (env && typeof env === 'string') {
+      return env
+    }
+    const cwd = process.cwd()
+    if (!cwd || typeof cwd !== 'string') {
+      return 'data'
+    }
+    return path.join(cwd, 'data')
+  } catch (e) {
+    return 'data'
+  }
+})()
 
 export interface S3ObjectMetadata {
   Key: string

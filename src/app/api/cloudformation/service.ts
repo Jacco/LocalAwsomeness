@@ -71,6 +71,7 @@ export const cloudFormation = defineService({
 
     CreateStack: {
       async handler(ctx: RequestContext) {
+        console.log('[CloudFormation:CreateStack] Starting, ctx.account:', ctx.account, 'ctx.region:', ctx.region)
         const {
           StackName,
           TemplateBody,
@@ -133,8 +134,9 @@ export const cloudFormation = defineService({
           return { StackId: stackId }
         } catch (error) {
           if (error instanceof AwsError) throw error
-          const msg = error instanceof Error ? error.message : 'Failed to create stack'
-          throw new AwsError('ValidationException', msg)
+          const errMsg = (error instanceof Error ? error.message : String(error)) || 'Failed to create stack'
+          console.error('[CF CreateStack] Error:', errMsg, 'Full error:', error)
+          throw new AwsError('ValidationException', errMsg)
         }
       }
     },
