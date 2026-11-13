@@ -32,21 +32,28 @@ async function getStacksDir(account: string): Promise<string> {
   return dir
 }
 
-// Helper to get templates directory
-async function getTemplatesDir(account: string): Promise<string> {
-  const dir = path.join(await getAccountCfDir(account), 'templates')
+// Helper to get a specific stack's directory
+async function getStackDir(account: string, stackName: string): Promise<string> {
+  const dir = path.join(await getStacksDir(account), stackName)
   await fs.mkdir(dir, { recursive: true })
   return dir
 }
 
-// Stack file naming: {stackName}.json
-function getStackFilePath(account: string, stackName: string): string {
-  return path.join(DATA_ROOT, 'data', 'accounts', account, 'cloudformation', 'stacks', `${stackName}.json`)
+// Helper to get a stack's templates directory
+async function getStackTemplatesDir(account: string, stackName: string): Promise<string> {
+  const dir = path.join(await getStackDir(account, stackName), 'templates')
+  await fs.mkdir(dir, { recursive: true })
+  return dir
 }
 
-// Template file naming: {templateId}.v{version}.json
-function getTemplateFilePath(account: string, templateId: string, version: number): string {
-  return path.join(DATA_ROOT, 'data', 'accounts', account, 'cloudformation', 'templates', `${templateId}.v${version}.json`)
+// Stack metadata file: {stackDir}/stack.json
+function getStackFilePath(account: string, stackName: string): string {
+  return path.join(DATA_ROOT, 'data', 'accounts', account, 'cloudformation', 'stacks', stackName, 'stack.json')
+}
+
+// Template version file: {stackDir}/templates/v{version}.json
+function getTemplateVersionPath(account: string, stackName: string, version: number): string {
+  return path.join(DATA_ROOT, 'data', 'accounts', account, 'cloudformation', 'stacks', stackName, 'templates', `v${version}.json`)
 }
 
 export interface StackParameter {
@@ -86,8 +93,10 @@ export interface Stack {
   RoleARN?: string
   EnableTerminationProtection: boolean
   Resources: StackResource[]
-  TemplateBody?: string
   Outputs?: Array<{ OutputKey: string; OutputValue: string; Description?: string; ExportName?: string }>
+  // Template versioning
+  TemplateVersion: number
+  TemplateVersions?: number[]
 }
 
 export interface Template {
@@ -183,27 +192,40 @@ export async function createStack(
     RoleARN: roleARN,
     EnableTerminationProtection: enableTerminationProtection ?? false,
     Resources: [],
-    TemplateBody: templateBody,
-    Outputs: []
+    Outputs: [],
+    TemplateVersion: 1,
+    TemplateVersions: [1]
   }
 
-  // Write stack to file
-  const stacksDir = await getStacksDir(account)
-  const stackFilePath = path.join(stacksDir, `${stackName}.json`)
+  // Create stack directory and save stack metadata
+  const stackDir = await getStackDir(account, stackName)
+  const stackFilePath = path.join(stackDir, 'stack.json')
   
   try {
     await fs.writeFile(stackFilePath, JSON.stringify(stack, null, 2), 'utf-8')
-    console.log(`Stack created and persisted: ${stackFilePath}`)
+    console.log(`Stack metadata persisted: ${stackFilePath}`)
   } catch (e) {
     console.error(`Failed to write stack file: ${stackFilePath}`, e)
     throw new Error(`Failed to persist stack: ${(e as Error).message}`)
+  }
+
+  // Store template as versioned file
+  const templatesDir = await getStackTemplatesDir(account, stackName)
+  const templateVersionPath = getTemplateVersionPath(account, stackName, 1)
+  
+  try {
+    await fs.writeFile(templateVersionPath, templateBody, 'utf-8')
+    console.log(`Template v1 persisted: ${templateVersionPath}`)
+  } catch (e) {
+    console.error(`Failed to write template file: ${templateVersionPath}`, e)
+    throw new Error(`Failed to persist template: ${(e as Error).message}`)
   }
 
   return stackId
 }
 
 /**
- * Retrieve stack from file
+ * Retrieve stack from file (metadata only)
  */
 export async function getStack(account: string, stackNameOrId: string): Promise<Stack> {
   // Extract stack name from ID if necessary
@@ -211,8 +233,7 @@ export async function getStack(account: string, stackNameOrId: string): Promise<
     ? stackNameOrId.split('/')[1] 
     : stackNameOrId
 
-  const stacksDir = await getStacksDir(account)
-  const stackFilePath = path.join(stacksDir, `${stackName}.json`)
+  const stackFilePath = getStackFilePath(account, stackName)
   
   try {
     const data = await fs.readFile(stackFilePath, 'utf-8')
@@ -227,29 +248,73 @@ export async function getStack(account: string, stackNameOrId: string): Promise<
 }
 
 /**
+ * Retrieve stack template by version
+ */
+export async function getStackTemplate(
+  account: string,
+  stackName: string,
+  version?: number
+): Promise<string> {
+  const stack = await getStack(account, stackName)
+  const templateVersion = version ?? stack.TemplateVersion
+  
+  const templatePath = getTemplateVersionPath(account, stackName, templateVersion)
+  
+  try {
+    const templateBody = await fs.readFile(templatePath, 'utf-8')
+    return templateBody
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new Error(`Template version ${templateVersion} not found for stack ${stackName}`)
+    }
+    throw new Error(`Failed to read template: ${(e as Error).message}`)
+  }
+}
+
+/**
+ * Get stack with current template body loaded
+ */
+export async function getStackWithTemplate(account: string, stackNameOrId: string): Promise<Stack & { TemplateBody?: string }> {
+  const stack = await getStack(account, stackNameOrId)
+  const stackName = stack.StackName
+  
+  try {
+    const templateBody = await getStackTemplate(account, stackName)
+    return { ...stack, TemplateBody: templateBody }
+  } catch (e) {
+    console.warn(`Could not load template for stack ${stackName}:`, e)
+    return stack
+  }
+}
+
+/**
  * List all stacks in an account
  */
 export async function listStacks(account: string, statusFilter?: string | string[]): Promise<Stack[]> {
   const stacksDir = await getStacksDir(account)
   
   try {
-    const files = await fs.readdir(stacksDir)
-    const jsonFiles = files.filter(f => f.endsWith('.json'))
+    const stackDirs = await fs.readdir(stacksDir)
     
     const stacks: Stack[] = []
-    for (const file of jsonFiles) {
-      const filePath = path.join(stacksDir, file)
-      const data = await fs.readFile(filePath, 'utf-8')
-      const stack = JSON.parse(data) as Stack
-      
-      // Apply status filter if provided
-      if (statusFilter) {
-        const statuses = Array.isArray(statusFilter) ? statusFilter : [statusFilter]
-        if (statuses.includes(stack.StackStatus)) {
+    for (const stackDir of stackDirs) {
+      const stackPath = path.join(stacksDir, stackDir, 'stack.json')
+      try {
+        const data = await fs.readFile(stackPath, 'utf-8')
+        const stack = JSON.parse(data) as Stack
+        
+        // Apply status filter if provided
+        if (statusFilter) {
+          const statuses = Array.isArray(statusFilter) ? statusFilter : [statusFilter]
+          if (statuses.includes(stack.StackStatus)) {
+            stacks.push(stack)
+          }
+        } else {
           stacks.push(stack)
         }
-      } else {
-        stacks.push(stack)
+      } catch (e) {
+        console.warn(`Failed to read stack from ${stackPath}:`, e)
+        // Skip stacks that fail to read
       }
     }
     
@@ -279,8 +344,7 @@ export async function updateStackStatus(
   }
   stack.LastUpdatedTime = Date.now()
 
-  const stacksDir = await getStacksDir(account)
-  const stackFilePath = path.join(stacksDir, `${stackName}.json`)
+  const stackFilePath = getStackFilePath(account, stackName)
   
   try {
     await fs.writeFile(stackFilePath, JSON.stringify(stack, null, 2), 'utf-8')
@@ -330,23 +394,19 @@ export async function getStackResources(account: string, stackName: string): Pro
  * Get template for a stack
  */
 export async function getTemplate(account: string, stackName: string): Promise<string> {
-  const stack = await getStack(account, stackName)
-  if (!stack.TemplateBody) {
-    throw new Error(`No template found for stack: ${stackName}`)
-  }
-  return stack.TemplateBody
+  return await getStackTemplate(account, stackName)
 }
 
 /**
- * Delete a stack
+ * Delete a stack and all its template versions
  */
 export async function deleteStack(account: string, stackName: string): Promise<void> {
-  const stacksDir = await getStacksDir(account)
-  const stackFilePath = path.join(stacksDir, `${stackName}.json`)
+  const stackDir = await getStackDir(account, stackName)
   
   try {
-    await fs.unlink(stackFilePath)
-    console.log(`Stack deleted: ${stackFilePath}`)
+    // Recursively delete the entire stack directory
+    await fs.rm(stackDir, { recursive: true, force: true })
+    console.log(`Stack deleted: ${stackDir}`)
   } catch (e) {
     if ((e as NodeJS.ErrnoException).code === 'ENOENT') {
       throw new Error(`Stack not found: ${stackName}`)

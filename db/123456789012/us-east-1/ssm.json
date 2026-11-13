@@ -1,0 +1,15 @@
+{
+  "parameters": {
+    "/test/param": {
+      "DataType": "text",
+      "LastModifiedDate": 1794550907.463,
+      "Name": "/test/param",
+      "Selector": "string",
+      "SourceResult": "string",
+      "Type": "string",
+      "Value": "test-value",
+      "Version": 1,
+      "Tier": "Standard"
+    }
+  }
+}
