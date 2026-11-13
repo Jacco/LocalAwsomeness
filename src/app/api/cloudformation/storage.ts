@@ -18,6 +18,15 @@ function getDataPath(): string {
 
 const DATA_ROOT = getDataPath()
 
+/**
+ * Strip internal fields (prefixed with __) from stack for API responses
+ * This hides internal versioning from the public API while keeping it stored
+ */
+export function stripInternalFields(stack: Stack): Stack {
+  const { __templateVersion, __templateVersions, ...publicStack } = stack as any
+  return publicStack as Stack
+}
+
 // Helper to get account-specific CloudFormation directory
 async function getAccountCfDir(account: string): Promise<string> {
   const dir = path.join(DATA_ROOT, 'data', 'accounts', account, 'cloudformation')
@@ -94,9 +103,9 @@ export interface Stack {
   EnableTerminationProtection: boolean
   Resources: StackResource[]
   Outputs?: Array<{ OutputKey: string; OutputValue: string; Description?: string; ExportName?: string }>
-  // Template versioning
-  TemplateVersion: number
-  TemplateVersions?: number[]
+  // Internal versioning (not exposed in API)
+  __templateVersion?: number
+  __templateVersions?: number[]
 }
 
 export interface Template {
@@ -193,8 +202,8 @@ export async function createStack(
     EnableTerminationProtection: enableTerminationProtection ?? false,
     Resources: [],
     Outputs: [],
-    TemplateVersion: 1,
-    TemplateVersions: [1]
+    __templateVersion: 1,
+    __templateVersions: [1]
   }
 
   // Create stack directory and save stack metadata
@@ -248,7 +257,7 @@ export async function getStack(account: string, stackNameOrId: string): Promise<
 }
 
 /**
- * Retrieve stack template by version
+ * Retrieve stack template by version (uses internal __templateVersion)
  */
 export async function getStackTemplate(
   account: string,
@@ -256,7 +265,7 @@ export async function getStackTemplate(
   version?: number
 ): Promise<string> {
   const stack = await getStack(account, stackName)
-  const templateVersion = version ?? stack.TemplateVersion
+  const templateVersion = version ?? stack.__templateVersion ?? 1
   
   const templatePath = getTemplateVersionPath(account, stackName, templateVersion)
   

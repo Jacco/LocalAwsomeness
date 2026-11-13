@@ -10,6 +10,7 @@ import {
   storeTemplate,
   updateStackStatus,
   getStackResources,
+  stripInternalFields,
   type Stack,
 } from './storage'
 

@@ -1,1 +1,0 @@
-{"AWSTemplateFormatVersion": "2010-09-09","Resources": {"Param1": {"Type": "AWS::SSM::Parameter","Properties": {"Value": "value-v1","Type": "String"}}}}
