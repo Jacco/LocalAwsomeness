@@ -25,6 +25,20 @@ The JSON bodies below are a readable summary of the parameters, not the wire for
 aws cloudformation create-stack --stack-name my-stack --template-body file://template.json
 ```
 
+### Deployment
+
+`CreateStack` returns at once with the stack in `CREATE_IN_PROGRESS`, as in AWS; `deployment.ts` runs the Python engine
+(`python/cf_deploy.py`) with the template, the previous resource state and the credentials of the deployment session,
+and follows its events: resource events update `DescribeStackResources` and are recorded for `DescribeStackEvents`
+(`events.jsonl` in the stack directory); the final event sets the stack status (`CREATE_COMPLETE`,
+`ROLLBACK_COMPLETE`, ...) and the resource state for the next run. `DeleteStack` of a stack with deployed resources goes
+to `DELETE_IN_PROGRESS`, deletes them through the engine, then removes the stack. `aws cloudformation wait
+stack-create-complete` / `stack-delete-complete` work.
+
+The interpreter is `JPK_PYTHON`, or the first `python3.x` >= 3.10 with boto3; `JPK_CF_ENGINE` replaces the engine script
+(the jest tests use `__tests__/fixtures/fake-cf-engine.js`, which calls no API). The engine reaches the simulator at
+`JPK_ENDPOINT_URL`, default `http://localhost:$PORT` (3000).
+
 ### Authorization
 
 - Stack operations are authorized as `cloudformation:<Operation>` on `arn:aws:cloudformation:<region>:<account>:stack/<name>/*`
@@ -590,6 +604,7 @@ db/
           templates/
             v{N}.json             # Template body per version, pretty-printed (2-space indent)
             v{N}.kms.json         # KMS record: AWS owned key, encryption context, encrypted data key (the template stays plaintext)
+          events.jsonl            # Stack events (DescribeStackEvents), oldest first
 ```
 
 **Stack JSON Structure:**

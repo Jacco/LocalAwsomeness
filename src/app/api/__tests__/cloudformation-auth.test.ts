@@ -5,6 +5,10 @@ import { join } from 'path'
 const root = mkdtempSync(join(tmpdir(), 'jpk-cfn-auth-'))
 process.env.JPK_DB_ROOT = root
 
+// CreateStack starts the deployment engine: use the fake one, which calls no API.
+process.env.JPK_PYTHON = process.execPath
+process.env.JPK_CF_ENGINE = join(__dirname, 'fixtures', 'fake-cf-engine.js')
+
 // Sessions are issued into the shared credentials store, which does not follow JPK_DB_ROOT: keep the tests out of db/.
 jest.mock('@/app/api/data/credentials', () => ({
   issueSession: jest.fn((_account: string, principal: string, userId: string) =>
@@ -112,6 +116,7 @@ describe('CloudFormation authorization', () => {
       ['PassRole', 'deny', 'AccessDenied'],
       ['CreateStack', 'allow', undefined],
       ['GenerateDataKey', 'allow', undefined],
+      ['Decrypt', 'allow', undefined], // the deployment reading the template
     ])
     const failed = readCloudTrailEvents(account, { action: 'CreateStack' })[0]
     expect(failed.errorMessage).toContain('iam:PassRole')

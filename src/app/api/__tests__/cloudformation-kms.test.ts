@@ -5,6 +5,16 @@ import { join } from 'path'
 const root = mkdtempSync(join(tmpdir(), 'jpk-cfn-kms-'))
 process.env.JPK_DB_ROOT = root
 
+// CreateStack starts the deployment engine: use the fake one, which calls no API.
+process.env.JPK_PYTHON = process.execPath
+process.env.JPK_CF_ENGINE = join(__dirname, 'fixtures', 'fake-cf-engine.js')
+
+// Sessions are issued into the shared credentials store, which does not follow JPK_DB_ROOT: keep the tests out of db/.
+jest.mock('@/app/api/data/credentials', () => ({
+  issueSession: jest.fn((_account: string, principal: string, userId: string) =>
+    ({ keyId: 'ASIATESTKEY', secret: 'test-secret', sessionToken: 'test-token', expiration: Date.now() + 3600_000, userId, principal })),
+}))
+
 /* eslint-disable @typescript-eslint/no-require-imports */
 const { cloudFormation } = require('@/app/api/cloudformation/service')
 const { readCloudTrailEvents, clearCloudTrailEvents } = require('@/app/api/cloudtrail/cloudtrail')
@@ -41,8 +51,10 @@ describe('CloudFormation template storage with the AWS owned key', () => {
     expect(created.status).toBe(200)
     const id = stackId(created.text)
 
-    const [event] = kmsEvents()
-    expect(kmsEvents()).toHaveLength(1)
+    // GenerateDataKey for storing the template, then Decrypt when the deployment reads it
+    const [event, read] = kmsEvents()
+    expect(kmsEvents()).toHaveLength(2)
+    expect(read).toMatchObject({ action: 'Decrypt', resource: event?.resource, principal: CALLER })
     expect(event).toMatchObject({
       action: 'GenerateDataKey', principal: CALLER, account, region: 'eu-west-1', authorizationDecision: 'allow', simulated: true,
       resource: expect.stringMatching(/^arn:aws:kms:eu-west-1:000000000000:key\/[0-9a-f-]{36}$/),
@@ -109,7 +121,7 @@ describe('CloudFormation template storage with the AWS owned key', () => {
     await call({ Action: 'CreateStack', StackName: 's4', TemplateBody: JSON.stringify(TEMPLATE) })
     await call({ Action: 'CreateStack', StackName: 's5', TemplateBody: JSON.stringify(TEMPLATE) }, 'eu-central-1')
     await call({ Action: 'CreateStack', StackName: 's6', TemplateBody: JSON.stringify(TEMPLATE) })
-    const [west, central, westAgain] = kmsEvents().map((e: any) => e.resource)
+    const [west, central, westAgain] = kmsEvents().filter((e: any) => e.action === 'GenerateDataKey').map((e: any) => e.resource)
     expect(west).toBe(westAgain)
     expect(central).toMatch(/^arn:aws:kms:eu-central-1:000000000000:key\//)
     expect(central.split('/').at(-1)).not.toBe(west.split('/').at(-1))

@@ -24,7 +24,7 @@ const DATA_ROOT = getDataPath()
  * This hides internal versioning from the public API while keeping it stored
  */
 export function stripInternalFields(stack: Stack): Stack {
-  const { __templateVersion, __templateVersions, ...publicStack } = stack as any
+  const { __templateVersion, __templateVersions, __deployed, ...publicStack } = stack as any
   return publicStack as Stack
 }
 
@@ -87,7 +87,7 @@ export interface StackResource {
   ResourceType: string
   ResourceStatus: 'CREATE_IN_PROGRESS' | 'CREATE_COMPLETE' | 'CREATE_FAILED' |
                    'UPDATE_IN_PROGRESS' | 'UPDATE_COMPLETE' | 'UPDATE_FAILED' |
-                   'DELETE_IN_PROGRESS' | 'DELETE_COMPLETE' | 'DELETE_FAILED'
+                   'DELETE_IN_PROGRESS' | 'DELETE_COMPLETE' | 'DELETE_FAILED' | 'DELETE_SKIPPED'
   Timestamp: number
   StatusReason?: string
   Properties?: Record<string, any>
@@ -100,7 +100,8 @@ export interface Stack {
   StackStatus: 'CREATE_IN_PROGRESS' | 'CREATE_COMPLETE' | 'CREATE_FAILED' |
                'UPDATE_IN_PROGRESS' | 'UPDATE_COMPLETE' | 'UPDATE_FAILED' |
                'DELETE_IN_PROGRESS' | 'DELETE_COMPLETE' | 'DELETE_FAILED' |
-               'ROLLBACK_IN_PROGRESS' | 'ROLLBACK_COMPLETE'
+               'ROLLBACK_IN_PROGRESS' | 'ROLLBACK_COMPLETE' | 'ROLLBACK_FAILED' |
+               'UPDATE_ROLLBACK_IN_PROGRESS' | 'UPDATE_ROLLBACK_COMPLETE' | 'UPDATE_ROLLBACK_FAILED'
   StackStatusReason?: string
   CreationTime: number
   LastUpdatedTime?: number
@@ -117,6 +118,21 @@ export interface Stack {
   // Internal versioning (not exposed in API)
   __templateVersion?: number
   __templateVersions?: number[]
+  // The resource state returned by the deployment engine, passed back to it as previousResources (not exposed in API)
+  __deployed?: Record<string, unknown>
+}
+
+// A stack event, as DescribeStackEvents returns it.
+export interface StackEvent {
+  EventId: string
+  StackId: string
+  StackName: string
+  LogicalResourceId: string
+  PhysicalResourceId?: string
+  ResourceType: string
+  Timestamp: number
+  ResourceStatus: string
+  ResourceStatusReason?: string
 }
 
 export interface Template {
@@ -203,7 +219,7 @@ export async function createStack(
     StackId: stackId,
     StackName: stackName,
     Description: stackDescription,
-    StackStatus: 'CREATE_COMPLETE',
+    StackStatus: 'CREATE_IN_PROGRESS',
     CreationTime: Date.now(),
     Parameters: parameters || [],
     Tags: tags,
@@ -247,6 +263,37 @@ export async function createStack(
   }
 
   return stackId
+}
+
+export async function saveStack(account: string, stack: Stack): Promise<void> {
+  try {
+    await fs.writeFile(getStackFilePath(account, stack.StackName), JSON.stringify(stack, null, 2), 'utf-8')
+  } catch (e) {
+    throw new Error(`Failed to save stack ${stack.StackName}: ${(e as Error).message}`)
+  }
+}
+
+// Stack events: {stackDir}/events.jsonl, oldest first.
+function getStackEventsPath(account: string, stackName: string): string {
+  return path.join(path.dirname(getStackFilePath(account, stackName)), 'events.jsonl')
+}
+
+export async function appendStackEvent(account: string, event: StackEvent): Promise<void> {
+  try {
+    await fs.appendFile(getStackEventsPath(account, event.StackName), JSON.stringify(event) + '\n', 'utf-8')
+  } catch (e) {
+    console.error(`Failed to record stack event for ${event.StackName}:`, e)
+  }
+}
+
+export async function getStackEvents(account: string, stackName: string): Promise<StackEvent[]> {
+  try {
+    const content = await fs.readFile(getStackEventsPath(account, stackName), 'utf-8')
+    return content.split('\n').filter(Boolean).map(line => JSON.parse(line))
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code === 'ENOENT') return []
+    throw new Error(`Failed to read stack events: ${(e as Error).message}`)
+  }
 }
 
 /**

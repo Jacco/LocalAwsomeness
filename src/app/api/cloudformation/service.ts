@@ -2,6 +2,7 @@ import { AwsError } from '../common'
 import { defineService, type RequestContext } from '../registry'
 import { CloudFormationQueryProtocol, toBoolean, toInteger } from './query-protocol'
 import { checkPassRole } from './role'
+import { startDeployment } from './deployment'
 import {
   createStack,
   getStack,
@@ -11,6 +12,7 @@ import {
   storeTemplate,
   updateStackStatus,
   getStackResources,
+  getStackEvents,
   stripInternalFields,
   type Stack,
 } from './storage'
@@ -151,6 +153,12 @@ export const cloudFormation = defineService({
             toBoolean(EnableTerminationProtection),
             { principal: ctx.principal, account: ctx.account, region: ctx.region }
           )
+
+          // As in AWS, CreateStack returns while the stack is CREATE_IN_PROGRESS; the deployment sets the final status.
+          await startDeployment({
+            account: ctx.account, region: ctx.region, stackName: StackName, operation: 'CREATE',
+            caller: { principal: ctx.principal, userId: ctx.userId, account: ctx.account, region: ctx.region },
+          })
 
           return { StackId: stackId }
         } catch (error) {
@@ -293,8 +301,21 @@ export const cloudFormation = defineService({
             )
           }
 
-          await updateStackStatus(ctx.account, StackName, 'DELETE_IN_PROGRESS')
-          await deleteStack(ctx.account, StackName)
+          if (stack.StackStatus.endsWith('_IN_PROGRESS')) {
+            throw new AwsError('ValidationError', `Stack [${StackName}] is in ${stack.StackStatus} state and can not be deleted now`)
+          }
+
+          if (Object.keys(stack.__deployed ?? {}).length > 0) {
+            // The deployment engine deletes the resources, then the stack is removed (DELETE_IN_PROGRESS until then).
+            await startDeployment({
+              account: ctx.account, region: ctx.region, stackName: stack.StackName, operation: 'DELETE',
+              caller: { principal: ctx.principal, userId: ctx.userId, account: ctx.account, region: ctx.region },
+              roleArn: RoleARN,
+            })
+          } else {
+            await updateStackStatus(ctx.account, StackName, 'DELETE_IN_PROGRESS')
+            await deleteStack(ctx.account, StackName)
+          }
 
           return { StackId: stack.StackId }
         } catch (error) {
@@ -341,6 +362,23 @@ export const cloudFormation = defineService({
           if (error instanceof AwsError) throw error
           const msg = error instanceof Error ? error.message : 'Failed to execute changeset'
           throw new AwsError('ValidationError', msg)
+        }
+      }
+    },
+
+    DescribeStackEvents: {
+      resources: stackResource,
+      async handler(ctx: RequestContext) {
+        const { StackName } = ctx.params
+        if (!StackName) {
+          throw new AwsError('ValidationError', 'StackName is required')
+        }
+        const stack = await getStack(ctx.account, StackName).catch(() => {
+          throw new AwsError('ValidationError', `Stack [${StackName}] does not exist`)
+        })
+        const events = await getStackEvents(ctx.account, stack.StackName)
+        return {
+          StackEvents: events.reverse().map(e => ({ ...e, Timestamp: new Date(e.Timestamp).toISOString() })),
         }
       }
     },
