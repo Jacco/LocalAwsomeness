@@ -5,7 +5,11 @@ Usage:
     cf_deploy.py '<config json>'
     cf_deploy.py - < config.json          (or no argument: config on stdin; use this for large templates)
 
-Config: {"stackName", "templateBody", "account", "region", "parameters"?, "endpointUrl"?, "credentials"?, "roleArn"?}
+Config: {"stackName", "templateBody" (not for DELETE), "account", "region", "operation"? (CREATE | UPDATE | DELETE),
+        "previousResources"? (the `resources` of the last SUCCESS event), "disableRollback"?, "parameters"?,
+        "endpointUrl"?, "credentials"?, "roleArn"?}
+
+The final event (SUCCESS or ERROR) carries `stackStatus` and `resources`: the state to keep for the next deployment.
 
 stdout carries only JSON-line progress events (see progress_reporter.py); diagnostics go to stderr.
 Exit codes: 0 success, 1 deployment/template error, 2 invalid invocation.
@@ -24,7 +28,8 @@ from typing import Any
 
 from api_client import ApiClient, ApiError
 from cf_parser import CloudFormationTemplate, TemplateContext
-from cf_types import DeployConfig, Stage, TemplateError
+from cf_types import DeployConfig, ResourceState, Stage, TemplateError
+from orchestrator import DeploymentFailed, Orchestrator
 from progress_reporter import ProgressReporter
 
 def read_config(argv: list[str]) -> DeployConfig:
@@ -88,15 +93,25 @@ def main(argv: list[str]) -> int:
         reporter.error(str(e), errorType='InvalidConfig')
         return 2
 
-    reporter.report(Stage.START, f'Deploying stack {config.stack_name}', stackName=config.stack_name,
-                    account=config.account, region=config.region)
+    reporter.report(Stage.START, f'{config.operation} stack {config.stack_name}', stackName=config.stack_name,
+                    account=config.account, region=config.region, operation=config.operation)
+    previous = {k: ResourceState.from_dict(k, v) for k, v in config.previous_resources.items()}
     try:
-        template = parse(config, reporter)
-        connect(config, reporter)
-        # Reconciliation (COMPARE/EXECUTE) is added by the per-service reconcilers (task 4.1b.2+).
-        reporter.success(f'Stack {config.stack_name}: template parsed, credentials verified',
-                         resourceCount=len(template.resources))
+        template = parse(config, reporter) if config.operation != 'DELETE' else None
+        api = connect(config, reporter)
+        orchestrator = Orchestrator(api, reporter, config.stack_name, config.disable_rollback)
+        if template is None:
+            orchestrator.delete(previous)
+            reporter.success(f'Stack {config.stack_name} deleted', stackStatus='DELETE_COMPLETE', resources={})
+            return 0
+        resources = orchestrator.deploy(template, previous, config.operation)
+        reporter.success(f'Stack {config.stack_name} deployed', stackStatus=f'{config.operation}_COMPLETE',
+                         resources={k: v.to_dict() for k, v in resources.items()})
         return 0
+    except DeploymentFailed as e:
+        reporter.error(str(e), errorType='DeploymentFailed', stackStatus=e.stack_status,
+                       resources={k: v.to_dict() for k, v in e.resources.items()})
+        return 1
     except TemplateError as e:
         reporter.error(str(e), errorType='ValidationError')
     except ApiError as e:

@@ -17,6 +17,10 @@ class Stage(str, Enum):
     COMPARE_COMPLETE = 'COMPARE_COMPLETE'
     EXECUTE = 'EXECUTE'
     EXECUTE_COMPLETE = 'EXECUTE_COMPLETE'
+    CLEANUP = 'CLEANUP'
+    CLEANUP_COMPLETE = 'CLEANUP_COMPLETE'
+    ROLLBACK = 'ROLLBACK'
+    ROLLBACK_COMPLETE = 'ROLLBACK_COMPLETE'
     SUCCESS = 'SUCCESS'
     ERROR = 'ERROR'
 
@@ -60,12 +64,22 @@ class DeployConfig:
     credentials: Optional[dict[str, str]] = None
     # The stack's service role. The credentials must be a session of it; every API call is then authorized as that role.
     role_arn: Optional[str] = None
+    # CREATE, UPDATE or DELETE of the stack.
+    operation: str = 'CREATE'
+    # The resources of the previous deployment, as returned in the final event of that deployment (StackState).
+    previous_resources: dict[str, Any] = field(default_factory=dict)
+    disable_rollback: bool = False
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> 'DeployConfig':
-        missing = [k for k in ('stackName', 'templateBody', 'account', 'region') if not data.get(k)]
+        required = ('stackName', 'account', 'region') if str(data.get('operation', '')).upper() == 'DELETE' \
+            else ('stackName', 'templateBody', 'account', 'region')
+        missing = [k for k in required if not data.get(k)]
         if missing:
             raise ValueError(f'Missing required config fields: {", ".join(missing)}')
+        operation = str(data.get('operation', 'CREATE')).upper()
+        if operation not in ('CREATE', 'UPDATE', 'DELETE'):
+            raise ValueError(f'operation must be CREATE, UPDATE or DELETE, not {operation}')
         if data.get('roleArn') and not data.get('credentials'):
             raise ValueError('roleArn needs the credentials of the role session issued by the CloudFormation service')
         parameters = data.get('parameters') or {}
@@ -74,11 +88,36 @@ class DeployConfig:
             parameters = {p['ParameterKey']: p.get('ParameterValue') for p in parameters}
         return cls(
             stack_name=data['stackName'],
-            template_body=data['templateBody'],
+            template_body=data.get('templateBody', ''),
             account=str(data['account']),
             region=data['region'],
             parameters=parameters,
             endpoint_url=data.get('endpointUrl'),
             credentials=data.get('credentials'),
             role_arn=data.get('roleArn'),
+            operation=operation,
+            previous_resources=data.get('previousResources') or {},
+            disable_rollback=bool(data.get('disableRollback', False)),
         )
+
+
+@dataclass
+class ResourceState:
+    """A deployed resource, as kept between deployments (in stack.json, by the Node.js side)."""
+    logical_id: str
+    type: str
+    physical_id: str
+    # Resolved properties the resource was last created or updated with.
+    properties: dict[str, Any]
+    # Values for Ref ('Ref') and Fn::GetAtt.
+    attributes: dict[str, Any]
+    deletion_policy: str = 'Delete'
+
+    def to_dict(self) -> dict[str, Any]:
+        return {'type': self.type, 'physicalId': self.physical_id, 'properties': self.properties,
+                'attributes': self.attributes, 'deletionPolicy': self.deletion_policy}
+
+    @classmethod
+    def from_dict(cls, logical_id: str, data: dict[str, Any]) -> 'ResourceState':
+        return cls(logical_id, data['type'], data['physicalId'], data.get('properties', {}), data.get('attributes', {}),
+                   data.get('deletionPolicy', 'Delete'))

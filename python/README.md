@@ -15,7 +15,13 @@ python -m pytest tests -q               # integration tests are skipped when loc
 Config fields: `stackName`, `templateBody`, `account`, `region`, optional `parameters` (mapping or
 `[{ParameterKey, ParameterValue}]`), `endpointUrl` (default `$AWS_ENDPOINT_URL` or `http://localhost:3000`),
 `credentials` (`{accessKeyId, secretAccessKey, sessionToken?}`, default: the boto3 credential chain), `roleArn`
-(the stack's service role; requires `credentials`).
+(the stack's service role; requires `credentials`), `operation` (`CREATE` | `UPDATE` | `DELETE`; no `templateBody`
+for `DELETE`), `previousResources` (the `resources` of the last successful run), `disableRollback`.
+
+The final event carries `stackStatus` (`CREATE_COMPLETE`, `UPDATE_COMPLETE`, `DELETE_COMPLETE`, `ROLLBACK_COMPLETE`,
+`UPDATE_ROLLBACK_COMPLETE`, `CREATE_FAILED`, `DELETE_FAILED`, ...) and `resources`: per logical ID the type, physical ID,
+resolved properties, `Ref`/`GetAtt` attributes and deletion policy. The caller keeps it and passes it back as
+`previousResources` next time.
 
 Credentials come from `deploymentSession()` in `src/app/api/cloudformation/role.ts`: the CloudFormation service checks
 the role's trust and issues a session of it (or of the caller when the stack has no role). Before any API call the
@@ -33,14 +39,16 @@ API error, 2 = invalid invocation.
 {"stage": "ERROR", "message": "...", "errorType": "ValidationError", "totalDuration": 0.2, "timestamp": 1794552703.19}
 ```
 
-Stages: `START`, `PARSE`, `PARSE_COMPLETE`, `CONNECT`, `CONNECT_COMPLETE`, then (with the reconcilers) `COMPARE`,
-`EXECUTE`, and finally `SUCCESS` or `ERROR`.
+Stages: `START`, `PARSE`, `PARSE_COMPLETE`, `CONNECT`, `CONNECT_COMPLETE`, `COMPARE`, `EXECUTE` (per resource:
+`CREATE_IN_PROGRESS`, `CREATE_COMPLETE`, `UPDATE_*`, `DELETE_*`, `*_FAILED`), `CLEANUP` (replaced and removed
+resources), `ROLLBACK` on failure, and finally `SUCCESS` or `ERROR`.
 
 ## Modules
 
 | File | Role |
 |------|------|
 | `cf_deploy.py` | Entry point: read config, parse, verify identity, (reconcile), report |
+| `orchestrator.py` | Deploys in dependency order, resolves `Ref`/`GetAtt` from earlier results, cleans up replaced and removed resources, rolls back on failure; deletes stacks in reverse order |
 | `cf_parser.py` | `TemplateParser` (intrinsics, from the project README) + `CloudFormationTemplate` (validation, conditions, dependencies, order) |
 | `api_client.py` | boto3 clients against the simulator; requests must be SigV4-signed (see `src/proxy.ts`) |
 | `progress_reporter.py` | JSON-line event writer |
