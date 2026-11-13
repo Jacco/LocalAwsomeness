@@ -39,6 +39,19 @@ function readJson(fn: string): any {
 
 const credentialsFile = (account: string) => `${DB}/${account}/credentials.json`
 
+// Drops expired sessions from `stored`; `keep` stays so the caller can still report it as expired. True if any were dropped.
+function dropExpiredSessions(stored: Record<string, Credential>, keep?: string): boolean {
+  const now = Date.now()
+  let changed = false
+  for (const [id, c] of Object.entries(stored)) {
+    if (id !== keep && c.expiration !== undefined && c.expiration < now) {
+      delete stored[id]
+      changed = true
+    }
+  }
+  return changed
+}
+
 export function findCredential(keyId: string): Credential | undefined {
   const token = readJson(`${DB}/tokens.json`)[keyId]
   if (token) {
@@ -47,15 +60,19 @@ export function findCredential(keyId: string): Credential | undefined {
   if (!existsSync(DB)) {
     return undefined
   }
+  let found: Credential | undefined
   for (const dir of readdirSync(DB)) {
     if (/^\d{12}$/.test(dir)) {
-      const credential = readJson(credentialsFile(dir))[keyId]
-      if (credential) {
-        return credential
+      const fn = credentialsFile(dir)
+      if (!existsSync(fn)) continue
+      const stored: Record<string, Credential> = readJson(fn)
+      found ??= stored[keyId]
+      if (dropExpiredSessions(stored, keyId)) {
+        writeFileSync(fn, JSON.stringify(stored, null, 2))
       }
     }
   }
-  return undefined
+  return found
 }
 
 export function issueSession(account: string, principal: string, userId: string, durationSeconds: number) {
@@ -69,11 +86,7 @@ export function issueSession(account: string, principal: string, userId: string,
   }
   const fn = credentialsFile(account)
   const stored: Record<string, Credential> = readJson(fn)
-  for (const [id, c] of Object.entries(stored)) {
-    if (c.expiration !== undefined && c.expiration < Date.now()) {
-      delete stored[id]
-    }
-  }
+  dropExpiredSessions(stored)
   stored[keyId] = credential
   mkdirSync(`${DB}/${account}`, { recursive: true })
   writeFileSync(fn, JSON.stringify(stored, null, 2))
