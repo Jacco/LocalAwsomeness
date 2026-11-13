@@ -33,6 +33,9 @@ export interface CloudTrailEvent {
   errorCode?: string
   // Error message if operation failed
   errorMessage?: string
+  // Order of creation within the server process: events with the same timestamp sort by it. Set by logCloudTrailEvent
+  // when absent; a call's own event takes it when the call starts, so it sorts before the events the call caused.
+  sequence?: number
   // An event AWS CloudTrail does not record (e.g. the iam:PassRole check inside CreateStack), recorded by the simulator
   // so the check and its failures can be traced.
   simulated?: boolean
@@ -69,11 +72,16 @@ function getCloudTrailPath(account: string): string {
 /**
  * Log an API call to CloudTrail. Called from registry.ts after authorization check.
  */
+let sequence = 0
+export function nextSequence(): number {
+  return ++sequence
+}
+
 export function logCloudTrailEvent(event: CloudTrailEvent): void {
   try {
     const path = getCloudTrailPath(event.account)
     if (!path) return // Skip if path couldn't be determined
-    appendFileSync(path, JSON.stringify(event) + '\n', 'utf8')
+    appendFileSync(path, JSON.stringify({ ...event, sequence: event.sequence ?? nextSequence() }) + '\n', 'utf8')
   } catch (error) {
     // Silently fail - CloudTrail logging should never break the application
     // In real code, this would go to stderr but we don't want to pollute Lambda output
@@ -104,7 +112,8 @@ export function readCloudTrailEvents(
 
     const fs = require('fs')
     const content = fs.readFileSync(path, 'utf8')
-    const events = content.trim().split('\n').filter(Boolean).map((line: string) => JSON.parse(line) as CloudTrailEvent)
+    const events = (content.trim().split('\n').filter(Boolean).map((line: string) => JSON.parse(line) as CloudTrailEvent))
+      .sort((a: CloudTrailEvent, b: CloudTrailEvent) => a.timestamp.localeCompare(b.timestamp) || (a.sequence ?? 0) - (b.sequence ?? 0))
 
     if (!filters) return events
 

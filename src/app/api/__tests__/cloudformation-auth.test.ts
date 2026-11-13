@@ -102,6 +102,21 @@ describe('CloudFormation authorization', () => {
     ])
   })
 
+  it('records a call that was authorized but failed with its error, before the events it caused', async () => {
+    clearCloudTrailEvents(account)
+    await createStack(DEPLOYER, 'allowed-fails-on-passrole', { RoleARN: LAMBDA_ROLE })
+    await createStack(DEPLOYER, 'allowed-ok')
+    const events = readCloudTrailEvents(account).map((e: any) => [e.action, e.authorizationDecision, e.errorCode])
+    expect(events).toEqual([
+      ['CreateStack', 'allow', 'AccessDenied'],
+      ['PassRole', 'deny', 'AccessDenied'],
+      ['CreateStack', 'allow', undefined],
+      ['GenerateDataKey', 'allow', undefined],
+    ])
+    const failed = readCloudTrailEvents(account, { action: 'CreateStack' })[0]
+    expect(failed.errorMessage).toContain('iam:PassRole')
+  })
+
   it('rejects a role CloudFormation cannot assume, after the PassRole check', async () => {
     for (const roleArn of [LAMBDA_ROLE, `arn:aws:iam::${account}:role/missing`]) {
       const response = await createStack(ADMIN, 'allowed-untrusted', { RoleARN: roleArn })

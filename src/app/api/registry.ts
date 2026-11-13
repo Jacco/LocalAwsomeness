@@ -60,14 +60,22 @@ export function defineService<P>(definition: ServiceDefinition<P>) {
         userId: info.userId,
         params
       }
-      authorize({
+      const complete = authorize({
         principal: ctx.principal,
         action: operation.action ?? `${iamPrefix}:${action}`,
         resources: operation.resources?.(ctx) ?? ['*'],
         resourcePolicy: operation.resourcePolicy?.(ctx),
         context: ctx
       })
-      return protocol.success(action, await operation.handler(ctx))
+      let result: unknown
+      try {
+        result = await operation.handler(ctx)
+      } catch (e) {
+        complete(e)
+        throw e
+      }
+      complete()
+      return protocol.success(action, result)
     } catch (e) {
       return protocol.failure(e)
     }

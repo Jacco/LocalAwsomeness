@@ -1,6 +1,7 @@
 import type { RequestContext } from "./registry"
 import { policyAuthorizer, type ResourcePolicy } from "../auth/policy/authorizer"
-import { logCloudTrailEvent, type CloudTrailEvent } from "./cloudtrail/cloudtrail"
+import { AwsError } from "./common"
+import { logCloudTrailEvent, nextSequence, type CloudTrailEvent } from "./cloudtrail/cloudtrail"
 
 export interface AuthorizationRequest {
   principal: string
@@ -32,48 +33,50 @@ function logInvolvedAccounts(event: CloudTrailEvent, resourcePolicy?: ResourcePo
   }
 }
 
-export function authorize(request: AuthorizationRequest) {
+// Records the outcome of an allowed call: the error it failed with, if any.
+export type CompleteCall = (error?: unknown) => void
+
+// Authorizes a request. A denial is recorded in CloudTrail and thrown at once. An allowed call is recorded when it
+// completes, through the returned function, so the event carries the error the operation failed with (as CloudTrail
+// records errorCode and errorMessage for calls that were authorized but failed). The event keeps the time and the
+// sequence of the request, so it sorts before the events the operation caused (iam:PassRole, KMS, AssumeRole).
+export function authorize(request: AuthorizationRequest): CompleteCall {
   const { principal, action, resources, context, resourcePolicy } = request
-  
-  // Extract service name from action (e.g., "iam:PutRolePolicy" -> "iam")
+
   const [service] = action.split(':')
-  const primaryResource = resources[0] || '*'
-  
+  const event = {
+    timestamp: new Date().toISOString(),
+    sequence: nextSequence(),
+    principal,
+    service: service.toLowerCase(),
+    action: action.split(':')[1] || action,
+    resource: resources[0] || '*',
+    resources: resources.length > 1 ? resources.slice(1) : undefined,
+    account: context.account,
+    region: context.region,
+    parameters: context.params as Record<string, unknown>
+  }
+
   try {
     authorizer(request)
-    
-    // Authorization succeeded - log to CloudTrail
-    logInvolvedAccounts({
-      timestamp: new Date().toISOString(),
-      principal,
-      service: service.toLowerCase(),
-      action: action.split(':')[1] || action,
-      resource: primaryResource,
-      resources: resources.length > 1 ? resources.slice(1) : undefined,
-      authorizationDecision: 'allow',
-      account: context.account,
-      region: context.region,
-      parameters: context.params as Record<string, unknown>
-    }, resourcePolicy)
   } catch (error) {
-    // Authorization failed - log denial to CloudTrail
-    const reason = (error as any)?.message || String(error)
     logInvolvedAccounts({
-      timestamp: new Date().toISOString(),
-      principal,
-      service: service.toLowerCase(),
-      action: action.split(':')[1] || action,
-      resource: primaryResource,
-      resources: resources.length > 1 ? resources.slice(1) : undefined,
+      ...event,
       authorizationDecision: 'deny',
-      authorizationReason: reason,
-      account: context.account,
-      region: context.region,
-      parameters: context.params as Record<string, unknown>,
-      errorCode: (error as any)?.code || 'AccessDenied'
+      authorizationReason: (error as any)?.message || String(error),
+      errorCode: (error as any)?.type || (error as any)?.code || 'AccessDenied'
     }, resourcePolicy)
-    
-    // Re-throw the original error
     throw error
+  }
+
+  return (failure?: unknown) => {
+    logInvolvedAccounts({
+      ...event,
+      authorizationDecision: 'allow',
+      ...(failure !== undefined && {
+        errorCode: failure instanceof AwsError ? failure.type : 'InternalFailure',
+        errorMessage: failure instanceof Error ? failure.message : String(failure)
+      })
+    }, resourcePolicy)
   }
 }
