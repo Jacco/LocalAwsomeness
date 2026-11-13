@@ -1,10 +1,53 @@
 import { randomUUID } from 'crypto'
+import { promises as fs } from 'fs'
+import path from 'path'
 
-// In-memory storage for CloudFormation stacks
-const stacks = new Map<string, Stack>()
-const templates = new Map<string, string>()
+// Safe data path initialization
+function getDataPath(): string {
+  try {
+    const env = process.env.JPK_DB_ROOT
+    if (env && typeof env === 'string') return env
+    const cwd = process.cwd()
+    if (!cwd || typeof cwd !== 'string') return '/tmp/jpk-db'
+    return cwd
+  } catch (e) {
+    console.error('Failed to initialize data path:', e)
+    return '/tmp/jpk-db'
+  }
+}
 
-const getKey = (account: string, name: string) => `${account}#${name}`
+const DATA_ROOT = getDataPath()
+
+// Helper to get account-specific CloudFormation directory
+async function getAccountCfDir(account: string): Promise<string> {
+  const dir = path.join(DATA_ROOT, 'data', 'accounts', account, 'cloudformation')
+  await fs.mkdir(dir, { recursive: true })
+  return dir
+}
+
+// Helper to get stacks directory
+async function getStacksDir(account: string): Promise<string> {
+  const dir = path.join(await getAccountCfDir(account), 'stacks')
+  await fs.mkdir(dir, { recursive: true })
+  return dir
+}
+
+// Helper to get templates directory
+async function getTemplatesDir(account: string): Promise<string> {
+  const dir = path.join(await getAccountCfDir(account), 'templates')
+  await fs.mkdir(dir, { recursive: true })
+  return dir
+}
+
+// Stack file naming: {stackName}.json
+function getStackFilePath(account: string, stackName: string): string {
+  return path.join(DATA_ROOT, 'data', 'accounts', account, 'cloudformation', 'stacks', `${stackName}.json`)
+}
+
+// Template file naming: {templateId}.v{version}.json
+function getTemplateFilePath(account: string, templateId: string, version: number): string {
+  return path.join(DATA_ROOT, 'data', 'accounts', account, 'cloudformation', 'templates', `${templateId}.v${version}.json`)
+}
 
 export interface StackParameter {
   ParameterKey: string
@@ -104,98 +147,119 @@ export async function storeTemplate(
 }
 
 /**
- * Create a new stack
+ * Create a new stack and persist to file
  */
 export async function createStack(
   account: string,
   stackName: string,
   templateBody: string,
+  stackDescription?: string,
   parameters?: StackParameter[],
   tags?: Array<{ Key: string; Value: string }>,
-  options?: {
-    description?: string
-    timeoutInMinutes?: number
-    notificationARNs?: string[]
-    disableRollback?: boolean
-    capabilities?: string[]
-    roleARN?: string
-  }
+  timeoutInMinutes?: number,
+  notificationARNs?: string[],
+  disableRollback?: boolean,
+  capabilities?: string[],
+  roleARN?: string,
+  enableTerminationProtection?: boolean
 ): Promise<string> {
-  console.log('[CloudFormation:storage:createStack] Starting with account:', account, 'stackName:', stackName)
-  
-  const template = await storeTemplate(account, templateBody)
-  const key = getKey(account, stackName)
-  
-  console.log('[CloudFormation:storage:createStack] Key:', key)
-  
-  // Check if stack already exists
-  if (stacks.has(key)) {
-    throw new Error(`Stack with name ${stackName} already exists`)
-  }
-  
-  const stackId = randomUUID()
-  const stackArn = `arn:aws:cloudformation:eu-central-1:${account}:stack/${stackName}/${stackId}`
+  // Validate template first
+  const templateInfo = await storeTemplate(account, templateBody)
+
+  const stackId = `arn:aws:cloudformation:us-east-1:${account}:stack/${stackName}/${randomUUID()}`
   
   const stack: Stack = {
-    StackId: stackArn,
+    StackId: stackId,
     StackName: stackName,
-    Description: options?.description || template.TemplateDescription,
-    Parameters: parameters || [],
+    Description: stackDescription,
+    StackStatus: 'CREATE_COMPLETE',
     CreationTime: Date.now(),
-    StackStatus: 'CREATE_IN_PROGRESS',
-    EnableTerminationProtection: false,
-    Resources: [],
+    Parameters: parameters || [],
     Tags: tags,
-    TimeoutInMinutes: options?.timeoutInMinutes,
-    NotificationARNs: options?.notificationARNs,
-    DisableRollback: options?.disableRollback ?? false,
-    Capabilities: options?.capabilities,
-    RoleARN: options?.roleARN,
+    TimeoutInMinutes: timeoutInMinutes,
+    NotificationARNs: notificationARNs,
+    DisableRollback: disableRollback ?? false,
+    Capabilities: capabilities,
+    RoleARN: roleARN,
+    EnableTerminationProtection: enableTerminationProtection ?? false,
+    Resources: [],
+    TemplateBody: templateBody,
+    Outputs: []
   }
+
+  // Write stack to file
+  const stacksDir = await getStacksDir(account)
+  const stackFilePath = path.join(stacksDir, `${stackName}.json`)
   
-  stacks.set(key, stack)
-  templates.set(key, templateBody)
-  
-  return stackArn
+  try {
+    await fs.writeFile(stackFilePath, JSON.stringify(stack, null, 2), 'utf-8')
+    console.log(`Stack created and persisted: ${stackFilePath}`)
+  } catch (e) {
+    console.error(`Failed to write stack file: ${stackFilePath}`, e)
+    throw new Error(`Failed to persist stack: ${(e as Error).message}`)
+  }
+
+  return stackId
 }
 
 /**
- * Retrieve stack by name or ARN
+ * Retrieve stack from file
  */
 export async function getStack(account: string, stackNameOrId: string): Promise<Stack> {
-  let stackName = stackNameOrId
-  if (stackNameOrId.startsWith('arn:')) {
-    const match = stackNameOrId.match(/stack\/([^/]+)\//)
-    if (!match) throw new Error('Invalid stack ARN format')
-    stackName = match[1]
-  }
+  // Extract stack name from ID if necessary
+  const stackName = stackNameOrId.includes('/') 
+    ? stackNameOrId.split('/')[1] 
+    : stackNameOrId
 
-  const key = getKey(account, stackName)
-  const stack = stacks.get(key)
+  const stacksDir = await getStacksDir(account)
+  const stackFilePath = path.join(stacksDir, `${stackName}.json`)
   
-  if (!stack) {
-    throw new Error(`Stack with id [${stackNameOrId}] does not exist`)
+  try {
+    const data = await fs.readFile(stackFilePath, 'utf-8')
+    const stack = JSON.parse(data) as Stack
+    return stack
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new Error(`Stack not found: ${stackName}`)
+    }
+    throw new Error(`Failed to read stack: ${(e as Error).message}`)
   }
-  
-  return stack
 }
 
 /**
- * List all stacks for an account
+ * List all stacks in an account
  */
-export async function listStacks(
-  account: string,
-  stackStatusFilter?: string[]
-): Promise<Stack[]> {
-  const allStacks = Array.from(stacks.entries())
-    .filter(([key]) => key.startsWith(`${account}#`))
-    .map(([, stack]) => stack)
+export async function listStacks(account: string, statusFilter?: string | string[]): Promise<Stack[]> {
+  const stacksDir = await getStacksDir(account)
   
-  if (stackStatusFilter && stackStatusFilter.length > 0) {
-    return allStacks.filter(s => stackStatusFilter.includes(s.StackStatus))
+  try {
+    const files = await fs.readdir(stacksDir)
+    const jsonFiles = files.filter(f => f.endsWith('.json'))
+    
+    const stacks: Stack[] = []
+    for (const file of jsonFiles) {
+      const filePath = path.join(stacksDir, file)
+      const data = await fs.readFile(filePath, 'utf-8')
+      const stack = JSON.parse(data) as Stack
+      
+      // Apply status filter if provided
+      if (statusFilter) {
+        const statuses = Array.isArray(statusFilter) ? statusFilter : [statusFilter]
+        if (statuses.includes(stack.StackStatus)) {
+          stacks.push(stack)
+        }
+      } else {
+        stacks.push(stack)
+      }
+    }
+    
+    return stacks
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code === 'ENOENT') {
+      return []
+    }
+    throw new Error(`Failed to list stacks: ${(e as Error).message}`)
   }
-  
-  return allStacks
 }
 
 /**
@@ -205,123 +269,147 @@ export async function updateStackStatus(
   account: string,
   stackName: string,
   status: Stack['StackStatus'],
-  reason?: string
+  statusReason?: string
 ): Promise<void> {
-  const key = getKey(account, stackName)
-  const stack = stacks.get(key)
-  
-  if (!stack) {
-    throw new Error(`Stack not found: ${stackName}`)
-  }
+  const stack = await getStack(account, stackName)
   
   stack.StackStatus = status
-  stack.StackStatusReason = reason
+  if (statusReason) {
+    stack.StackStatusReason = statusReason
+  }
   stack.LastUpdatedTime = Date.now()
+
+  const stacksDir = await getStacksDir(account)
+  const stackFilePath = path.join(stacksDir, `${stackName}.json`)
+  
+  try {
+    await fs.writeFile(stackFilePath, JSON.stringify(stack, null, 2), 'utf-8')
+  } catch (e) {
+    throw new Error(`Failed to update stack status: ${(e as Error).message}`)
+  }
 }
 
 /**
- * Add resource to stack
+ * Add a resource to a stack
  */
 export async function addStackResource(
   account: string,
   stackName: string,
   resource: StackResource
 ): Promise<void> {
-  const key = getKey(account, stackName)
-  const stack = stacks.get(key)
+  const stack = await getStack(account, stackName)
   
-  if (!stack) {
-    throw new Error(`Stack not found: ${stackName}`)
-  }
-  
-  const existing = stack.Resources.findIndex(r => r.LogicalResourceId === resource.LogicalResourceId)
-  if (existing >= 0) {
-    stack.Resources[existing] = resource
+  // Check if resource already exists
+  const existingIndex = stack.Resources.findIndex(r => r.LogicalResourceId === resource.LogicalResourceId)
+  if (existingIndex >= 0) {
+    stack.Resources[existingIndex] = resource
   } else {
     stack.Resources.push(resource)
   }
-}
+  stack.LastUpdatedTime = Date.now()
 
-/**
- * Get stack resources
- */
-export async function getStackResources(
-  account: string,
-  stackName: string
-): Promise<StackResource[]> {
-  const stack = await getStack(account, stackName)
-  return stack.Resources
-}
-
-/**
- * Get template used to create stack
- */
-export async function getTemplate(
-  account: string,
-  stackName: string
-): Promise<string> {
-  const key = getKey(account, stackName)
-  const template = templates.get(key)
+  const stacksDir = await getStacksDir(account)
+  const stackFilePath = path.join(stacksDir, `${stackName}.json`)
   
-  if (!template) {
-    throw new Error(`Stack with id [${stackName}] does not exist`)
+  try {
+    await fs.writeFile(stackFilePath, JSON.stringify(stack, null, 2), 'utf-8')
+  } catch (e) {
+    throw new Error(`Failed to add resource: ${(e as Error).message}`)
   }
-  
-  return template
 }
 
 /**
- * Delete stack
+ * Get all resources in a stack
+ */
+export async function getStackResources(account: string, stackName: string): Promise<StackResource[]> {
+  const stack = await getStack(account, stackName)
+  return stack.Resources || []
+}
+
+/**
+ * Get template for a stack
+ */
+export async function getTemplate(account: string, stackName: string): Promise<string> {
+  const stack = await getStack(account, stackName)
+  if (!stack.TemplateBody) {
+    throw new Error(`No template found for stack: ${stackName}`)
+  }
+  return stack.TemplateBody
+}
+
+/**
+ * Delete a stack
  */
 export async function deleteStack(account: string, stackName: string): Promise<void> {
-  const key = getKey(account, stackName)
-  const stack = stacks.get(key)
+  const stacksDir = await getStacksDir(account)
+  const stackFilePath = path.join(stacksDir, `${stackName}.json`)
   
-  if (!stack) {
-    throw new Error(`Stack not found: ${stackName}`)
+  try {
+    await fs.unlink(stackFilePath)
+    console.log(`Stack deleted: ${stackFilePath}`)
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code === 'ENOENT') {
+      throw new Error(`Stack not found: ${stackName}`)
+    }
+    throw new Error(`Failed to delete stack: ${(e as Error).message}`)
   }
-  
-  stack.StackStatus = 'DELETE_COMPLETE'
-  stack.LastUpdatedTime = Date.now()
 }
 
 /**
- * Add stack output
+ * Add an output to a stack
  */
 export async function addStackOutput(
   account: string,
   stackName: string,
-  output: { OutputKey: string; OutputValue: string; Description?: string; ExportName?: string }
+  outputKey: string,
+  outputValue: string,
+  description?: string,
+  exportName?: string
 ): Promise<void> {
-  const key = getKey(account, stackName)
-  const stack = stacks.get(key)
-  
-  if (!stack) {
-    throw new Error(`Stack not found: ${stackName}`)
-  }
+  const stack = await getStack(account, stackName)
   
   if (!stack.Outputs) {
     stack.Outputs = []
   }
-  
-  const existing = stack.Outputs.findIndex(o => o.OutputKey === output.OutputKey)
-  if (existing >= 0) {
-    stack.Outputs[existing] = output
+
+  const existingIndex = stack.Outputs.findIndex(o => o.OutputKey === outputKey)
+  const output = {
+    OutputKey: outputKey,
+    OutputValue: outputValue,
+    Description: description,
+    ExportName: exportName
+  }
+
+  if (existingIndex >= 0) {
+    stack.Outputs[existingIndex] = output
   } else {
     stack.Outputs.push(output)
+  }
+  stack.LastUpdatedTime = Date.now()
+
+  const stacksDir = await getStacksDir(account)
+  const stackFilePath = path.join(stacksDir, `${stackName}.json`)
+  
+  try {
+    await fs.writeFile(stackFilePath, JSON.stringify(stack, null, 2), 'utf-8')
+  } catch (e) {
+    throw new Error(`Failed to add output: ${(e as Error).message}`)
   }
 }
 
 /**
- * Export lookup for cross-stack imports
+ * Look up an exported value by name
  */
 export async function lookupExport(account: string, exportName: string): Promise<string | null> {
-  const allStacks = await listStacks(account)
+  const stacks = await listStacks(account)
   
-  for (const stack of allStacks) {
-    const output = stack.Outputs?.find(o => o.ExportName === exportName)
-    if (output) {
-      return output.OutputValue
+  for (const stack of stacks) {
+    if (stack.Outputs) {
+      for (const output of stack.Outputs) {
+        if (output.ExportName === exportName) {
+          return output.OutputValue
+        }
+      }
     }
   }
   

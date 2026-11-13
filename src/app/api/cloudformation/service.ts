@@ -119,16 +119,14 @@ export const cloudFormation = defineService({
             ctx.account,
             StackName,
             TemplateBody,
+            Description,
             Parameters,
             Tags,
-            {
-              description: Description,
-              timeoutInMinutes: TimeoutInMinutes,
-              notificationARNs: NotificationARNs,
-              disableRollback: DisableRollback,
-              capabilities: Capabilities,
-              roleARN: RoleARN,
-            }
+            TimeoutInMinutes,
+            NotificationARNs,
+            DisableRollback,
+            Capabilities,
+            RoleARN
           )
 
           return { StackId: stackId }
